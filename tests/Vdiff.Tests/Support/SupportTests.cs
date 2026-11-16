@@ -144,8 +144,15 @@ public class SupportTests
         var sandbox = Path.GetFullPath(repo.Root).Replace('\\', '/');
         Assert.All(origins, line =>
         {
-            var origin = line.Split('\t')[0].Replace("file:", "").Replace('\\', '/');
-            Assert.StartsWith(sandbox, origin, StringComparison.OrdinalIgnoreCase);
+            // The repository's own config is shown relative; the command line has no file.
+            // A system or global config would be an absolute path outside the sandbox.
+            var origin = line.Split('\t')[0];
+            if (origin is "command line:" or "file:.git/config")
+            {
+                return;
+            }
+
+            Assert.StartsWith(sandbox, origin.Replace("file:", "").Replace('\\', '/'), StringComparison.OrdinalIgnoreCase);
         });
     }
 
