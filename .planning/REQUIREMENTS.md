@@ -143,7 +143,7 @@ Phases are defined in `.planning/ROADMAP.md`. Each requirement maps to exactly o
 - The Phase 1 tracer produces a thin first cut of R-05, R-10, R-13, R-20 and R-22. Those
   requirements stay owned by the phases that harden them (Phases 4, 2, 5, 7 and 7); the
   TRC requirements cover only what the tracer itself delivers.
-- SPK-02 is owned by Phase 1: ADR-001 is Proposed (Rust sidecar) and is the basis of the
+- SPK-02 is owned by Phase 1: ADR-001 is Accepted (Rust sidecar) and is the basis of the
   tracer's C++ extraction.
 - SPK-03 is owned by Phase 4 (attached to the C# plan) and is on hold pending PO decision
   O4 (see PROJECT.md); the PO's reading of O4 is not yet confirmed.

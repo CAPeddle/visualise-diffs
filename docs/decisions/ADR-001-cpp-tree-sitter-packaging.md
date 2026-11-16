@@ -1,6 +1,6 @@
 # ADR-001: Package the C++ tree-sitter extractor as a native sidecar
 
-- **Status:** Proposed
+- **Status:** Accepted (PO, 2026-11-16)
 - **Date:** 2026-11-16
 - **Spike:** S2 (plan U3). Related requirements: R5, R9, R10, R23, R26; decision D14.
 
