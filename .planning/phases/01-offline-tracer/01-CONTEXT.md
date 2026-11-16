@@ -17,16 +17,16 @@ PR threads, pipeline YAML.
 Source of each decision: **PO** = said by the PO; **Orch** = orchestrator's assumption, stated to
 the PO and not contradicted; **ADR** = docs/decisions/ADR-001.
 
-- **D-01 (PO).** First test is offline against a local clone of a real repository.
-- **D-02 (Orch).** Read-only access to the repository it analyses. Read commits via git objects
+- **D-01:** (PO) First test is offline against a local clone of a real repository.
+- **D-02:** (Orch) Read-only access to the repository it analyses. Read commits via git objects
   (`git ls-tree`, `git cat-file --batch`, `git diff --name-status` between the two SHAs). Never
   `checkout`, `switch`, `stash`, `worktree add`, `reset`, `fetch` or any command that writes to
   the repo's working tree, index, refs or `.git` admin files. The PO's clone may carry another
   session's uncommitted work.
-- **D-03 (Orch).** CLI shape: `vdiff --repo <path> --base <sha> --head <sha> --out <dir>
+- **D-03:** (Orch) CLI shape: `vdiff --repo <path> --base <sha> --head <sha> --out <dir>
   [--blank MACRO]... [--include <glob>]...`. Output only under `--out`. Exit 0 on success, 1 on
   tool failure.
-- **D-04 (ADR, Orch).** C++ extraction via the Rust sidecar from ADR-001: `tree-sitter` 0.27.0
+- **D-04:** (ADR, Orch) C++ extraction via the Rust sidecar from ADR-001: `tree-sitter` 0.27.0
   and `tree-sitter-cpp` 0.23.4 pinned by `Cargo.lock`, invoked once per commit as a bounded
   subprocess (timeout, output-size bound) that prints JSON on stdout. Suggested path
   `extractors/cpp-ts/`. ADR-001 is Accepted (PO, 2026-11-16); the tracer is built on it, and the choice is
@@ -35,27 +35,27 @@ the PO and not contradicted; **ADR** = docs/decisions/ADR-001.
     materialises each commit's in-scope files from git objects into a temp directory under
     `--out` (or the system temp dir) and passes that root; or the sidecar reads a manifest of
     (path, bytes). Planner chooses; the repo itself is never written.
-- **D-05 (Orch).** Macro blanking is in scope here because without it a large share of types is
+- **D-05:** (Orch) Macro blanking is in scope here because without it a large share of types is
   lost (ADR-001 evidence). Names come from `--blank` flags. Length-preserving, skipping
   preprocessor lines.
-- **D-06 (Orch).** The orchestrator is a C#/.NET 10 console app `vdiff` (D14). Proposed layout:
+- **D-06:** (Orch) The orchestrator is a C#/.NET 10 console app `vdiff` (D14). Proposed layout:
   `src/Vdiff.Cli/`, `src/Vdiff.Core/` (git reader, diff, renderers), `tests/Vdiff.Tests/` (xUnit),
   `extractors/cpp-ts/` (Rust). One solution file at the root. Nothing from Roslyn is needed yet.
-- **D-07 (Orch).** Diff in the tracer: types matched by fully qualified name (namespace +
+- **D-07:** (Orch) Diff in the tracer: types matched by fully qualified name (namespace +
   nesting) and kind; members by name + parameter text. States `added`, `removed`, `modified`,
   `unchanged`; member `modified` on signature or access change. No renames, no `body-changed`,
   no edges beyond bases. All lists sorted canonically so output is deterministic.
-- **D-08 (Orch).** Outputs in `--out`: `base.model.json`, `head.model.json`, `diff.json`,
+- **D-08:** (Orch) Outputs in `--out`: `base.model.json`, `head.model.json`, `diff.json`,
   `summary.mmd` (Mermaid `classDiagram`, a `classDef` per state, `:::state` on classes, trailing
   member tags `[added]`/`[removed]`/`[modified]`, only changed types shown), `report.html`
   (self-contained, no network; may embed the Mermaid text plus a plain table; no JS from a CDN).
   The model JSON is a provisional shape labelled `vdiff-model/v0-tracer`; Phase 2 fixes v1.
-- **D-09 (PO rule).** Repository is public (D15). Tests use synthetic repos built by a script
+- **D-09:** (PO rule) Repository is public (D15). Tests use synthetic repos built by a script
   in a temp dir. The real-repo run (TRC-03) happens on the PO's private clone, its outputs stay
   outside this repository, and the record in this repo is pass/fail only, without names or
   figures. The real run's commit SHAs and path are supplied at run time, never written into a
   committed file.
-- **D-10 (Orch).** Scope filter for the tracer: C++ files by extension (`.h`, `.hpp`, `.hh`,
+- **D-10:** (Orch) Scope filter for the tracer: C++ files by extension (`.h`, `.hpp`, `.hh`,
   `.hxx`, `.cpp`, `.cc`, `.cxx`) under optional `--include` globs; skip files whose head and base
   blobs are identical when deciding what changed, but extract whole-tree models only for the
   files needed: for the tracer it is acceptable to extract only changed C++ files in both commits
