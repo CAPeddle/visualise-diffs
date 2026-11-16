@@ -84,9 +84,9 @@ traceability; where they differ, `docs/requirements/requirements.md` wins.
 
 - **O3** — Does Mermaid `classDiagram` + `classDef` render in ADO PR comments? Spike S1
   (`docs/spikes/S1-mermaid-in-ado-pr.md`) closes it; gates U8.
-- **O4** — The PO noted (2026-11-16) that S3's premise was a mis-report: the target C#
-  is built on Windows. How this affects S3 and the Ubuntu-default runner (R26, D18) is
-  pending a PO decision.
+- **O4** — The PO said (2026-11-16) that S3's premise came from a mis-report and that the
+  target C# is built on Windows. The wording here is an interpretation, not yet confirmed.
+  The effect on S3 and on the Ubuntu-default runner (R26, D18) waits for a PO decision.
 
 ## Key Decisions
 
