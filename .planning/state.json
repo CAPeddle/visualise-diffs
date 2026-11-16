@@ -1,0 +1,58 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": null,
+  "phases": [
+    {
+      "number": "1",
+      "name": "Offline Tracer",
+      "status": "pending"
+    },
+    {
+      "number": "2",
+      "name": "Model Contract and Fixture Harness",
+      "status": "pending"
+    },
+    {
+      "number": "3",
+      "name": "Git Layer",
+      "status": "pending"
+    },
+    {
+      "number": "4",
+      "name": "Extractors",
+      "status": "pending"
+    },
+    {
+      "number": "5",
+      "name": "Differ",
+      "status": "pending"
+    },
+    {
+      "number": "6",
+      "name": "Node Selector",
+      "status": "pending"
+    },
+    {
+      "number": "7",
+      "name": "Renderers",
+      "status": "pending"
+    },
+    {
+      "number": "8",
+      "name": "Publisher",
+      "status": "pending"
+    },
+    {
+      "number": "9",
+      "name": "Pipeline Template and Trial",
+      "status": "pending"
+    }
+  ],
+  "next": {
+    "command": "/gsd-progress --next",
+    "label": "Advance to the next step",
+    "reason": "Phase 1 of 9 · 0% · executing"
+  },
+  "updated_at": "2026-11-16T19:06:03.304Z"
+}
