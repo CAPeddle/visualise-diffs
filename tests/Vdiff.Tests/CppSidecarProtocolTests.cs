@@ -260,12 +260,21 @@ public class CppSidecarProtocolTests
     }
 
     [Fact]
-    public void Extract_treats_empty_output_as_a_failure()
+    public void Extract_treats_empty_output_as_a_failure_carrying_the_stderr_tail()
     {
         var e = Assert.Throws<VdiffException>(() =>
-            CppSidecar.Extract([], [], Shell("cat > /dev/null; exit 0"), Quick));
+            CppSidecar.Extract([], [], Shell("cat > /dev/null; echo 'sidecar had nothing to say' >&2; exit 0"), Quick));
 
         Assert.Contains("no output", e.Message);
+        Assert.Contains("sidecar had nothing to say", e.Message);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(600_001)]
+    public void BuildRequest_refuses_a_parse_budget_the_sidecar_would_reject(int milliseconds)
+    {
+        Assert.Throws<VdiffException>(() => CppSidecar.BuildRequest([], [], TimeSpan.FromMilliseconds(milliseconds)));
     }
 
     [Fact]
