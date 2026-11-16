@@ -153,11 +153,18 @@ public static class CppSidecar
     /// </summary>
     public static byte[] BuildRequest(IReadOnlyList<SidecarInput> files, IReadOnlyList<string> blank, TimeSpan parseBudget)
     {
+        // The sidecar accepts 1 to 600000 ms and refuses anything else with exit 2.
+        var budgetMs = (long)parseBudget.TotalMilliseconds;
+        if (budgetMs is < 1 or > 600_000)
+        {
+            throw new VdiffException("the per-file parse budget must be between 1 ms and 600000 ms");
+        }
+
         var header = new
         {
             Schema = RequestSchema,
             Blank = blank,
-            ParseBudgetMs = (long)parseBudget.TotalMilliseconds,
+            ParseBudgetMs = budgetMs,
             Files = files.Select(f => new { f.Path, Len = f.Bytes.Length }).ToList(),
         };
 
@@ -238,17 +245,26 @@ public static class CppSidecar
 
         if (result.ExitCode != 0)
         {
-            var tail = result.StderrTail.Trim();
-            if (tail.Length > StderrInMessage)
-            {
-                tail = tail[^StderrInMessage..];
-            }
+            throw new VdiffException($"the sidecar exited with code {result.ExitCode}" + StderrSuffix(result));
+        }
 
-            throw new VdiffException(
-                $"the sidecar exited with code {result.ExitCode}" + (tail.Length > 0 ? ": " + tail : "."));
+        if (result.Stdout.Length == 0)
+        {
+            throw new VdiffException("the sidecar produced no output" + StderrSuffix(result));
         }
 
         return ParseResponse(result.Stdout, limits.MaxStdoutBytes);
+    }
+
+    static string StderrSuffix(ProcessResult result)
+    {
+        var tail = result.StderrTail.Trim();
+        if (tail.Length > StderrInMessage)
+        {
+            tail = tail[^StderrInMessage..];
+        }
+
+        return tail.Length > 0 ? ": " + tail : ".";
     }
 }
 
