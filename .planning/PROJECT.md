@@ -42,6 +42,7 @@ traceability; where they differ, `docs/requirements/requirements.md` wins.
 - [ ] One sticky PR thread found by marker and updated in place; nothing posted for no structural change (R24, R25)
 - [ ] Separate non-blocking job, 20-minute limit, P90 under 5 minutes (R26, R27)
 - [ ] Dry-run mode writing everything locally (R28)
+- [ ] Offline tracer first: `vdiff` against a local repo from git objects, C++ diff to model/diff JSON, Mermaid and HTML, no ADO (TRC-01..03; PO pivot 2026-11-16)
 
 ### Out of Scope
 

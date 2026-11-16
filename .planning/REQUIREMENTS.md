@@ -5,9 +5,17 @@
 
 **Source of truth:** `docs/requirements/requirements.md`. IDs here map one-to-one:
 `R-05` here is `R5` there. Full wording, decisions (D1–D18), acceptance criteria and
-risks are in that file; this file adds GSD traceability only.
+risks are in that file; this file adds GSD traceability only. The exception is
+TRC-01 to TRC-03: they were added here by the PO revision of 2026-11-16 (tracer-first
+roadmap) and have no counterpart in that file yet.
 
 ## v1 Requirements (MVP)
+
+### Offline tracer
+
+- [ ] **TRC-01**: User can run `vdiff` offline against a local git repository with explicit base and head commits; the tool reads commit contents from git objects and leaves the repository's working tree, index, branch and refs unchanged.
+- [ ] **TRC-02**: User gets, for C++ code, a type- and member-level diff between the two commits written as model JSON, diff JSON, a Mermaid classDiagram summary (classDef per state, trailing member tags) and a self-contained HTML page in the output directory.
+- [ ] **TRC-03**: User can run the tracer against a real target PR on a private local clone and keep every output outside this public repository; any result recorded in this repo carries no target identifiers.
 
 ### Spikes (decisions that gate units)
 
@@ -92,11 +100,14 @@ Phases are defined in `.planning/ROADMAP.md`. Each requirement maps to exactly o
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SPK-01 | Phase 1 | Pending |
+| TRC-01 | Phase 1 | Pending |
+| TRC-02 | Phase 1 | Pending |
+| TRC-03 | Phase 1 | Pending |
 | SPK-02 | Phase 1 | Pending |
-| SPK-03 | Phase 1 | Pending |
 | R-10 | Phase 2 | Pending |
 | R-23 | Phase 2 | Pending |
+| ACC-01 | Phase 2 | Pending |
+| ACC-02 | Phase 2 | Pending |
 | R-01 | Phase 3 | Pending |
 | R-04 | Phase 3 | Pending |
 | R-02 | Phase 4 | Pending |
@@ -106,6 +117,7 @@ Phases are defined in `.planning/ROADMAP.md`. Each requirement maps to exactly o
 | R-07 | Phase 4 | Pending |
 | R-08 | Phase 4 | Pending |
 | R-09 | Phase 4 | Pending |
+| SPK-03 | Phase 4 | Pending |
 | R-13 | Phase 5 | Pending |
 | R-14 | Phase 5 | Pending |
 | R-15 | Phase 5 | Pending |
@@ -116,11 +128,10 @@ Phases are defined in `.planning/ROADMAP.md`. Each requirement maps to exactly o
 | R-22 | Phase 7 | Pending |
 | R-24 | Phase 8 | Pending |
 | R-25 | Phase 8 | Pending |
+| R-28 | Phase 8 | Pending |
+| SPK-01 | Phase 8 | Pending |
 | R-26 | Phase 9 | Pending |
 | R-27 | Phase 9 | Pending |
-| R-28 | Phase 8 | Pending |
-| ACC-01 | Phase 2 | Pending |
-| ACC-02 | Phase 2 | Pending |
 | ACC-03 | Phase 9 | Pending |
 
 **Notes:**
@@ -129,13 +140,21 @@ Phases are defined in `.planning/ROADMAP.md`. Each requirement maps to exactly o
 - R-01 is owned by Phase 3 (head/base resolution and both trees); extraction of both
   commits happens in Phase 4.
 - R-09 spans the plan's U3 and U4 and is owned once, by Phase 4.
-- SPK-03 is on hold pending PO decision O4 (see PROJECT.md).
+- The Phase 1 tracer produces a thin first cut of R-05, R-10, R-13, R-20 and R-22. Those
+  requirements stay owned by the phases that harden them (Phases 4, 2, 5, 7 and 7); the
+  TRC requirements cover only what the tracer itself delivers.
+- SPK-02 is owned by Phase 1: ADR-001 is Proposed (Rust sidecar) and is the basis of the
+  tracer's C++ extraction.
+- SPK-03 is owned by Phase 4 (attached to the C# plan) and is on hold pending PO decision
+  O4 (see PROJECT.md); the PO's reading of O4 is not yet confirmed.
+- SPK-01 is owned by Phase 8. It is a manual spike with no code dependency, so it can run
+  at any time, and it must be recorded before Phase 7 closes.
 
 **Coverage:**
-- v1 requirements: 30 total
-- Mapped to phases: 30
+- v1 requirements: 33 total
+- Mapped to phases: 33
 - Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-11-16*
-*Last updated: 2026-11-16 after roadmap creation*
+*Last updated: 2026-11-16 after roadmap revision (tracer-first)*
