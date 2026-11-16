@@ -1,0 +1,103 @@
+# Requirements: visualise-diffs
+
+**Defined:** 2026-11-16
+**Core Value:** A reviewer understands a PR's structural change from the diagram, without reading every file.
+
+**Source of truth:** `docs/requirements/requirements.md`. IDs here map one-to-one:
+`R-05` here is `R5` there. Full wording, decisions (D1–D18), acceptance criteria and
+risks are in that file; this file adds GSD traceability only.
+
+## v1 Requirements (MVP)
+
+### Spikes (decisions that gate units)
+
+- [ ] **SPK-01**: Spike S1 recorded — Mermaid `classDiagram` + `classDef` rendering in ADO PR comments/descriptions tested; renderer default and trailing member-tag format fixed (closes O3; gates U8, U9)
+- [ ] **SPK-02**: Spike S2 recorded as ADR-001 — C++ tree-sitter packaging chosen (.NET binding vs Rust sidecar with `tree-sitter` 0.27 + `tree-sitter-cpp`) on package size, Linux install, speed, macro blanking (gates U3)
+- [ ] **SPK-03**: Spike S3 recorded — C# extraction runner decided (Roslyn against reference assemblies; Ubuntu vs Windows per D18; reframing pending, see O4 in PROJECT.md) (gates U4, R26 runner)
+
+### Model and harness
+
+- [ ] **R-10**: Every extractor emits one versioned model `vdiff-model/v1` (types, members, bases, derived edges, spans, extraction metadata)
+- [ ] **R-23**: Identical inputs produce byte-identical outputs; canonical ordering, volatile metadata kept apart
+
+### Inputs and scope
+
+- [ ] **R-01**: Resolve head and base (merge-base) from ADO PR variables and extract a full model of both commits
+- [ ] **R-02**: Read every target-specific setting from `.visualise-diffs.yml`
+- [ ] **R-03**: Apply overridable default exclusions (tests opt-in, `*.Designer.cs`, generated, build output, vendored/`dist/`)
+- [ ] **R-04**: Skip draft and fork PRs; no thread, exit 0
+
+### Extraction
+
+- [ ] **R-05**: C++ syntax-only with tree-sitter, with length-preserving blanking of configured macros
+- [ ] **R-06**: C# file list from `.csproj` (SDK-style and legacy); semantic extraction with Roslyn from project file + reference assemblies, no MSBuild/VS
+- [ ] **R-07**: Syntax-only C# fallback when references are insufficient, reporting unresolved count and reason
+- [ ] **R-08**: C++/CLI header scanner (`ref class`, `value class`, `interface class`, `enum class`, `gcroot<>`) into a "managed wrapper" lane
+- [ ] **R-09**: Mode label per language and file (`semantic`/`syntax-only`/`scanner`), fallback reasons, unmodelled files listed; never present partial as complete
+
+### Diff
+
+- [ ] **R-13**: Tag types, members and edges `added`/`removed`/`modified`/`renamed`/`unchanged`, plus member `body-changed`
+- [ ] **R-14**: Rename matching by the weighted score (≥0.6, mutual unique best, same language and kind); member renames on identical signature; thresholds configurable, pinned by the rename fixture
+- [ ] **R-15**: Changed package pin detected by a configured rule and emitted as a `package updated: name old → new` node
+
+### Diagram and rendering
+
+- [ ] **R-18**: Node selection — changed types, then greyed 1-hop neighbours; cap N=25 including neighbours; ranking; overflow summary nodes
+- [ ] **R-19**: Degrade to a text table by namespace/project when changed types exceed 2N or Mermaid limits (50,000 chars / 500 edges) would be exceeded
+- [ ] **R-20**: Mermaid `classDiagram` with a `classDef` per type state; trailing member state tags (format from S1)
+- [ ] **R-21**: PNG render used when Mermaid does not render in PR comments; default from S1, configurable
+- [ ] **R-22**: Self-contained offline HTML artifact: no cap, per-language tabs, search, mode banner
+
+### Delivery and operation
+
+- [ ] **R-24**: One PR thread via `System.AccessToken`, found by a hidden marker and updated in place, linking the artifact
+- [ ] **R-25**: No structural change → post nothing; an existing thread is updated to "no structural changes"
+- [ ] **R-26**: Separate pipeline job (Ubuntu default, Windows fallback per D18); hard limit 20 min, P90 under 5 min
+- [ ] **R-27**: Never block a PR: `continueOnError`, 20-min timeout, existing thread untouched on crash, pipeline warning; exit 0/1
+- [ ] **R-28**: Dry-run mode writes thread body, PNG and HTML locally without contacting ADO
+
+### Acceptance
+
+- [ ] **ACC-01**: Five synthetic public fixtures green in CI (small C++, C#, cross-stack with C++/CLI, extract-class refactor, rename)
+- [ ] **ACC-02**: Private-fixture recipe documented so five real PRs of the same shapes can be checked inside the target organisation (D15)
+- [ ] **ACC-03**: Over 10 consecutive target PR runs, no added PR-build wall-clock and P90 job time under 5 minutes
+
+## v2 Requirements
+
+### Increment 2 — semantic C++
+
+- **R-11**: Upgrade C++ to `semantic` file by file via a scripted compile DB from MSBuild `GetClCommandLines`, parsed (no compile) by clang-cl in MSVC-compatibility mode; analysis only
+
+### Phase 2
+
+- **R-12**: ObjC/ObjC++ extraction from a compile DB derived from the macOS build log, tree-sitter-objc fallback
+- **R-16**: Diff the dependency package's types between two pins
+- **R-17**: Link C++ interfaces to implementing C++/CLI and ObjC++ classes by base name
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Code delivered via Conan packages (incl. CMake-built subtrees) | PRs in scope never touch it (D9) |
+| A home-grown C++ parser | tree-sitter now, clang-cl in Inc2 |
+| A clang build configuration for the target projects | Clang is analysis-only (D11) |
+| Onboarding use case | Audience is PR reviewers (D2) |
+| Blocking PRs | Tool is advisory (R27) |
+| Swift | The product has no Swift (D3) |
+
+## Traceability
+
+Populated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+
+**Coverage:**
+- v1 requirements: 30 total
+- Mapped to phases: 0
+- Unmapped: 30 ⚠️
+
+---
+*Requirements defined: 2026-11-16*
+*Last updated: 2026-11-16 after initial definition*
