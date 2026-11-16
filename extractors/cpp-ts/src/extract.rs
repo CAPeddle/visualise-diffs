@@ -129,6 +129,9 @@ mod deadline {
         let sexp = tree.root_node().to_sexp();
         assert_eq!(sexp.matches("struct_specifier").count(), 1, "{sexp}");
         assert_eq!(sexp.matches("class_specifier").count(), 0, "{sexp}");
+        let types = extract_types(tree.root_node(), source);
+        assert_eq!(types.len(), 1, "the small file's type list is returned: {types:?}");
+        assert_eq!(types[0].name, "Small");
     }
 
     #[test]
@@ -188,5 +191,320 @@ mod error_nodes {
         let depth = 20_000;
         let source = format!("{}{}\n", "namespace n { ".repeat(depth), "} ".repeat(depth));
         assert_eq!(count(&source), 0);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::protocol::MemberInfo;
+
+    fn extract_bytes(source: &[u8]) -> Vec<TypeInfo> {
+        let mut parser = cpp_parser();
+        let (status, tree) = parse_bounded(&mut parser, source, Duration::from_secs(10));
+        assert_eq!(status, Status::Ok);
+        extract_types(tree.expect("a tree").root_node(), source)
+    }
+
+    fn extract(source: &str) -> Vec<TypeInfo> {
+        extract_bytes(source.as_bytes())
+    }
+
+    /// "<kind> <scope::name>" for each type, in the order returned.
+    fn ids(types: &[TypeInfo]) -> Vec<String> {
+        types
+            .iter()
+            .map(|t| {
+                if t.scope.is_empty() {
+                    format!("{} {}", t.kind, t.name)
+                } else {
+                    format!("{} {}::{}", t.kind, t.scope, t.name)
+                }
+            })
+            .collect()
+    }
+
+    /// "<access> <kind> <key>" for each member, in source order.
+    fn members(t: &TypeInfo) -> Vec<String> {
+        t.members.iter().map(|m| format!("{} {} {}", m.access, m.kind, m.key)).collect()
+    }
+
+    fn member<'a>(t: &'a TypeInfo, key: &str) -> &'a MemberInfo {
+        t.members
+            .iter()
+            .find(|m| m.key == key)
+            .unwrap_or_else(|| panic!("no member with key {key:?} in {:?}", members(t)))
+    }
+
+    fn the_only_type(source: &str) -> TypeInfo {
+        let mut types = extract(source);
+        assert_eq!(types.len(), 1, "expected one type in {source:?}, got {:?}", ids(&types));
+        types.remove(0)
+    }
+
+    #[test]
+    fn class_and_struct_members_get_their_default_and_explicit_access() {
+        let types = extract(
+            "class C { int a; public: int b; };\n\
+             struct S { int c; private: int d; protected: void m(); };\n",
+        );
+        assert_eq!(ids(&types), ["class C", "struct S"]);
+        assert_eq!(members(&types[0]), ["private field a", "public field b"]);
+        assert_eq!(
+            members(&types[1]),
+            ["public field c", "private field d", "protected method m()"]
+        );
+        assert!(types[0].bases.is_empty());
+        assert_eq!(types[0].scope, "");
+    }
+
+    #[test]
+    fn spans_are_utf8_byte_offsets_and_one_based_lines() {
+        let source = "// caf\u{e9} \u{4e2d}\u{6587}\n\nclass A {\n  int x;\n};\n";
+        let t = the_only_type(source);
+        assert_eq!(t.start_byte, source.find("class A").unwrap());
+        assert_eq!(t.end_byte, source.find("};").unwrap() + 1);
+        assert_eq!((t.start_line, t.end_line), (3, 5));
+        let x = member(&t, "x");
+        assert_eq!(x.start_byte, source.find("int x;").unwrap());
+        assert_eq!(x.end_byte, x.start_byte + "int x;".len());
+        assert_eq!((x.start_line, x.end_line), (4, 4));
+    }
+
+    #[test]
+    fn spans_stay_exact_after_a_byte_order_mark() {
+        let mut source = vec![0xEF, 0xBB, 0xBF];
+        source.extend_from_slice(b"class A { int x; };\n");
+        let types = extract_bytes(&source);
+        assert_eq!(ids(&types), ["class A"]);
+        assert_eq!(types[0].start_byte, 3);
+        assert_eq!(types[0].start_line, 1);
+        assert_eq!(member(&types[0], "x").start_byte, 3 + "class A { ".len());
+    }
+
+    #[test]
+    fn namespaces_form_the_scope_and_an_anonymous_namespace_is_named() {
+        let types = extract(
+            "namespace shop::billing { class Invoice {}; }\n\
+             namespace a { namespace b { struct Deep {}; } }\n\
+             namespace { class Hidden {}; }\n\
+             inline namespace v1 { class V {}; }\n",
+        );
+        assert_eq!(
+            ids(&types),
+            [
+                "class shop::billing::Invoice",
+                "struct a::b::Deep",
+                "class (anonymous)::Hidden",
+                "class v1::V"
+            ]
+        );
+    }
+
+    #[test]
+    fn bases_drop_access_and_virtual_and_collapse_whitespace() {
+        let t = the_only_type("class D final : public virtual C,\n    protected   N::E<int>, B {};\n");
+        assert_eq!(t.bases, ["C", "N::E<int>", "B"]);
+    }
+
+    #[test]
+    fn nested_types_carry_the_enclosing_type_in_scope_and_follow_their_parent() {
+        let types = extract(
+            "namespace n { class Outer { public: struct Inner { int v; }; int w; }; }\n\
+             class After {};\n",
+        );
+        assert_eq!(ids(&types), ["class n::Outer", "struct n::Outer::Inner", "class After"]);
+        assert_eq!(members(&types[0]), ["public field w"]);
+        assert_eq!(members(&types[1]), ["public field v"]);
+    }
+
+    #[test]
+    fn destructors_and_operators_take_the_names_of_their_own_nodes() {
+        let t = the_only_type(
+            "class Gadget { public: virtual ~Gadget() = default;\n\
+             bool operator==(const Gadget& o) const;\n\
+             int operator()(int a); };\n",
+        );
+        let d = member(&t, "~Gadget()");
+        assert_eq!((d.name.as_str(), d.kind), ("~Gadget", "method"));
+        assert_eq!(d.signature, "virtual ~Gadget() = default");
+        let eq = member(&t, "operator==(const Gadget& o) const");
+        assert_eq!((eq.name.as_str(), eq.kind), ("operator==", "method"));
+        assert_eq!(eq.signature, "bool operator==(const Gadget& o) const");
+        let call = member(&t, "operator()(int a)");
+        assert_eq!((call.name.as_str(), call.kind), ("operator()", "method"));
+    }
+
+    #[test]
+    fn reference_returning_and_pointer_returning_methods_are_methods() {
+        let t = the_only_type(
+            "class F { Foo& ref(); const Foo& cref() const; Foo&& mv(); int* p(); };\n",
+        );
+        assert_eq!(
+            members(&t),
+            [
+                "private method ref()",
+                "private method cref() const",
+                "private method mv()",
+                "private method p()"
+            ]
+        );
+        assert_eq!(member(&t, "ref()").name, "ref");
+        assert_eq!(member(&t, "ref()").signature, "Foo& ref()");
+    }
+
+    #[test]
+    fn a_function_pointer_member_is_a_field_and_arrays_and_pointers_are_fields() {
+        let t = the_only_type("struct S { int (*cb)(int); int arr[3]; int* ptr; };\n");
+        assert_eq!(members(&t), ["public field cb", "public field arr", "public field ptr"]);
+        assert_eq!(member(&t, "cb").signature, "int (*cb)(int)");
+    }
+
+    #[test]
+    fn a_multi_line_parameter_list_has_the_same_key_and_signature_as_the_single_line_form() {
+        let single = the_only_type("class A { void grow(int by, long times); };\n");
+        let multi = the_only_type("class A { void grow(int by,\n      long   times); };\n");
+        assert_eq!(single.members[0].key, "grow(int by, long times)");
+        assert_eq!(multi.members[0].key, single.members[0].key);
+        assert_eq!(multi.members[0].signature, single.members[0].signature);
+        assert_eq!(single.members[0].signature, "void grow(int by, long times)");
+        assert_eq!(multi.members[0].name, "grow");
+    }
+
+    #[test]
+    fn members_under_preprocessor_conditionals_inside_a_class_body_are_found() {
+        let t = the_only_type(
+            "class A {\n int a;\n#if X\n int b;\n#else\n int c;\n#endif\n public:\n#ifdef Y\n void d();\n#endif\n};\n",
+        );
+        assert_eq!(
+            members(&t),
+            ["private field a", "private field b", "private field c", "public method d()"]
+        );
+    }
+
+    #[test]
+    fn types_under_preprocessor_conditionals_at_namespace_level_are_found() {
+        let types = extract(
+            "#ifdef X\nclass A { int a; };\n#else\nclass B { int b; };\n#endif\n\
+             namespace n {\n#if Z\nstruct C {};\n#endif\n}\n",
+        );
+        assert_eq!(ids(&types), ["class A", "class B", "struct n::C"]);
+    }
+
+    #[test]
+    fn a_class_inside_a_linkage_specification_is_found() {
+        let types = extract("extern \"C++\" { class L { int l; }; }\n");
+        assert_eq!(ids(&types), ["class L"]);
+        assert_eq!(members(&types[0]), ["private field l"]);
+    }
+
+    #[test]
+    fn a_type_that_parsed_beside_a_syntax_error_is_still_returned() {
+        let types = extract("class A { int a; };\n@@@ ### $$$\nclass B { int b; };\n");
+        let found = ids(&types);
+        assert!(found.contains(&"class A".to_string()), "{found:?}");
+        assert!(found.contains(&"class B".to_string()), "{found:?}");
+    }
+
+    #[test]
+    fn a_local_class_in_a_function_body_is_not_a_type() {
+        let types = extract(
+            "void ff() { struct Local { int z; }; }\n\
+             class W { void m() { struct Inner {}; } };\n\
+             class After { int a; };\n",
+        );
+        assert_eq!(ids(&types), ["class W", "class After"]);
+        assert_eq!(members(&types[0]), ["private method m()"]);
+    }
+
+    #[test]
+    fn forward_declarations_and_anonymous_structs_are_not_types() {
+        let types = extract(
+            "class Fwd;\nstruct Opaque;\nstruct { int a; } anon;\n\
+             class Real { struct { int in; } inner; };\n",
+        );
+        assert_eq!(ids(&types), ["class Real"]);
+        assert_eq!(members(&types[0]), ["private field inner"]);
+    }
+
+    #[test]
+    fn a_named_struct_in_a_typedef_is_a_type() {
+        let types = extract("typedef struct Tagged { int a; } Tagged_t;\n");
+        assert_eq!(ids(&types), ["struct Tagged"]);
+    }
+
+    #[test]
+    fn templates_yield_the_type_under_its_plain_or_specialised_name() {
+        let types = extract(
+            "template <class T> struct Box { T v; };\n\
+             template <class T> struct Spec<T*> { };\n",
+        );
+        assert_eq!(ids(&types), ["struct Box", "struct Spec<T*>"]);
+    }
+
+    #[test]
+    fn one_member_per_declarator() {
+        let t = the_only_type("struct P { int n_, m_; int a = 1, b = 2; };\n");
+        assert_eq!(
+            members(&t),
+            ["public field n_", "public field m_", "public field a", "public field b"]
+        );
+        assert_eq!(member(&t, "n_").signature, "int n_");
+        assert_eq!(member(&t, "m_").signature, "int m_");
+        assert_eq!(member(&t, "a").signature, "int a = 1");
+        assert_eq!(member(&t, "b").signature, "int b = 2");
+    }
+
+    #[test]
+    fn signatures_keep_specifiers_and_drop_bodies_initializers_and_semicolons() {
+        let t = the_only_type(
+            "class W {\n public:\n\
+             W() : a_(1), b_(2) { }\n\
+             virtual void g() override = 0;\n\
+             int size() const { return n_; }\n\
+             void h() = delete;\n\
+             static const int k = 5;\n\
+             int a_ = 3;\n int b_;\n int n_;\n};\n",
+        );
+        assert_eq!(member(&t, "W()").signature, "W()");
+        let g = member(&t, "g()");
+        assert_eq!(g.signature, "virtual void g() override = 0");
+        assert_eq!(g.kind, "method");
+        assert_eq!(member(&t, "size() const").signature, "int size() const");
+        assert_eq!(member(&t, "h()").signature, "void h() = delete");
+        assert_eq!(member(&t, "k").signature, "static const int k = 5");
+        assert_eq!(member(&t, "a_").signature, "int a_ = 3");
+        assert_eq!(member(&t, "n_").kind, "field");
+    }
+
+    #[test]
+    fn invalid_utf8_inside_a_member_is_converted_lossily_not_dropped() {
+        let mut source = b"class A { int /* caf".to_vec();
+        source.push(0xE9);
+        source.extend_from_slice(b" */ x; };\n");
+        let types = extract_bytes(&source);
+        assert_eq!(ids(&types), ["class A"]);
+        let x = member(&types[0], "x");
+        assert_eq!(x.signature, "int /* caf\u{FFFD} */ x");
+        assert_eq!(x.start_byte, "class A { ".len());
+    }
+
+    #[test]
+    fn signatures_are_cut_at_4096_bytes_on_a_character_boundary() {
+        let long = "\u{e9}".repeat(3000);
+        let t = the_only_type(&format!("struct L {{ const char* s = \"{long}\"; }};\n"));
+        let signature = &member(&t, "s").signature;
+        assert!(signature.starts_with("const char* s = \""));
+        assert!(signature.len() <= 4096, "{}", signature.len());
+        assert!(signature.len() >= 4093, "{}", signature.len());
+    }
+
+    #[test]
+    fn a_conversion_operator_or_other_unhandled_child_yields_no_member() {
+        let t = the_only_type(
+            "struct S { operator bool() const; friend bool operator==(const S&, const S&);\n\
+             using Base::f; static_assert(true, \"x\"); int ok; };\n",
+        );
+        assert_eq!(members(&t), ["public field ok"]);
     }
 }
