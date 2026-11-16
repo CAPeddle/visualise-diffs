@@ -21,7 +21,7 @@ trial. Each stage is verified against the five synthetic fixtures before the nex
 - Diagram: Phase 6 adds the 25-node cap and the text degrade; Phase 7 delivers the final Mermaid, PNG and full offline HTML report.
 
 **Gates and parallelism:**
-- SPK-02 (S2) is recorded in Phase 1 as ADR-001 (Proposed: Rust sidecar). The tracer is built on it, and it also gates the C++ extractor plan in Phase 4.
+- SPK-02 (S2) is recorded in Phase 1 as ADR-001 (Accepted: Rust sidecar). The tracer is built on it, and it also gates the C++ extractor plan in Phase 4.
 - SPK-03 (S3) is owned by Phase 4 and attached to the C# plan. It gates that plan and the runner choice in Phase 9. **S3 is on hold pending PO decision O4** (see Phase 4).
 - SPK-01 (S1) is owned by Phase 8. It is a manual run of the synthetic sample on a scratch PR with no code dependency, so it can run at any time. It must be recorded before Phase 7 closes, because it confirms the renderer default and the trailing member-tag format, and it gates the PR-thread renderer default in Phase 8. Local Mermaid rendering is not gated by it.
 - Phase 4 holds three independent plans (U3, U4, U5) that run in parallel. O4 blocks only the C# plan.
@@ -66,7 +66,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. A run never changes the repository it reads: before and after, `git status`, HEAD, the current branch, the index, every ref and `git worktree list` are identical, including when neither commit is the one checked out. This is checked on the synthetic repository in tests and on a private local clone in the trial. Everything the run writes lands in the given output directory and nowhere else.
   3. The Mermaid summary is a `classDiagram` with a `classDef` per type state and trailing member state tags (the plan's provisional format until S1 confirms it), and it passes a Mermaid syntax check in the test run. The HTML page is one self-contained file that opens in a browser with no network access and lists the changed types and members with their states.
   4. A run against a small real C++ PR (its base and head commits) on a private local clone completes well inside the R26 budget (P90 under 5 minutes, 20-minute hard limit), with its output in a directory outside this repository. The outcome is recorded in this repository, if at all, only as pass or fail against that budget, with no target identifiers and no target-measured figures.
-  5. ADR-001 in `docs/decisions/` records the C++ tree-sitter packaging choice (.NET binding or Rust sidecar with `tree-sitter` 0.27 + `tree-sitter-cpp`), with the comparison on package size, Linux agent install, speed and macro-blanking ease, and the tracer's C++ extraction runs through the sidecar it chose. ADR-001 is Proposed and awaits PO acceptance; the tracer is built on it, and the choice is reversible behind the model JSON.
+  5. ADR-001 in `docs/decisions/` records the C++ tree-sitter packaging choice (.NET binding or Rust sidecar with `tree-sitter` 0.27 + `tree-sitter-cpp`), with the comparison on package size, Linux agent install, speed and macro-blanking ease, and the tracer's C++ extraction runs through the sidecar it chose. ADR-001 was accepted by the PO on 2026-11-16; the tracer is built on it, and the choice is reversible behind the model JSON.
 **Plans**: TBD
 **Note**: The HTML page here is deliberately minimal; the full offline report (no cap, per-language tabs, search, mode banner) is Phase 7 (R-22). Spikes S1 and S3 are no longer in this phase: S1 is in Phase 8 and S3 in Phase 4.
 

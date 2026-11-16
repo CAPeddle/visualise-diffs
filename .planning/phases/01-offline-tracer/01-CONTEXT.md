@@ -29,7 +29,7 @@ the PO and not contradicted; **ADR** = docs/decisions/ADR-001.
 - **D-04 (ADR, Orch).** C++ extraction via the Rust sidecar from ADR-001: `tree-sitter` 0.27.0
   and `tree-sitter-cpp` 0.23.4 pinned by `Cargo.lock`, invoked once per commit as a bounded
   subprocess (timeout, output-size bound) that prints JSON on stdout. Suggested path
-  `extractors/cpp-ts/`. ADR-001 stays Proposed; the tracer is built on it, and the choice is
+  `extractors/cpp-ts/`. ADR-001 is Accepted (PO, 2026-11-16); the tracer is built on it, and the choice is
   reversible behind the JSON.
   - The sidecar must accept file contents without a checkout. Recommended: the orchestrator
     materialises each commit's in-scope files from git objects into a temp directory under

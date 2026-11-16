@@ -88,6 +88,10 @@ traceability; where they differ, `docs/requirements/requirements.md` wins.
 - **O4** — The PO said (2026-11-16) that S3's premise came from a mis-report and that the
   target C# is built on Windows. The wording here is an interpretation, not yet confirmed.
   The effect on S3 and on the Ubuntu-default runner (R26, D18) waits for a PO decision.
+  Update 2026-11-16: asked again, the PO named a local Windows clone of the target as the
+  first-pass test repository. Read as: the first pass runs locally on Windows, where the
+  target builds, and the Ubuntu-runner question is deferred until after that pass. This
+  reading is the orchestrator's.
 
 ## Key Decisions
 
@@ -101,6 +105,8 @@ traceability; where they differ, `docs/requirements/requirements.md` wins.
 | No thread for no structural change (D16) | Avoid noise | — Pending |
 | Trailing member tags for change state | Leading symbols are Mermaid syntax | — Pending S1 |
 | GSD bootstrapped from existing docs, questioning/research skipped | Seven PO rounds and a target investigation already done | ✓ Good |
+| C++ tree-sitter extractor is a Rust sidecar (ADR-001, accepted by PO 2026-11-16) | Exact byte spans, pinned versions, process isolation | — Pending |
+| Offline tracer first, against a local clone (PO pivot 2026-11-16) | Prove the pipeline on real code before any ADO work | — Pending |
 
 ## Evolution
 
