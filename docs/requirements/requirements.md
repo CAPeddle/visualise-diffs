@@ -1,0 +1,170 @@
+# visualise-diffs: requirements
+
+**Status: baseline v1, 2026-11-16.** This is the single source of requirements. The
+plan ([../plans/2026-11-16-001-feat-mvp-diff-class-diagram-plan.md](../plans/2026-11-16-001-feat-mvp-diff-class-diagram-plan.md))
+points here and does not keep its own list.
+
+**One item is open:** O3, whether Mermaid renders in Azure DevOps PR comments. Spike S1
+resolves it.
+
+**This repository is public (D15).** Target names, figures, fixtures and identifiers stay
+in the target organisation.
+
+## Problem
+
+PR reviewers working on a product with a C++ core, a C# frontend and a macOS Cocoa
+frontend cannot see the structural impact of a change in the file-by-file diff.
+
+- **P1: large PRs are unreadable.** Reviewers cannot see which types actually changed
+  shape.
+- **P2: cross-stack ripple.** A C++ core change propagates through managed (C++/CLI) and
+  ObjC++ wrappers, and reviewers miss it.
+- **P3: inheritance and API drift.** New bases, changed virtuals, and changes to the
+  public surface go unnoticed.
+
+The primary user is the **PR reviewer**. Success means a reviewer understands a PR's
+structural change from the diagram, without reading every file.
+
+## Glossary
+
+- **Syntax-only extraction.** Each file is parsed by its grammar alone, with tree-sitter.
+  There is no preprocessing, no include resolution, no macro expansion and no type
+  resolution. Names, bases-as-written, members and signatures-as-text are reliable.
+  Associations are resolved by name only, heuristically.
+- **Semantic extraction.** A compiler front end resolves types: Roslyn for C#, or clang
+  for C++ (C++ is increment 2).
+- **Scanner extraction.** A restricted, purpose-built scanner, used for C++/CLI, which
+  neither Roslyn nor clang parses.
+- **Base, head.** Head is the PR source commit. Base is `merge-base(target branch tip,
+  head)`, which is the same comparison the Azure DevOps PR "Files" view shows.
+
+## Decisions
+
+| # | Decision | Source |
+|---|---|---|
+| D1 | The audience is PR reviewers, and the goal is review comprehension | PO, round 1 |
+| D2 | The pains in scope are P1, P2 and P3. Onboarding is out of scope | PO, round 1 |
+| D3 | The product's language bridges are C++/CLI wrappers and ObjC++ (.mm) wrappers. There is no Swift | PO, round 1; corrected by the target findings (the C# P/Invoke calls go to system libraries only) |
+| D4 | Delivery has two parts: a summary in a sticky PR thread, and a full HTML report as a pipeline artifact | PO, round 2 |
+| D5 | Extraction is hybrid. The mode used is labelled for each language, and the tool upgrades to semantic extraction where it is available | PO, round 2 |
+| D6 | Diagram scope is the changed types plus their 1-hop neighbours, with the neighbours greyed | PO, round 2 |
+| D7 | MVP languages are C++, C# and C++/CLI. ObjC/ObjC++ is phase 2 | PO, rounds 3 and 4 |
+| D8 | Diff granularity covers types, members and edges | PO, round 3 |
+| D9 | The code in scope builds **only on Windows (MSBuild .vcxproj) and macOS (Xcode)**. Code delivered through dependency packages (including CMake-built components) is out of scope, because PRs in scope never touch it | PO, round 5 |
+| D10 | Linking types across language bridges is phase 2 | PO, round 3 |
+| D11 | MVP C++ extraction is **syntax-only**, because the build agents have no clang. Semantic C++ extraction (a scripted compile database from MSBuild `GetClCommandLines`, then clang) is increment 2, and requires clang to be installed on the Windows agents | PO, rounds 4 and 6 |
+| D12 | MVP scope is the main product repository. A changed dependency-package pin is shown as a single node. Diffing the package's types is phase 2 | PO, round 4 |
+| D13 | C++/CLI is in the MVP, as a scanner lane named "managed wrapper" | PO, round 4 |
+| D14 | Stack: a C#/.NET orchestrator with Roslyn in-process. Each extractor emits a versioned JSON model. The flip condition is that increment 2 needs a custom libclang walker | Target findings |
+| D15 | This repository is public. Target specifics live in `.visualise-diffs.yml` in the target repository and in private fixtures | Repository visibility check |
+| D16 | A PR with no structural change gets no thread. If an earlier run created one, that thread is updated to say "no structural changes" | PO, round 5 |
+| D17 | The node cap counts every node. Changed types come first, then neighbours ranked by relevance | PO, round 5 |
+| D18 | Windows agents with Conan credentials are permitted. They are the fallback runner if C# on Ubuntu fails (spike S3), and the runner for increment 2 | PO, round 6 |
+
+## Requirements
+
+**Tags:**
+- **MVP** is the first release.
+- **Inc2** is the increment that adds semantic C++.
+- **P2** is phase 2.
+
+### Inputs and scope
+
+| ID | The tool shall … | Tag |
+|---|---|---|
+| R1 | Resolve head and base (as defined in the glossary) from the Azure DevOps PR variables, and extract a full model of both commits. Whole-repository extraction is needed to find 1-hop neighbours. | MVP |
+| R2 | Read every target-specific setting from `.visualise-diffs.yml`: include/exclude globs, the C# projects, the export/annotation macros to blank, package-pin rules, caps, and the renderer choice. | MVP |
+| R3 | Apply default exclusions that the config can override: test trees (opt-in), `*.Designer.cs`, files marked or named as generated, build output, and vendored or `dist/` trees. | MVP |
+| R4 | Skip draft PRs and PRs from forks. A skipped PR gets no thread and the run exits 0. | MVP |
+
+### Extraction
+
+| ID | The tool shall … | Tag |
+|---|---|---|
+| R5 | Extract C++ syntax-only with tree-sitter. Before parsing, blank the configured macros in a way that preserves length, so source spans stay valid. | MVP |
+| R6 | Build the C# file list from `.csproj` compile items, for both SDK-style and legacy projects. Extract it semantically with Roslyn, using a compilation built from the project file and the target framework's reference assemblies (no MSBuild, no Visual Studio). | MVP |
+| R7 | Fall back to syntax-only C# when references cannot be resolved enough to type the declarations. The tool reports the unresolved-symbol count and the reason. | MVP |
+| R8 | Extract C++/CLI with a header scanner covering `ref class`, `value class`, `interface class`, `enum class` and `gcroot<>` members, into a separate "managed wrapper" lane. | MVP |
+| R9 | Label the mode for each language and each file: `semantic`, `syntax-only` or `scanner`. Give the reason for every fallback, and list files that could not be modelled. In the MVP, C++ is always `syntax-only`. Never present partial extraction as complete. | MVP |
+| R10 | Emit every extractor's output in one versioned model (`vdiff-model/v1`) covering types, members, bases and derived edges, with spans and extraction metadata. | MVP |
+| R11 | Upgrade C++ to `semantic`, file by file, where a compile database can be produced: a scripted generator from MSBuild `GetClCommandLines` plus the project include paths, parsed by clang-cl with MSVC-compatibility flags. The model contract stays the same. | Inc2 |
+| R12 | Extract ObjC/ObjC++ from a compile database derived from the macOS build log, with tree-sitter-objc as the fallback. | P2 |
+
+### Diff
+
+| ID | The tool shall … | Tag |
+|---|---|---|
+| R13 | Tag every type, member and edge as `added`, `removed`, `modified`, `renamed` or `unchanged`. A member is `modified` when its signature, type, visibility, or static/virtual/override changes. It is `body-changed` when a diff hunk overlaps its span and nothing else changed. | MVP |
+| R14 | Match renames between removed type R and added type A only when both have the same language and kind. Matching rules: | MVP |
+| | • Score = 0.5 × Jaccard(member names) + 0.2 × (same file or a git rename pair) + 0.2 × (same namespace) + 0.1 × (same base set). | |
+| | • R and A are a rename when the score is at least 0.6 and each is the other's unique best match. Ties are not renamed. | |
+| | • Members of matched types are renamed when the parameter list and return type are identical and the pair is unique. | |
+| | The thresholds can be configured and are pinned by the rename fixture. | |
+| R15 | Detect a changed dependency-package pin through a configured rule, and emit a `package updated: name old → new` node. | MVP |
+| R16 | Diff the types of the dependency package between the two pins. | P2 |
+| R17 | Link C++ interfaces to the C++/CLI and ObjC++ classes that implement them, by base name. | P2 |
+
+### Diagram and rendering
+
+| ID | The tool shall … | Tag |
+|---|---|---|
+| R18 | Select nodes as follows. | MVP |
+| | • Start with the changed types, then add their 1-hop neighbours (bases, derived types, association targets). Neighbours are styled greyed. | |
+| | • Cap the total at N nodes (default 25). Neighbours count towards the cap. | |
+| | • Rank changed types first (public API before internal), then neighbours by edge count. | |
+| | • Summarise anything dropped as "+N more changed" or "+N context types". | |
+| R19 | Degrade the summary to a text table grouped by namespace or project when changed types exceed 2N or the Mermaid output would exceed its limits (50,000 characters / 500 edges). **The node cap always wins**, and the Mermaid limits are a hard ceiling only. | MVP |
+| R20 | Render the summary as a Mermaid `classDiagram`, with a `classDef` for each type state (`added`, `removed`, `modified`, `renamed`, `context`). | MVP |
+| | Mark member states with a trailing tag. The leading `+ - # ~` characters are Mermaid's visibility syntax and `~T~` is its generics syntax, so neither can carry a change state. | |
+| | Spike S1 fixes the exact tag format. | |
+| R21 | Render the summary as a PNG, used when Mermaid does not render in PR comments. Spike S1 sets the default, and the config can switch it. | MVP |
+| R22 | Publish a self-contained HTML report as a pipeline artifact. It needs no network, has no cap, offers per-language tabs and search, and shows a mode banner. | MVP |
+| R23 | Produce byte-identical output for identical inputs. Collections are ordered canonically, and volatile metadata is kept apart. (Verified so far for the C# model only.) | MVP |
+
+### Delivery and operation
+
+| ID | The tool shall … | Tag |
+|---|---|---|
+| R24 | Post or update **one** PR thread with `System.AccessToken`. The thread is found again by a hidden marker and updated in place, never recreated. It links to the artifact. | MVP |
+| R25 | On a PR with no structural change, post nothing. If an earlier run left a thread, update it to "no structural changes" (D16). | MVP |
+| R26 | Run as a separate pipeline job, on Ubuntu by default and on Windows as the fallback (D18), so it never extends the build's critical path. Hard limit 20 minutes, target P90 under 5 minutes. | MVP |
+| R27 | Never block a PR. The job uses `continueOnError: true` and a timeout of 20 minutes. | MVP |
+| | • On a crash or timeout, leave the existing thread untouched and raise a pipeline warning. | |
+| | • Exit codes: 0 when published or skipped, 1 on a tool failure. | |
+| R28 | Offer a dry-run mode that writes the thread body, the PNG and the HTML locally, without contacting Azure DevOps. | MVP |
+
+## Acceptance
+
+1. **Synthetic fixtures.** Five fixtures in this repository, one per shape, are green in
+   CI:
+   - a small C++ change;
+   - a C# change;
+   - a cross-stack change including C++/CLI;
+   - an extract-class refactor;
+   - a rename.
+2. **Private fixtures.** Five real PRs of the same shapes match their expected diagrams
+   in a run inside the target organisation. The PRs and their expected diagrams are held
+   there (D15). In syntax-only mode it is allowed to show free functions as notes and to
+   omit call edges, provided the run is labelled syntax-only.
+3. **Determinism.** Identical inputs produce byte-identical outputs (R23).
+4. **No added wall-clock.** Over 10 consecutive target PR runs, none extends the PR
+   build's wall-clock, and the P90 job time is under 5 minutes.
+
+## Open item
+
+- **O3.** Does a Mermaid `classDiagram` with `classDef` render in Azure DevOps PR comments
+  and descriptions?
+  - Mermaid Chart's own renderer has confirmed the syntax.
+  - Azure DevOps has not been tested.
+  - **Spike S1 must close this before work on the renderer (U8) starts.**
+
+## Risks
+
+| # | Risk | Mitigation |
+|---|---|---|
+| 1 | Mermaid does not render in PR comments (the main delivery path) | S1 gates U8; PNG fallback (R21) |
+| 2 | Syntax-only C++ mis-resolves associations, misses macro-generated members, and cannot tell platform `#ifdef` branches apart | Macro blanking (R5); mode label (R9); semantic C++ in Inc2 |
+| 3 | Engine changes arrive only as package-pin bumps, so the diagram looks empty | The pin node (R15); package diff in P2 (R16) |
+| 4 | Conan credentials or cache are missing on a clean agent. This affects the C# reference DLLs on the fallback runner, and all of Inc2 | Syntax-only C# fallback (R7); use the pipeline's existing credential path; cache the Conan home |
+| 5 | Agent capacity: few Windows and macOS agents, with long queue waits | Ubuntu by default (R26); macOS stays out of the MVP |
+| 6 | Target internals leak into this public repository | D15; review every commit for target names |
