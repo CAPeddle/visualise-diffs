@@ -19,7 +19,10 @@ the PO and not contradicted; **ADR** = docs/decisions/ADR-001.
 
 - **D-01:** (PO) First test is offline against a local clone of a real repository.
 - **D-02:** (Orch) Read-only access to the repository it analyses. Read commits via git objects
-  (`git ls-tree`, `git cat-file --batch`, `git diff --name-status` between the two SHAs). Never
+  (`git rev-parse`, `git diff-tree -r -z --raw --no-renames` between the two SHAs, and
+  `git cat-file --batch`; refined 2026-11-16 from `git diff --name-status` because plumbing never
+  runs diff drivers or textconv). Every git call carries `-c core.fsmonitor=false`,
+  `--no-optional-locks` and `GIT_NO_LAZY_FETCH=1` (01-RESEARCH.md Pitfalls 1 and 8). Never
   `checkout`, `switch`, `stash`, `worktree add`, `reset`, `fetch` or any command that writes to
   the repo's working tree, index, refs or `.git` admin files. The PO's clone may carry another
   session's uncommitted work.
@@ -60,6 +63,12 @@ the PO and not contradicted; **ADR** = docs/decisions/ADR-001.
   blobs are identical when deciding what changed, but extract whole-tree models only for the
   files needed: for the tracer it is acceptable to extract only changed C++ files in both commits
   (neighbours come in Phase 6).
+- **D-11:** (Orch, answering 01-RESEARCH open questions 2–5) The npm package checkpoint is
+  answered by the PO once, at the start of execution, and recorded as the `package-checkpoint:`
+  line. The minimum git version is 2.45; below it the tool refuses to run (lazy-fetch protection).
+  Sidecar protocol v0 gains a per-file `status` (`ok`, `timeout`, `error`) so a timed-out file is
+  labelled, never silently empty. Anonymous-struct typedefs and macro-with-argument members are
+  known gaps for the tracer: they are recorded as a labelled limitation, not fixed in Phase 1.
 
 ## Environment facts (this machine)
 
