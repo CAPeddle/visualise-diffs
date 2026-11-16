@@ -103,7 +103,12 @@ depend on it start.
 ## After the MVP
 
 - **Increment 2 (R11):**
-  - Install clang (or the LLVM that ships with Visual Studio) on the Windows agents.
+  - Clang is used for analysis only. The projects have no clang build support and none is
+    added; they keep building with MSVC alone.
+  - Make clang-cl available to the job on the Windows agents. Whether it is already
+    installed is unverified; the LLVM that ships with Visual Studio is one option.
+  - Verify clang-cl parse fidelity on every in-scope project. So far only one core
+    project has been trialled.
   - Generate a compile database with a script that runs MSBuild `GetClCommandLines` and
     adds the include paths.
   - Build a clang-cl extractor. The options to decide between are clang-uml JSON,
