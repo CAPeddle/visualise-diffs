@@ -121,6 +121,18 @@ structural change from the diagram, without reading every file.
 | R22 | Publish a self-contained HTML report as a pipeline artifact. It needs no network, has no cap, offers per-language tabs and search, and shows a mode banner. | MVP |
 | R23 | Produce byte-identical output for identical inputs. Collections are ordered canonically, and volatile metadata is kept apart. (Verified so far for the C# model only.) | MVP |
 
+### Offline tracer
+
+Added 2026-11-16 after the PO asked for a first test offline against a local repository,
+before any Azure DevOps work. The tracer is the first end-to-end cut. Later requirements
+harden it.
+
+| ID | The tool shall … | Tag |
+|---|---|---|
+| TRC-01 | Run offline against a local git repository with explicit base and head commits. It reads commit contents from git objects and leaves the repository's working tree, index, branch and refs unchanged. | MVP |
+| TRC-02 | For C++, write a type- and member-level diff between the two commits as model JSON, diff JSON, a Mermaid `classDiagram` summary (a `classDef` per state, trailing member tags) and a self-contained HTML page, all in the output directory. | MVP |
+| TRC-03 | Run against a real target PR on a private local clone, keeping every output outside this public repository. A result recorded here carries no target identifiers. | MVP |
+
 ### Delivery and operation
 
 | ID | The tool shall … | Tag |

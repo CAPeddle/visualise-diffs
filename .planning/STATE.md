@@ -16,14 +16,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-16)
 
 **Core value:** A reviewer understands a PR's structural change (which types, members and edges changed shape) from the diagram, without reading every file.
-**Current focus:** Phase 1: Decision Spikes
+**Current focus:** Phase 1: Offline Tracer
 
 ## Current Position
 
-Phase: 1 of 9 (Decision Spikes)
+Phase: 1 of 9 (Offline Tracer)
 Plan: 0 of TBD in current phase
 Status: Ready to plan
-Last activity: 2026-11-16 — Roadmap created: 9 phases, 30/30 v1 requirements mapped
+Last activity: 2026-11-16 — Roadmap revised (tracer-first): 9 phases, 33/33 v1 requirements mapped
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -53,7 +53,11 @@ Progress: [░░░░░░░░░░] 0%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [Roadmap]: Phases follow the plan's settled order (spikes, U1 to U10); U3, U4 and U5 are one phase (Phase 4) with three parallel plans
+- [Roadmap revision]: PO feedback (2026-11-16) "first test offline against a repository" made Phase 1 the Offline Tracer: the thinnest end-to-end `vdiff` run against a local git repository, with no Azure DevOps contact. Phases 2 to 9 harden what it starts; Phase 2 depends on Phase 1
+- [Roadmap]: After Phase 1, phases follow the plan's unit order (U1 to U10); U3, U4 and U5 are one phase (Phase 4) with three parallel plans
+- [Roadmap]: Spikes sit in the phase they gate: S2 in Phase 1 (ADR-001, basis of the tracer), S3 in Phase 4 (C# plan), S1 in Phase 8 (Publisher)
+- [Roadmap]: S1 has no code dependency and can run at any time, but it must be recorded before Phase 7 closes; local Mermaid rendering is not gated by it
+- [Roadmap]: TRC-01 to TRC-03 are new v1 requirements owned by Phase 1; R-05, R-10, R-13, R-20 and R-22 keep their original owner phases and are hardened there
 - [Roadmap]: R-09 is owned by Phase 4 (extractors), not split across U3 and U4
 - [Roadmap]: ACC-01 is owned by Phase 2 but reaches green only in Phases 5 to 7
 
@@ -63,9 +67,10 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 1] SPK-03 (S3) is on hold pending PO decision O4. The PO said S3's premise came from a mis-report and that the target C# is built on Windows; what that means for S3 has not been confirmed. It blocks the C# plan in Phase 4 and the runner choice in Phase 9. It does not block Phases 2 and 3.
-- [Phase 1] SPK-01 (S1) is prepared but not run: `docs/spikes/S1-mermaid-in-ado-pr.md` is "ready to run (manual)" and needs the PO or an agent in the target organisation. It gates Phases 7 and 8.
-- [Phase 1] SPK-02 (S2): ADR-001 is recorded as Proposed (Rust sidecar) and waits for PO acceptance. It gates the C++ plan in Phase 4.
+- [Phase 4] SPK-03 (S3) is on hold pending PO decision O4. The PO said S3's premise came from a mis-report and that the target C# is built on Windows; what that means for S3 has not been confirmed. It blocks the C# plan in Phase 4 and the runner choice in Phase 9. It does not block Phases 1 to 3, or the C++ and C++/CLI plans in Phase 4.
+- [Phase 8] SPK-01 (S1) is prepared but not run: `docs/spikes/S1-mermaid-in-ado-pr.md` is "ready to run (manual)" and needs the PO or an agent in the target organisation. It has no code dependency and can run any time; it must be recorded before Phase 7 closes, and it gates the PR-thread renderer default in Phase 8. It does not gate local Mermaid rendering.
+- [Phase 1] SPK-02 (S2): ADR-001 is still Proposed (Rust sidecar) and waits for PO acceptance. The tracer in Phase 1 is built on it, and it gates the C++ plan in Phase 4.
+- [Phase 1] TRC-03 needs a private local clone of the target repository and the base and head commits of one small real PR, supplied by the PO. Its location and content must not be recorded here, and every output stays outside this repository.
 - [All] Repository is public (D15): no target names, identifiers or target-measured figures may be committed. Private results are recorded here without identifiers.
 
 ## Deferred Items
@@ -79,5 +84,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-11-16
-Stopped at: Roadmap and state written; REQUIREMENTS.md traceability updated
+Stopped at: Roadmap revised (tracer-first); ROADMAP.md, REQUIREMENTS.md and STATE.md updated
 Resume file: None
