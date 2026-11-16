@@ -88,16 +88,54 @@ risks are in that file; this file adds GSD traceability only.
 
 ## Traceability
 
-Populated during roadmap creation.
+Phases are defined in `.planning/ROADMAP.md`. Each requirement maps to exactly one phase.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
+| SPK-01 | Phase 1 | Pending |
+| SPK-02 | Phase 1 | Pending |
+| SPK-03 | Phase 1 | Pending |
+| R-10 | Phase 2 | Pending |
+| R-23 | Phase 2 | Pending |
+| R-01 | Phase 3 | Pending |
+| R-04 | Phase 3 | Pending |
+| R-02 | Phase 4 | Pending |
+| R-03 | Phase 4 | Pending |
+| R-05 | Phase 4 | Pending |
+| R-06 | Phase 4 | Pending |
+| R-07 | Phase 4 | Pending |
+| R-08 | Phase 4 | Pending |
+| R-09 | Phase 4 | Pending |
+| R-13 | Phase 5 | Pending |
+| R-14 | Phase 5 | Pending |
+| R-15 | Phase 5 | Pending |
+| R-18 | Phase 6 | Pending |
+| R-19 | Phase 6 | Pending |
+| R-20 | Phase 7 | Pending |
+| R-21 | Phase 7 | Pending |
+| R-22 | Phase 7 | Pending |
+| R-24 | Phase 8 | Pending |
+| R-25 | Phase 8 | Pending |
+| R-26 | Phase 9 | Pending |
+| R-27 | Phase 9 | Pending |
+| R-28 | Phase 8 | Pending |
+| ACC-01 | Phase 2 | Pending |
+| ACC-02 | Phase 2 | Pending |
+| ACC-03 | Phase 9 | Pending |
+
+**Notes:**
+- ACC-01 is owned by Phase 2 (harness and fixtures) but is only satisfied once all five
+  fixtures are green, which happens progressively in Phases 5 to 7.
+- R-01 is owned by Phase 3 (head/base resolution and both trees); extraction of both
+  commits happens in Phase 4.
+- R-09 spans the plan's U3 and U4 and is owned once, by Phase 4.
+- SPK-03 is on hold pending PO decision O4 (see PROJECT.md).
 
 **Coverage:**
 - v1 requirements: 30 total
-- Mapped to phases: 0
-- Unmapped: 30 ⚠️
+- Mapped to phases: 30
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-11-16*
-*Last updated: 2026-11-16 after initial definition*
+*Last updated: 2026-11-16 after roadmap creation*
