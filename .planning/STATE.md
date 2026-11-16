@@ -63,9 +63,9 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 1] SPK-03 (S3) is on hold pending PO decision O4: the premise that C# needs an Ubuntu test was a mis-report (the target C# builds on Windows). It blocks the C# plan in Phase 4 and the runner choice in Phase 9. It does not block Phases 2 and 3.
+- [Phase 1] SPK-03 (S3) is on hold pending PO decision O4. The PO said S3's premise came from a mis-report and that the target C# is built on Windows; what that means for S3 has not been confirmed. It blocks the C# plan in Phase 4 and the runner choice in Phase 9. It does not block Phases 2 and 3.
 - [Phase 1] SPK-01 (S1) is prepared but not run: `docs/spikes/S1-mermaid-in-ado-pr.md` is "ready to run (manual)" and needs the PO or an agent in the target organisation. It gates Phases 7 and 8.
-- [Phase 1] SPK-02 (S2) has no record yet; it gates the C++ plan in Phase 4.
+- [Phase 1] SPK-02 (S2): ADR-001 is recorded as Proposed (Rust sidecar) and waits for PO acceptance. It gates the C++ plan in Phase 4.
 - [All] Repository is public (D15): no target names, identifiers or target-measured figures may be committed. Private results are recorded here without identifiers.
 
 ## Deferred Items
