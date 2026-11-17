@@ -99,7 +99,11 @@ public static class HtmlWriter
         var parts = new List<string>();
         if (member.SignatureBefore is not null && member.SignatureAfter is not null)
         {
-            parts.Add(member.SignatureBefore + " -> " + member.SignatureAfter);
+            // An access-only change keeps both signatures; show the text once, not as an arrow from itself.
+            parts.Add(
+                string.Equals(member.SignatureBefore, member.SignatureAfter, StringComparison.Ordinal)
+                    ? member.SignatureAfter
+                    : member.SignatureBefore + " -> " + member.SignatureAfter);
         }
         else
         {
