@@ -20,9 +20,16 @@ Usage (from the vdiff repository root):
        [-Blank NAME[,NAME...]] [-Include GLOB] [-VdiffDll <path>] [-LogPath <file>] [-SkipMermaid]
 
   -Out and -LogPath must lie outside the analysed repository and outside the vdiff repository,
-  judged after resolving symbolic links and directory junctions. Limit (T-01-39): subst drive
-  letters and DOS 8.3 short names are not resolved. A link that cannot be resolved (a loop, no
-  access) ends the run with reason script-error, never with a guess.
+  judged after resolving symbolic links and directory junctions. Bound (T-01-39): the guard
+  compares drive-letter paths after resolving symbolic links and directory junctions. It does not
+  resolve subst or mapped drive letters or DOS 8.3 short names, and review findings IN-03 (link
+  targets written without a drive letter) and IN-04 (case-insensitive file systems other than
+  Windows compared case-sensitively) remain open. A path in another Windows namespace
+  (extended-length, device, UNC including loopback) and a link whose target is a volume GUID
+  path are refused, not resolved (T-01-41). A link that cannot be resolved (a loop, no access)
+  ends the run with reason script-error, never with a guess.
+  Reason precedence: bad-arguments for blank, unbound, non-hex or missing-repository input, then
+  out-not-outside for -Out (namespace, then containment), then bad-arguments for -LogPath.
   -LogPath receives vdiff's own output for private diagnosis; without it that output is discarded.
 
 Runs under Windows PowerShell 5.1 and PowerShell 7. ASCII characters only.
@@ -153,6 +160,16 @@ function Test-LexicallySameOrUnder([string]$Path, [string]$Dir) {
     return $p.StartsWith($prefix, $script:PathComparison)
 }
 
+# True on Windows when the full path text does not start with an ASCII letter, a colon and a
+# backslash (T-01-41, T-01-44). A pattern match on the text, never on GetPathRoot: the root of a
+# volume GUID path is empty on Windows PowerShell 5.1 and the root of a device path has no
+# trailing separator. The case-sensitive operator keeps non-ASCII letters that fold to ASCII
+# ones out. The same rule as FinalPath.Step in the C# tool (same rule, two implementations).
+function Test-NonDriveRoot([string]$FullPath) {
+    if (-not $script:IsWin) { return $false }
+    return ($FullPath -cnotmatch '^[A-Za-z]:\x5C')
+}
+
 $script:LinkCount = 0
 $script:MaxLinks = 40
 
@@ -162,7 +179,12 @@ $script:MaxLinks = 40
 # at most 40 links per resolution. Any failure throws: the caller never falls back to the lexical
 # path, and the outer catch prints reason script-error. The mechanism is Get-Item with LinkType
 # and Target because ResolveLinkTarget does not exist in Windows PowerShell 5.1.
-# Limit (T-01-39): subst drive letters and DOS 8.3 short names are not resolved.
+# Bound (T-01-39): the guard compares drive-letter paths after resolving symbolic links and
+# directory junctions. It does not resolve subst or mapped drive letters or DOS 8.3 short names,
+# and review findings IN-03 (link targets written without a drive letter) and IN-04
+# (case-insensitive file systems other than Windows compared case-sensitively) remain open.
+# A path in another Windows namespace (extended-length, device, UNC including loopback) and a
+# link whose target is a volume GUID path are refused, not resolved (T-01-41).
 function Resolve-FinalPath([string]$Path) {
     $script:LinkCount = 0
     return (Resolve-FinalPathStep $Path)
@@ -170,6 +192,7 @@ function Resolve-FinalPath([string]$Path) {
 
 function Resolve-FinalPathStep([string]$Path) {
     $full = Get-FullPath $Path
+    if (Test-NonDriveRoot $full) { throw 'unsupported namespace' }
     $root = [IO.Path]::GetPathRoot($full)
     $separators = [char[]]@([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
     $segments = @($full.Substring($root.Length).Split($separators, [StringSplitOptions]::RemoveEmptyEntries))
@@ -190,6 +213,9 @@ function Resolve-FinalPathStep([string]$Path) {
             $target = [string]@($item.Target)[0]
             if ($target.StartsWith('\??\', [StringComparison]::Ordinal)) { $target = $target.Substring(4) }
             if ([string]::IsNullOrEmpty($target)) { throw 'unreadable link' }
+            # A volume GUID target is reported without its prefix; combined with the link's parent
+            # it would name a path that matches nothing, so it is refused (S-2, T-01-41).
+            if ($target.StartsWith('Volume{', [StringComparison]::OrdinalIgnoreCase)) { throw 'volume link target' }
             if (-not [IO.Path]::IsPathRooted($target)) { $target = [IO.Path]::Combine($prefix, $target) }
             $prefix = Resolve-FinalPathStep (Get-FullPath $target)
         }
@@ -295,15 +321,21 @@ function Invoke-Trace([hashtable]$F) {
     if ($gdir.ExitCode -eq 0 -and (Get-FirstLine $gdir.Stdout).Length -gt 0) { $protected += (Get-FirstLine $gdir.Stdout) }
     $cdir = Invoke-Git $repoFull @('rev-parse', '--path-format=absolute', '--git-common-dir')
     if ($cdir.ExitCode -eq 0 -and (Get-FirstLine $cdir.Stdout).Length -gt 0) { $protected += (Get-FirstLine $cdir.Stdout) }
-    $protected += $repoFull
+    # The raw -Repo spelling protects only when it is a drive-letter path. The git-reported roots
+    # above already cover a repository addressed through another namespace (git reports a drive
+    # path for the extended and device spellings; a UNC-hosted repository yields a non-drive root
+    # that the resolver refuses with script-error, fail closed, as the CLI does).
+    if (-not (Test-NonDriveRoot $repoFull)) { $protected += $repoFull }
 
     $outFull = Get-FullPath $Out
+    if (Test-NonDriveRoot $outFull) { $F.reason = 'out-not-outside'; return }
     foreach ($dir in $protected) {
         if (Test-SameOrUnder $outFull $dir) { $F.reason = 'out-not-outside'; return }
     }
     $logFull = $null
     if (-not [string]::IsNullOrWhiteSpace($LogPath)) {
         $logFull = Get-FullPath $LogPath
+        if (Test-NonDriveRoot $logFull) { $F.reason = 'bad-arguments'; return }
         foreach ($dir in $protected) {
             if (Test-SameOrUnder $logFull $dir) { $F.reason = 'bad-arguments'; return }
         }
