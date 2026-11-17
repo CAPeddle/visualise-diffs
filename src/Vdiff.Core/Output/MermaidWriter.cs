@@ -87,22 +87,21 @@ public static class MermaidWriter
         _ => '+',
     };
 
-    /// <summary>The fqn with every character outside letters, digits and underscore replaced by an underscore, made unique.</summary>
+    /// <summary>
+    /// The class id: the literal prefix <c>C_</c> followed by the fqn with every character outside
+    /// letters, digits and underscore replaced by an underscore, made unique. Every id starts with
+    /// the prefix so it can never equal a Mermaid class-diagram keyword (link, note, click, callback,
+    /// href, cssClass ...): a bare fqn-derived id such as <c>link</c> makes the whole diagram
+    /// unparseable (review finding CR-01). The keyword set belongs to the pinned Mermaid version and
+    /// may grow, which is why the prefix is applied to every id instead of a deny-list. The readable
+    /// name stays in the class label.
+    /// </summary>
     static string ClassId(string fqn, HashSet<string> used)
     {
-        var builder = new StringBuilder(fqn.Length + 1);
+        var builder = new StringBuilder("C_", fqn.Length + 2);
         foreach (var c in fqn)
         {
             builder.Append(char.IsAsciiLetterOrDigit(c) || c == '_' ? c : '_');
-        }
-
-        if (builder.Length == 0)
-        {
-            builder.Append('_');
-        }
-        else if (char.IsAsciiDigit(builder[0]))
-        {
-            builder.Insert(0, 'T');
         }
 
         var baseId = builder.ToString();
