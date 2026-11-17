@@ -39,6 +39,12 @@ public sealed record ModelFile(
     IReadOnlyList<TypeModel> Types)
 {
     public const string SchemaName = "vdiff-model/v0-tracer";
+
+    /// <summary>
+    /// Definitions that share an id (a repeated type, or a repeated member key inside one type),
+    /// ordinal sorted, always written even when empty. A provisional field of the tracer schema.
+    /// </summary>
+    public IReadOnlyList<string> Duplicates { get; init; } = [];
 }
 
 public sealed record TypeCounts(int Added, int Removed, int Modified, int Unchanged);
