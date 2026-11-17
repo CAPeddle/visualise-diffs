@@ -233,4 +233,76 @@ public class AliasedOutTests
 
         Assert.Equal(before, RepoSnapshot.Take(repo.Root, sibling));
     }
+
+    static readonly string[] OutputNames =
+        ["base.model.json", "head.model.json", "diff.json", "summary.mmd", "report.html"];
+
+    [Fact]
+    public void A_hard_link_planted_at_every_output_name_is_replaced_and_the_repository_files_are_unchanged()
+    {
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (baseId, headId) = BuildSmallHistory(repo);
+        var victims = new string[OutputNames.Length];
+        for (var i = 0; i < OutputNames.Length; i++)
+        {
+            victims[i] = Path.Combine(repo.RepoDir, $"victim-{i + 1}.txt");
+            File.WriteAllText(victims[i], $"original {i + 1}");
+            links.HardLink(Path.Combine(repo.OutDir, OutputNames[i]), victims[i]);
+        }
+
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+
+        var exit = RunCli(Args(repo.RepoDir, baseId, headId, repo.OutDir), out _, out var stderr);
+
+        Assert.Equal(0, exit);
+        Assert.Empty(stderr);
+        for (var i = 0; i < OutputNames.Length; i++)
+        {
+            Assert.Equal($"original {i + 1}", File.ReadAllText(victims[i]));
+            Assert.NotEqual($"original {i + 1}", File.ReadAllText(Path.Combine(repo.OutDir, OutputNames[i])));
+        }
+
+        Assert.StartsWith("classDiagram", File.ReadAllText(Path.Combine(repo.OutDir, "summary.mmd")));
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+    }
+
+    [Fact]
+    public void A_file_symbolic_link_planted_at_an_output_name_is_replaced_and_its_target_is_unchanged()
+    {
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (baseId, headId) = BuildSmallHistory(repo);
+        var victim = Path.Combine(repo.RepoDir, "victim-1.txt");
+        File.WriteAllText(victim, "original 1");
+        var linkPath = Path.Combine(repo.OutDir, "diff.json");
+        if (!links.TryFileLink(linkPath, victim))
+        {
+            return; // no privilege to create a file symbolic link on this host
+        }
+
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+
+        var exit = RunCli(Args(repo.RepoDir, baseId, headId, repo.OutDir), out _, out var stderr);
+
+        Assert.Equal(0, exit);
+        Assert.Empty(stderr);
+        Assert.Equal("original 1", File.ReadAllText(victim));
+        Assert.Null(new FileInfo(linkPath).LinkTarget);
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+    }
+
+    [Fact]
+    public void A_failed_write_leaves_no_temporary_file_behind()
+    {
+        using var repo = new SyntheticRepo();
+        var (baseId, headId) = BuildSmallHistory(repo);
+        Directory.CreateDirectory(Path.Combine(repo.OutDir, "diff.json"));
+
+        var exit = RunCli(Args(repo.RepoDir, baseId, headId, repo.OutDir), out _, out var stderr);
+
+        Assert.Equal(1, exit);
+        Assert.StartsWith("vdiff: ", stderr);
+        Assert.Empty(Directory.GetFileSystemEntries(repo.OutDir, "*.tmp-*"));
+    }
 }
