@@ -50,7 +50,7 @@ public class ModelAssemblyTests
 
         Assert.Equal(new UnmodelledCounts(Base: 1, Head: 2), diff.Summary.Unmodelled);
         Assert.Equal(
-            ["base: 0 file(s) with parse errors, 1 file(s) not modelled", "head: 0 file(s) with parse errors, 2 file(s) not modelled"],
+            ["base: 1 file(s) not modelled", "head: 2 file(s) not modelled"],
             diff.Warnings);
     }
 
