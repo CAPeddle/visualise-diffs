@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Vdiff.Core.Cli;
 using Vdiff.Core.Extraction;
 using Vdiff.Core.Git;
 using Vdiff.Core.Model;
@@ -152,5 +154,94 @@ public class TracerEndToEndTests
         Assert.Equal(headId, result.Head.Commit);
         Assert.Equal(baseId, result.Diff.Base);
         Assert.Equal(headId, result.Diff.Head);
+    }
+
+    static readonly JsonSerializerOptions ReadOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
+
+    static T ReadJson<T>(string path) => JsonSerializer.Deserialize<T>(File.ReadAllText(path), ReadOptions)!;
+
+    static int RunCli(string[] args, out string stdout, out string stderr)
+    {
+        using var outWriter = new StringWriter();
+        using var errWriter = new StringWriter();
+        var exit = CliApp.Run(args, outWriter, errWriter);
+        stdout = outWriter.ToString();
+        stderr = errWriter.ToString();
+        return exit;
+    }
+
+    [Fact]
+    public void Cli_run_on_fixture_A_writes_the_five_files_and_leaves_the_repository_untouched()
+    {
+        using var repo = new SyntheticRepo();
+        var (baseId, headId) = BuildFixtureA(repo);
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+
+        var exit = RunCli(
+            ["--repo", repo.RepoDir, "--base", baseId, "--head", headId, "--out", repo.OutDir],
+            out _, out var stderr);
+
+        Assert.Equal("", stderr);
+        Assert.Equal(0, exit);
+        Assert.Equal(
+            ["base.model.json", "diff.json", "head.model.json", "report.html", "summary.mmd"],
+            Directory.GetFiles(repo.OutDir).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+
+        // Written as UTF-8 without a byte-order mark and with LF line ends only.
+        foreach (var file in Directory.GetFiles(repo.OutDir))
+        {
+            var bytes = File.ReadAllBytes(file);
+            Assert.DoesNotContain((byte)'\r', bytes);
+            Assert.False(bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF, file);
+            Assert.Equal((byte)'\n', bytes[^1]);
+        }
+
+        var diff = ReadJson<DiffFile>(Path.Combine(repo.OutDir, "diff.json"));
+        AssertFixtureADiff(diff);
+
+        var head = ReadJson<ModelFile>(Path.Combine(repo.OutDir, "head.model.json"));
+        AssertExtractionMetadata(head, "include/shop/gadget.h", "include/shop/widget.h");
+        var baseModel = ReadJson<ModelFile>(Path.Combine(repo.OutDir, "base.model.json"));
+        AssertExtractionMetadata(baseModel, "include/shop/gadget.h", "include/shop/legacy.h");
+
+        var mermaid = File.ReadAllText(Path.Combine(repo.OutDir, "summary.mmd"));
+        Assert.StartsWith("classDiagram", mermaid);
+        Assert.Contains(":::added", mermaid);
+        Assert.Contains(":::removed", mermaid);
+        Assert.Contains(":::modified", mermaid);
+        Assert.Equal(3, mermaid.Split('\n').Count(l => l.TrimStart().StartsWith("classDef ", StringComparison.Ordinal)));
+        Assert.Contains("[added]", mermaid);
+        Assert.Contains("[removed]", mermaid);
+        Assert.Contains("[modified]", mermaid);
+
+        var html = File.ReadAllText(Path.Combine(repo.OutDir, "report.html"));
+        Assert.Contains("shop::Widget", html);
+        Assert.DoesNotContain("<script", html, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("http", html, StringComparison.OrdinalIgnoreCase);
+
+        // The whole sandbox (work tree and .git) and every git-visible state are as they were.
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+    }
+
+    [Fact]
+    public void Cli_refuses_an_out_directory_inside_the_repository()
+    {
+        using var repo = new SyntheticRepo();
+        var (baseId, headId) = BuildFixtureA(repo);
+        var before = RepoSnapshot.Take(repo.Root);
+
+        foreach (var inside in new[] { Path.Combine(repo.RepoDir, "results"), Path.Combine(repo.RepoDir, ".git", "vdiff"), repo.RepoDir })
+        {
+            var exit = RunCli(
+                ["--repo", repo.RepoDir, "--base", baseId, "--head", headId, "--out", inside],
+                out _, out var stderr);
+
+            Assert.Equal(1, exit);
+            Assert.StartsWith("vdiff: ", stderr);
+            Assert.Contains("--out must not lie inside the analysed repository", stderr);
+        }
+
+        Assert.False(Directory.Exists(Path.Combine(repo.RepoDir, "results")));
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root));
     }
 }
