@@ -256,7 +256,7 @@ public class DeterminismTests
 
         var mermaid = File.ReadAllText(Path.Combine(outDir, "summary.mmd"));
         Assert.Empty(MermaidLint.Check(mermaid));
-        Assert.Contains("shop__Gadget <|-- shop__Widget", mermaid);
+        Assert.Contains("C_shop__Gadget <|-- C_shop__Widget", mermaid);
         var html = File.ReadAllText(Path.Combine(outDir, "report.html"));
         Assert.DoesNotMatch("(?i)<script|https?:", html);
     }

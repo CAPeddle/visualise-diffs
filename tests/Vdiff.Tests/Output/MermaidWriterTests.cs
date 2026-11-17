@@ -91,13 +91,13 @@ public class MermaidWriterTests
 
         Assert.Equal(
             "classDiagram\n" +
-            "  class shop__Alpha[\"shop::Alpha\"]:::removed\n" +
-            "  class shop__Base[\"shop::Base\"]:::modified {\n" +
+            "  class C_shop__Alpha[\"shop::Alpha\"]:::removed\n" +
+            "  class C_shop__Base[\"shop::Base\"]:::modified {\n" +
             "    +void f() [added]\n" +
             "  }\n" +
-            "  class shop__Zed[\"shop::Zed\"]:::added\n" +
-            "  shop__Base <|-- shop__Alpha\n" +
-            "  shop__Base <|-- shop__Zed\n" +
+            "  class C_shop__Zed[\"shop::Zed\"]:::added\n" +
+            "  C_shop__Base <|-- C_shop__Alpha\n" +
+            "  C_shop__Base <|-- C_shop__Zed\n" +
             ClassDefs,
             text);
     }
@@ -134,12 +134,12 @@ public class MermaidWriterTests
     }
 
     [Theory]
-    [InlineData("shop::Gadget", "shop__Gadget")]
-    [InlineData("::a", "__a")]
-    [InlineData("9lives", "T9lives")]
-    [InlineData("café::Ü", "caf____")]
-    [InlineData("a b-c", "a_b_c")]
-    public void Class_id_is_the_fqn_with_other_characters_replaced_and_a_T_before_a_leading_digit(string fqn, string expectedId)
+    [InlineData("shop::Gadget", "C_shop__Gadget")]
+    [InlineData("::a", "C___a")]
+    [InlineData("9lives", "C_9lives")]
+    [InlineData("café::Ü", "C_caf____")]
+    [InlineData("a b-c", "C_a_b_c")]
+    public void Class_id_is_C_underscore_then_the_fqn_with_other_characters_replaced(string fqn, string expectedId)
     {
         var text = Render(Diff(Type(fqn, "added")));
 
@@ -157,9 +157,9 @@ public class MermaidWriterTests
         var classLines = Lines(text).Where(l => l.StartsWith("  class ", StringComparison.Ordinal)).ToArray();
         Assert.Equal(
             [
-                "  class a_b[\"a b\"]:::modified",
-                "  class a__b[\"a::b\"]:::removed",
-                "  class a__b_2[\"a__b\"]:::added",
+                "  class C_a_b[\"a b\"]:::modified",
+                "  class C_a__b[\"a::b\"]:::removed",
+                "  class C_a__b_2[\"a__b\"]:::added",
             ],
             classLines);
     }
@@ -169,7 +169,7 @@ public class MermaidWriterTests
     {
         var text = Render(Diff(Type("shop::Widget", basesAdded: ["Gadget"])));
 
-        Assert.Contains("  class shop__Widget[\"shop::Widget\"]:::modified\n", text);
+        Assert.Contains("  class C_shop__Widget[\"shop::Widget\"]:::modified\n", text);
         Assert.DoesNotContain("{", text);
         Assert.DoesNotContain("}", text);
     }
@@ -265,7 +265,7 @@ public class MermaidWriterTests
             Type(displayedFqn, "added"),
             Type("shop::Derived", "added", basesAdded: [written])));
 
-        var expected = $"  {expectedFqn.Replace("::", "__", StringComparison.Ordinal)} <|-- shop__Derived\n";
+        var expected = $"  C_{expectedFqn.Replace("::", "__", StringComparison.Ordinal)} <|-- C_shop__Derived\n";
         Assert.Contains(expected, text);
     }
 
@@ -292,7 +292,7 @@ public class MermaidWriterTests
             Type("shop::Derived", "modified", basesAdded: ["Base", "Base<int>"], basesRemoved: ["Base"])));
 
         var edges = Lines(text).Where(l => l.Contains("<|--", StringComparison.Ordinal)).ToArray();
-        Assert.Equal(["  Base <|-- shop__Derived"], edges);
+        Assert.Equal(["  C_Base <|-- C_shop__Derived"], edges);
     }
 
     [Fact]
