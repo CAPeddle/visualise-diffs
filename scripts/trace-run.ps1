@@ -19,7 +19,10 @@ Usage (from the vdiff repository root):
   pwsh -NoProfile -File scripts/trace-run.ps1 -Repo <dir> -Base <id> -Head <id> -Out <dir>
        [-Blank NAME[,NAME...]] [-Include GLOB] [-VdiffDll <path>] [-LogPath <file>] [-SkipMermaid]
 
-  -Out and -LogPath must lie outside the analysed repository and outside the vdiff repository.
+  -Out and -LogPath must lie outside the analysed repository and outside the vdiff repository,
+  judged after resolving symbolic links and directory junctions. Limit (T-01-39): subst drive
+  letters and DOS 8.3 short names are not resolved. A link that cannot be resolved (a loop, no
+  access) ends the run with reason script-error, never with a guess.
   -LogPath receives vdiff's own output for private diagnosis; without it that output is discarded.
 
 Runs under Windows PowerShell 5.1 and PowerShell 7. ASCII characters only.
@@ -139,7 +142,7 @@ function Get-FullPath([string]$Path) {
     return $full
 }
 
-function Test-SameOrUnder([string]$Path, [string]$Dir) {
+function Test-LexicallySameOrUnder([string]$Path, [string]$Dir) {
     if ([string]::IsNullOrEmpty($Dir)) { return $false }
     $p = Get-FullPath $Path
     $d = Get-FullPath $Dir
@@ -148,6 +151,60 @@ function Test-SameOrUnder([string]$Path, [string]$Dir) {
     $prefix = $d
     if (-not $prefix.EndsWith($sep)) { $prefix = $prefix + $sep }
     return $p.StartsWith($prefix, $script:PathComparison)
+}
+
+$script:LinkCount = 0
+$script:MaxLinks = 40
+
+# The same rule as FinalPath.Resolve in the C# tool: walk the full path from its root one segment
+# at a time; a symbolic link or directory junction replaces everything so far by its target,
+# resolved by the same rule; stop at the first segment that does not exist and append the rest;
+# at most 40 links per resolution. Any failure throws: the caller never falls back to the lexical
+# path, and the outer catch prints reason script-error. The mechanism is Get-Item with LinkType
+# and Target because ResolveLinkTarget does not exist in Windows PowerShell 5.1.
+# Limit (T-01-39): subst drive letters and DOS 8.3 short names are not resolved.
+function Resolve-FinalPath([string]$Path) {
+    $script:LinkCount = 0
+    return (Resolve-FinalPathStep $Path)
+}
+
+function Resolve-FinalPathStep([string]$Path) {
+    $full = Get-FullPath $Path
+    $root = [IO.Path]::GetPathRoot($full)
+    $separators = [char[]]@([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+    $segments = @($full.Substring($root.Length).Split($separators, [StringSplitOptions]::RemoveEmptyEntries))
+    $prefix = $root
+    for ($i = 0; $i -lt $segments.Count; $i++) {
+        $candidate = [IO.Path]::Combine($prefix, $segments[$i])
+        $item = $null
+        try { $item = Get-Item -LiteralPath $candidate -Force -ErrorAction Stop }
+        catch [System.Management.Automation.ItemNotFoundException] { $item = $null }
+        if ($null -eq $item) {
+            $result = $prefix
+            for ($j = $i; $j -lt $segments.Count; $j++) { $result = [IO.Path]::Combine($result, $segments[$j]) }
+            return $result
+        }
+        if ($item.LinkType -eq 'SymbolicLink' -or $item.LinkType -eq 'Junction') {
+            $script:LinkCount++
+            if ($script:LinkCount -gt $script:MaxLinks) { throw 'too many links' }
+            $target = [string]@($item.Target)[0]
+            if ($target.StartsWith('\??\', [StringComparison]::Ordinal)) { $target = $target.Substring(4) }
+            if ([string]::IsNullOrEmpty($target)) { throw 'unreadable link' }
+            if (-not [IO.Path]::IsPathRooted($target)) { $target = [IO.Path]::Combine($prefix, $target) }
+            $prefix = Resolve-FinalPathStep (Get-FullPath $target)
+        }
+        else {
+            $prefix = $candidate
+        }
+    }
+    return $prefix
+}
+
+# True when Path is Dir or below it, judged lexically first and then after link resolution.
+function Test-SameOrUnder([string]$Path, [string]$Dir) {
+    if ([string]::IsNullOrEmpty($Dir)) { return $false }
+    if (Test-LexicallySameOrUnder $Path $Dir) { return $true }
+    return (Test-LexicallySameOrUnder (Resolve-FinalPath $Path) (Resolve-FinalPath $Dir))
 }
 
 function Get-FirstLine([string]$Text) {
