@@ -13,9 +13,31 @@ public sealed record SidecarLimits(TimeSpan Timeout, long MaxStdoutBytes, long M
     static readonly SidecarLimits BuiltIn =
         new(TimeSpan.FromSeconds(120), 64L * 1024 * 1024, 1024 * 1024, TimeSpan.FromSeconds(10));
 
-    public static SidecarLimits Default => BuiltIn;
+    /// <summary>The built-in limits with the operational overrides of the process environment applied.</summary>
+    public static SidecarLimits Default => FromEnvironment(Environment.GetEnvironmentVariable);
 
-    public static SidecarLimits FromEnvironment(Func<string, string?> getEnvironmentVariable) => BuiltIn;
+    /// <summary>
+    /// The built-in limits, with <c>VDIFF_SIDECAR_TIMEOUT_SECONDS</c> (integer 1 to 1200) and
+    /// <c>VDIFF_PARSE_BUDGET_MS</c> (integer 1 to 600000) overriding the 120 s timeout and the 10 s
+    /// per-file parse budget so both can be exercised in a test. Anything else is ignored. The
+    /// output and stderr caps cannot be overridden.
+    /// </summary>
+    public static SidecarLimits FromEnvironment(Func<string, string?> getEnvironmentVariable)
+    {
+        var seconds = ReadInteger(getEnvironmentVariable(CppSidecar.TimeoutVariable), 1, 1200);
+        var milliseconds = ReadInteger(getEnvironmentVariable(CppSidecar.ParseBudgetVariable), 1, 600_000);
+        return BuiltIn with
+        {
+            Timeout = seconds is { } s ? TimeSpan.FromSeconds(s) : BuiltIn.Timeout,
+            ParseBudget = milliseconds is { } ms ? TimeSpan.FromMilliseconds(ms) : BuiltIn.ParseBudget,
+        };
+    }
+
+    static int? ReadInteger(string? text, int min, int max) =>
+        int.TryParse(text, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var value)
+        && value >= min && value <= max
+            ? value
+            : null;
 }
 
 /// <summary>One file handed to the sidecar: a label path and the raw bytes.</summary>
@@ -77,6 +99,8 @@ public static class CppSidecar
     public const string ResponseSchema = "vdiff-cpp-ts/v0";
 
     const string EnvironmentVariable = "VDIFF_CPP_TS";
+    public const string TimeoutVariable = "VDIFF_SIDECAR_TIMEOUT_SECONDS";
+    public const string ParseBudgetVariable = "VDIFF_PARSE_BUDGET_MS";
     const string CargoCommand = "cargo build --release --locked --manifest-path extractors/cpp-ts/Cargo.toml";
     const int StderrInMessage = 1000;
 
@@ -148,7 +172,8 @@ public static class CppSidecar
 
         throw new VdiffException(
             $"the C++ sidecar (vdiff-cpp-ts) was not found; build it with `{CargoCommand}` " +
-            $"or set the {EnvironmentVariable} variable to the path of the binary");
+            $"or set the {EnvironmentVariable} variable to the path of the binary " +
+            $"(operational settings: {TimeoutVariable} 1-1200 s, default 120; {ParseBudgetVariable} 1-600000 ms, default 10000)");
     }
 
     /// <summary>
