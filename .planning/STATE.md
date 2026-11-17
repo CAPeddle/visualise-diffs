@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Offline Tracer
 status: executing
-stopped_at: Completed 01-04-PLAN.md
-last_updated: "2026-11-17T05:34:23.428Z"
+stopped_at: Completed 01-05-PLAN.md
+last_updated: "2026-11-17T05:48:57.721Z"
 last_activity: 2026-11-16
 last_activity_desc: Phase 01 execution started
-state_head: e75ef5fc85e9e468a1b2d426782b7eaa90460abc
+state_head: 72ced305fbe1bb256ab55210d6bcdd0d82e1d388
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 10
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 ## Current Position
 
 Phase: 01 (Offline Tracer) — EXECUTING
-Plan: 3 of 10
+Plan: 4 of 10
 Status: Ready to execute
 Last activity: 2026-11-16 — Phase 01 execution started
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 |------|----------|-------|-------|
 | Phase 01 P03 | 13 min | 3 tasks | 16 files |
 | Phase 01 P04 | 28 min | 3 tasks | 4 files |
+| Phase 01 P05 | 11 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,7 @@ Recent decisions affecting current work:
 - [Phase 01]: Plan 01-03: model and diff JSON stay provisional (vdiff-model/v0-tracer, vdiff-diff/v0-tracer); non-UTF-8 changed paths are unmodelled on both sides; Mermaid draws no base edges yet
 - [Phase 01]: 01-04: --blank macro names are capped at 128 characters (CliOptions.MaxBlankNameLength)
 - [Phase 01]: 01-04: synthetic-only guard flags a remote verb only as the first argument of a git call; ignore-rule guard requires a committed .gitignore as the source
+- [Phase 01]: Plan 01-05: sidecar timeout and parse-budget overrides live in SidecarLimits.FromEnvironment; Default reads the process environment so CliApp is unchanged; caps are not overridable
 
 ### Pending Todos
 
@@ -99,6 +101,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-17T05:34:23.392Z
-Stopped at: Completed 01-04-PLAN.md
+Last session: 2026-11-17T05:48:57.684Z
+Stopped at: Completed 01-05-PLAN.md
 Resume file: None
