@@ -73,10 +73,25 @@ public static class CliApp
         return 1;
     }
 
-    /// <summary>Refuses an <c>--out</c> that lies inside the work tree or a git directory, or that is a file (T-01-28).</summary>
+    /// <summary>
+    /// Refuses an <c>--out</c> that lies inside the work tree or a git directory, or that is a file
+    /// (T-01-28). The containment test runs twice: on the lexical full paths, and again on the paths
+    /// after <see cref="FinalPath.Resolve"/>, so an <c>--out</c> reached through a symbolic link or
+    /// a directory junction (T-01-36), or a repository reached through one, is refused too.
+    /// Bound (T-01-39): links and junctions are resolved; subst drive letters and DOS 8.3 short
+    /// names are not, and are an accepted limit of the closure of verification gap 2.
+    /// </summary>
     static void RefuseUnsafeOut(string outPath, RepoLocation location)
     {
         if (IsSameOrUnder(outPath, location.Root) || IsSameOrUnder(outPath, location.GitDir) || IsSameOrUnder(outPath, location.CommonDir))
+        {
+            throw new VdiffException("--out must not lie inside the analysed repository");
+        }
+
+        var resolvedOut = FinalPath.Resolve(outPath);
+        if (IsSameOrUnder(resolvedOut, FinalPath.Resolve(location.Root))
+            || IsSameOrUnder(resolvedOut, FinalPath.Resolve(location.GitDir))
+            || IsSameOrUnder(resolvedOut, FinalPath.Resolve(location.CommonDir)))
         {
             throw new VdiffException("--out must not lie inside the analysed repository");
         }
