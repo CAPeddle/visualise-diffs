@@ -549,6 +549,33 @@ public class TraceRunScriptTests
         Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
     }
 
+    // ---- (c4) the log is written without following a planted hard link (WR-01 on the script side, T-01-45) ----
+
+    [Theory]
+    [MemberData(nameof(Hosts))]
+    public void Aliased_log_path_hard_linked_to_a_repository_file_is_replaced_and_the_file_is_unchanged(string host)
+    {
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (c1, c2, _) = BuildHistory(repo);
+        var readme = Path.Combine(repo.RepoDir, "README.md");
+        var log = links.HardLink(Path.Combine(repo.OutDir, "vdiff.log"), readme);
+        var outRun = Path.Combine(repo.OutDir, "run");
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+
+        var arguments = CoreArguments(repo.RepoDir, c1, c2, outRun);
+        arguments.AddRange(["-LogPath", log]);
+        var result = RunScript(host, arguments, skipMermaid: true, TimeSpan.FromMinutes(5));
+
+        var values = ParseSixLines(result.StdoutText);
+        AssertPassed(result, values);
+        AssertNothingLeaks(result, repo.RepoDir, repo.OutDir, outRun, log, c1, c2);
+        Assert.Equal("# Sample\n", File.ReadAllText(readme));
+        Assert.Equal(FiveFiles, OutputFiles(outRun));
+        Assert.Contains("wrote 5 files", File.ReadAllText(log), StringComparison.Ordinal);
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+    }
+
     // ---- (d) fsmonitor (C47) ----
 
     static ProcessResult UnprotectedGit(string repoDir, params string[] args)
