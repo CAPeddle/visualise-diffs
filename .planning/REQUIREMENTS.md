@@ -14,7 +14,7 @@ roadmap) and have no counterpart in that file yet.
 ### Offline tracer
 
 - [x] **TRC-01**: User can run `vdiff` offline against a local git repository with explicit base and head commits; the tool reads commit contents from git objects and leaves the repository's working tree, index, branch and refs unchanged.
-- [ ] **TRC-02**: User gets, for C++ code, a type- and member-level diff between the two commits written as model JSON, diff JSON, a Mermaid classDiagram summary (classDef per state, trailing member tags) and a self-contained HTML page in the output directory.
+- [x] **TRC-02**: User gets, for C++ code, a type- and member-level diff between the two commits written as model JSON, diff JSON, a Mermaid classDiagram summary (classDef per state, trailing member tags) and a self-contained HTML page in the output directory.
 - [ ] **TRC-03**: User can run the tracer against a real target PR on a private local clone and keep every output outside this public repository; any result recorded in this repo carries no target identifiers.
 
 ### Spikes (decisions that gate units)
@@ -101,7 +101,7 @@ Phases are defined in `.planning/ROADMAP.md`. Each requirement maps to exactly o
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | TRC-01 | Phase 1 | Complete |
-| TRC-02 | Phase 1 | Pending |
+| TRC-02 | Phase 1 | Complete |
 | TRC-03 | Phase 1 | Pending |
 | SPK-02 | Phase 1 | Pending |
 | R-10 | Phase 2 | Pending |

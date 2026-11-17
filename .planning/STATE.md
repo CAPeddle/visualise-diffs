@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Offline Tracer
 status: executing
-stopped_at: Completed 01-06-PLAN.md
-last_updated: "2026-11-17T06:07:20.979Z"
+stopped_at: Completed 01-07-PLAN.md
+last_updated: "2026-11-17T06:22:44.474Z"
 last_activity: 2026-11-16
 last_activity_desc: Phase 01 execution started
-state_head: 8a10a6a1d67ac7c8e3edae6d592697dbae1b4d1c
+state_head: e51f3e0e96d9756f63434da141c9eef4b19061d5
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 10
-  completed_plans: 6
+  completed_plans: 7
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 ## Current Position
 
 Phase: 01 (Offline Tracer) — EXECUTING
-Plan: 5 of 10
+Plan: 6 of 10
 Status: Ready to execute
 Last activity: 2026-11-16 — Phase 01 execution started
 
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P04 | 28 min | 3 tasks | 4 files |
 | Phase 01 P05 | 11 min | 2 tasks | 6 files |
 | Phase 01 P06 | 15 min | 3 tasks | 6 files |
+| Phase 01 P07 | 9 min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,7 @@ Recent decisions affecting current work:
 - [Phase 01]: Plan 01-05: sidecar timeout and parse-budget overrides live in SidecarLimits.FromEnvironment; Default reads the process environment so CliApp is unchanged; caps are not overridable
 - [Phase 01]: 01-06: sidecar depth cap of 128 on every recursive walk; each skipped subtree adds 1 to the file's error_nodes (main.rs adds extract_with_skips' count), so no protocol or C# change; a declaration is entered without counting a level
 - [Phase 01]: 01-06: enumerators are members of kind enumerator with access none, enum underlying type is in bases, aliases are kind alias, conversion operators are methods named operator <type>; sidecar JSON shape unchanged, 01-08 output code should expect these values
+- [Phase 01]: 01-07: duplicate member entries read 'member <key> of <type id> (N definitions)'; modified members keep both access and signature pairs; differ picks the first repeated key in total ordinal order
 
 ### Pending Todos
 
@@ -104,6 +106,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-17T06:07:20.935Z
-Stopped at: Completed 01-06-PLAN.md
+Last session: 2026-11-17T06:22:44.423Z
+Stopped at: Completed 01-07-PLAN.md
 Resume file: None
