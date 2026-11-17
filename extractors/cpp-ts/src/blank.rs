@@ -138,4 +138,112 @@ mod tests {
         let out = run(text, &["EXPORT_API"]);
         assert_eq!(out, "           a;\n#define EXPORT_API\r\n           b;\r\n");
     }
+
+    #[test]
+    fn a_name_that_is_a_prefix_of_another_blanks_each_whole_word_correctly() {
+        let text = "EXPORT EXPORT_API EXPORT_APIX XEXPORT";
+        let out = run(text, &["EXPORT", "EXPORT_API"]);
+        assert_eq!(out, "                  EXPORT_APIX XEXPORT");
+        // The order in which the names are given does not matter.
+        assert_eq!(run(text, &["EXPORT_API", "EXPORT"]), out);
+    }
+
+    #[test]
+    fn matching_is_case_sensitive() {
+        let text = "export_api Export_Api EXPORT_API";
+        assert_eq!(run(text, &["EXPORT_API"]), "export_api Export_Api           ");
+    }
+
+    #[test]
+    fn repeated_macros_on_one_line_are_all_blanked() {
+        let out = run("EXPORT_API EXPORT_API int x; EXPORT_API", &["EXPORT_API"]);
+        assert_eq!(out, "                      int x;           ");
+    }
+
+    #[test]
+    fn punctuation_is_a_word_boundary_but_digits_and_underscores_are_not() {
+        let text = "(EXPORT_API) <EXPORT_API> ::EXPORT_API, EXPORT_API1 1EXPORT_API EXPORT_API_";
+        let out = run(text, &["EXPORT_API"]);
+        let gap = " ".repeat("EXPORT_API".len());
+        assert_eq!(out, format!("({gap}) <{gap}> ::{gap}, EXPORT_API1 1EXPORT_API EXPORT_API_"));
+    }
+
+    #[test]
+    fn a_hash_in_the_middle_of_a_line_does_not_make_it_a_preprocessor_line() {
+        let out = run("int a; # EXPORT_API\n  \t #define EXPORT_API\n", &["EXPORT_API"]);
+        assert_eq!(out, "int a; #           \n  \t #define EXPORT_API\n");
+    }
+
+    #[test]
+    fn bytes_that_are_not_utf8_are_left_alone_and_never_block_a_match() {
+        let mut bytes = vec![0xFF, 0x00, b' '];
+        bytes.extend_from_slice(b"EXPORT_API");
+        bytes.extend_from_slice(&[0xC3, 0x00, 0xFE]);
+        let before = bytes.clone();
+        super::blank(&mut bytes, &["EXPORT_API".to_string()]);
+        assert_eq!(bytes.len(), before.len());
+        assert_eq!(&bytes[..3], &before[..3]);
+        assert_eq!(&bytes[3..13], b"          ");
+        assert_eq!(&bytes[13..], &before[13..]);
+    }
+
+    #[test]
+    fn a_byte_order_mark_is_kept_and_every_offset_after_it_is_unchanged() {
+        let mut bytes = vec![0xEF, 0xBB, 0xBF];
+        bytes.extend_from_slice(b"class EXPORT_API Foo {};\n");
+        let foo_before = bytes.windows(3).position(|w| w == b"Foo").expect("Foo");
+        super::blank(&mut bytes, &["EXPORT_API".to_string()]);
+        assert_eq!(&bytes[..3], &[0xEF, 0xBB, 0xBF]);
+        assert_eq!(bytes.windows(3).position(|w| w == b"Foo"), Some(foo_before));
+        assert_eq!(foo_before, 3 + "class EXPORT_API ".len());
+    }
+
+    #[test]
+    fn a_name_longer_than_the_input_and_an_empty_name_change_nothing() {
+        assert_eq!(run("EX", &["EXPORT_API"]), "EX");
+        assert_eq!(run("class A {};", &[""]), "class A {};");
+        assert_eq!(run("", &["EXPORT_API"]), "");
+    }
+
+    #[test]
+    fn blanking_twice_gives_the_same_bytes_as_blanking_once() {
+        let once = run("class EXPORT_API A : public EXPORT_BASE B {};\n#define EXPORT_API\n", &["EXPORT_API", "EXPORT_BASE"]);
+        let twice = run(&once, &["EXPORT_API", "EXPORT_BASE"]);
+        assert_eq!(once, twice);
+    }
+
+    #[test]
+    fn for_any_input_the_length_is_kept_and_only_bytes_inside_a_named_macro_become_spaces() {
+        // A small deterministic generator: no extra crate, the same inputs on every run.
+        let mut state: u64 = 0x2545_F491_4F6C_DD1D;
+        let mut next = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        let fragments: [&[u8]; 14] = [
+            b"EXPORT_API", b"EXPORT", b"EXPORT_APIS", b"class ", b" ", b"\n", b"\r\n", b"#", b"\t", b"x", b"_",
+            b"\xC3\xA9", b"\xFF", b"\x00",
+        ];
+        let names = vec!["EXPORT_API".to_string(), "EXPORT".to_string()];
+        for _ in 0..300 {
+            let mut input = Vec::new();
+            for _ in 0..(next() % 40) {
+                input.extend_from_slice(fragments[(next() % fragments.len() as u64) as usize]);
+            }
+            let mut output = input.clone();
+            super::blank(&mut output, &names);
+            assert_eq!(output.len(), input.len());
+            for (i, (a, b)) in input.iter().zip(&output).enumerate() {
+                if a != b {
+                    assert_eq!(*b, b' ', "byte {i} was changed to something other than a space");
+                    assert!(
+                        a.is_ascii_uppercase() || *a == b'_',
+                        "byte {i} was part of no macro name: {a:#x}"
+                    );
+                }
+            }
+        }
+    }
 }
