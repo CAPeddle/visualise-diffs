@@ -55,6 +55,9 @@ public static class CliApp
 
             // Test seam for the swap between the check and the write (WR-02); null in production.
             afterPipeline?.Invoke();
+
+            // Second containment check, immediately before the write (T-01-40, tracked as T-01-43).
+            RefuseUnsafeOut(outPath, location);
             OutputWriter.WriteAll(outPath, result.Base, result.Head, result.Diff, mermaid, html);
 
             stdout.Write($"vdiff: wrote 5 files to {outPath}\n");
