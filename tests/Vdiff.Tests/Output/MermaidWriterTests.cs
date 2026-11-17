@@ -247,7 +247,7 @@ public class MermaidWriterTests
 
         var classLines = Lines(text).Count(l => l.StartsWith("  class ", StringComparison.Ordinal));
         Assert.Equal(2, classLines);
-        Assert.DoesNotContain("Evil:::added", text);
+        Assert.DoesNotContain("\n  class Evil", text);
         Assert.Equal(1, text.Count(c => c == '{'));
         Assert.Equal(1, text.Count(c => c == '}'));
     }
