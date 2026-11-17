@@ -15,12 +15,12 @@ roadmap) and have no counterpart in that file yet.
 
 - [x] **TRC-01**: User can run `vdiff` offline against a local git repository with explicit base and head commits; the tool reads commit contents from git objects and leaves the repository's working tree, index, branch and refs unchanged.
 - [x] **TRC-02**: User gets, for C++ code, a type- and member-level diff between the two commits written as model JSON, diff JSON, a Mermaid classDiagram summary (classDef per state, trailing member tags) and a self-contained HTML page in the output directory.
-- [ ] **TRC-03**: User can run the tracer against a real target PR on a private local clone and keep every output outside this public repository; any result recorded in this repo carries no target identifiers.
+- [x] **TRC-03**: User can run the tracer against a real target PR on a private local clone and keep every output outside this public repository; any result recorded in this repo carries no target identifiers.
 
 ### Spikes (decisions that gate units)
 
 - [ ] **SPK-01**: Spike S1 recorded — Mermaid `classDiagram` + `classDef` rendering in ADO PR comments/descriptions tested; renderer default and trailing member-tag format fixed (closes O3; gates U8, U9)
-- [ ] **SPK-02**: Spike S2 recorded as ADR-001 — C++ tree-sitter packaging chosen (.NET binding vs Rust sidecar with `tree-sitter` 0.27 + `tree-sitter-cpp`) on package size, Linux install, speed, macro blanking (gates U3)
+- [x] **SPK-02**: Spike S2 recorded as ADR-001 — C++ tree-sitter packaging chosen (.NET binding vs Rust sidecar with `tree-sitter` 0.27 + `tree-sitter-cpp`) on package size, Linux install, speed, macro blanking (gates U3)
 - [ ] **SPK-03**: Spike S3 recorded — C# extraction runner decided (Roslyn against reference assemblies; Ubuntu vs Windows per D18; reframing pending, see O4 in PROJECT.md) (gates U4, R26 runner)
 
 ### Model and harness
@@ -102,8 +102,8 @@ Phases are defined in `.planning/ROADMAP.md`. Each requirement maps to exactly o
 |-------------|-------|--------|
 | TRC-01 | Phase 1 | Complete |
 | TRC-02 | Phase 1 | Complete |
-| TRC-03 | Phase 1 | Pending |
-| SPK-02 | Phase 1 | Pending |
+| TRC-03 | Phase 1 | Complete |
+| SPK-02 | Phase 1 | Complete |
 | R-10 | Phase 2 | Pending |
 | R-23 | Phase 2 | Pending |
 | ACC-01 | Phase 2 | Pending |
