@@ -53,6 +53,22 @@ public class MermaidCliSyntaxTests
         }
         """.ReplaceLineEndings("\n") + "\n";
 
+    const string KeywordHeaderPath = "include/keywords.h";
+
+    // Global scope, no namespace: the class id is derived from the bare name, so each of these is a
+    // Mermaid class-diagram keyword (review finding CR-01). `linked` derives from `link` so a keyword
+    // is also exercised on an inheritance-edge line.
+    static readonly string KeywordHeader = """
+        #pragma once
+        struct link { int a; };
+        struct note { int a; };
+        struct click { int a; };
+        struct callback { int a; };
+        struct href { int a; };
+        struct cssClass { int a; };
+        struct linked : public link { int b; };
+        """.ReplaceLineEndings("\n") + "\n";
+
     static string RepositoryRoot()
     {
         for (var dir = Path.GetFullPath(AppContext.BaseDirectory); dir is not null; dir = Path.GetDirectoryName(dir))
@@ -148,6 +164,28 @@ public class MermaidCliSyntaxTests
         var text = Summary(repo, baseId, headId);
 
         Assert.Contains("shop::Cell", text);
+        Assert.Empty(MermaidLint.Check(text));
+        var (exit, _, stderr) = Check(text);
+        Assert.True(exit == 0, $"mermaid-check exited {exit}: {stderr}\n--- diagram ---\n{text}");
+    }
+
+    [Fact]
+    public void Writer_output_for_keyword_named_global_types_passes_the_real_syntax_check()
+    {
+        using var repo = new SyntheticRepo();
+        repo.Write("README.txt", "synthetic base\n");
+        var baseId = repo.Commit("base");
+        repo.Write(KeywordHeaderPath, KeywordHeader);
+        var headId = repo.Commit("head");
+
+        var text = Summary(repo, baseId, headId);
+
+        foreach (var name in new[] { "link", "note", "click", "callback", "href", "cssClass" })
+        {
+            Assert.Contains($"class C_{name}[\"{name}\"]:::added", text);
+        }
+
+        Assert.Contains("C_link <|-- C_linked", text);
         Assert.Empty(MermaidLint.Check(text));
         var (exit, _, stderr) = Check(text);
         Assert.True(exit == 0, $"mermaid-check exited {exit}: {stderr}\n--- diagram ---\n{text}");
