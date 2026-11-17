@@ -2,238 +2,133 @@
 phase: 01-offline-tracer
 reviewed: 2026-11-17T00:00:00Z
 depth: standard
-files_reviewed: 57
+files_reviewed: 12
 files_reviewed_list:
-  - extractors/cpp-ts/src/main.rs
-  - extractors/cpp-ts/src/protocol.rs
-  - extractors/cpp-ts/src/blank.rs
-  - extractors/cpp-ts/src/extract.rs
-  - src/Vdiff.Core/VdiffException.cs
-  - src/Vdiff.Core/Process/BoundedProcess.cs
-  - src/Vdiff.Core/Git/GitObjectReader.cs
-  - src/Vdiff.Core/Scope/ScopeFilter.cs
-  - src/Vdiff.Core/Extraction/CppSidecar.cs
-  - src/Vdiff.Core/Model/ModelTypes.cs
-  - src/Vdiff.Core/Model/ModelBuilder.cs
-  - src/Vdiff.Core/Diff/ModelDiffer.cs
-  - src/Vdiff.Core/Pipeline/TracerPipeline.cs
-  - src/Vdiff.Core/Output/OutputWriter.cs
-  - src/Vdiff.Core/Output/MermaidWriter.cs
-  - src/Vdiff.Core/Output/HtmlWriter.cs
-  - src/Vdiff.Core/Cli/CliOptions.cs
-  - src/Vdiff.Core/Cli/CliApp.cs
-  - src/Vdiff.Cli/Program.cs
-  - tools/mermaid-check/check.mjs
   - scripts/trace-run.ps1
-  - tests/Vdiff.FakeSidecar/Program.cs
-  - .gitignore
-  - .gitattributes
-  - extractors/cpp-ts/Cargo.toml
-  - global.json
-  - vdiff.sln
-  - src/Vdiff.Core/Vdiff.Core.csproj
-  - src/Vdiff.Cli/Vdiff.Cli.csproj
-  - tests/Vdiff.Tests/Vdiff.Tests.csproj
-  - tests/Vdiff.FakeSidecar/Vdiff.FakeSidecar.csproj
-  - tools/mermaid-check/package.json
-  - tests/Vdiff.Tests (skimmed for test quality: MermaidCliSyntaxTests, MermaidLint, SidecarFixture, RepoSnapshot, temp-dir handling)
+  - src/Vdiff.Core/Cli/CliApp.cs
+  - src/Vdiff.Core/Cli/FinalPath.cs
+  - src/Vdiff.Core/Output/MermaidWriter.cs
+  - tests/Vdiff.Tests/Output/DeterminismTests.cs
+  - tests/Vdiff.Tests/Output/MermaidCliSyntaxTests.cs
+  - tests/Vdiff.Tests/Output/MermaidLint.cs
+  - tests/Vdiff.Tests/Output/MermaidWriterTests.cs
+  - tests/Vdiff.Tests/Safety/AliasedOutTests.cs
+  - tests/Vdiff.Tests/Safety/FinalPathTests.cs
+  - tests/Vdiff.Tests/Support/LinkScratch.cs
+  - tests/Vdiff.Tests/Trial/TraceRunScriptTests.cs
 findings:
   critical: 1
-  warning: 4
-  info: 6
-  total: 11
+  warning: 2
+  info: 4
+  total: 7
+  necessity: 0
 status: issues_found
 ---
 
-# Phase 01: Code Review Report
+# Phase 01: Code Review Report (gap-closure re-review)
 
 **Reviewed:** 2026-11-17
 **Depth:** standard
-**Files Reviewed:** 57 (production files read in full; tests skimmed for test-quality problems only)
+**Files Reviewed:** 12
 **Status:** issues_found
+
+## Scope note
+
+This report covers only the gap-closure diff `fe6c08e..HEAD` (plans 01-11 and 01-12) for the files listed above. It supersedes nothing outside that scope. The earlier full phase review stays in git at `d120fc1`; its findings and their disposition are in `01-REVIEW-DISPOSITION.md`. No structural (fallow) findings were supplied and no external reviewer evidence was supplied. The necessity rubric (`necessity-review.md`) was read; no necessity findings result (the second, resolved containment check is deliberate defence in depth, not a guard against an impossible state).
 
 ## Summary
 
-The implementation is careful on the project's headline concerns. Git is invoked read-only
-(fsmonitor off, no optional locks, no lazy fetch, a cleaned environment). Every child process
-goes through one bounded runner with a timeout, output caps and a tree kill. Commit ids,
-macro names and globs are validated before use. Hostile text is HTML-encoded in the report. The
-sidecar protocol is length-checked with fixed error messages. I found no injection, path
-traversal into the repository by file name, or hardcoded secret.
+Plan 01-11 (the `C_` class-id prefix) is correct. `ClassId` is the only place an id is produced, `Render` threads the same `ids` list into `AppendClass` and into every edge endpoint in `Edges`, and `MermaidLint` plus the writer tests now fail on a bare id or an unprefixed edge endpoint. Nothing else in `src` or `tools` reads or builds class ids. The removed "T before a leading digit" and empty-id branches are correctly dead now that every id starts with `C_`.
 
-The one real defect is in the Mermaid writer. A changed global-scope type named `link`, `note`,
-`click`, `callback`, `href` or `cssClass` produces a diagram Mermaid cannot parse. I confirmed
-this by running the repository's own local Mermaid check on the writer's exact line shape. The
-tests do not cover it, and the structural lint accepts it.
+Plan 01-12 (link resolution before the `--out` containment test) closes the junction and symbolic-link aliasing that gap 2 reproduced. I ran `FinalPathTests`, `AliasedOutTests`, `MermaidWriterTests` and the eight `Aliased_*` script tests on both PowerShell hosts: 73 pass. The link walk itself is sound: loop and ancestor-cycle detection terminate (the shared counter is never reset on recursion), relative targets are combined against the already-resolved prefix, dangling links resolve to their missing target, and every resolver failure becomes the one fixed message.
 
-The warnings concern guards that are weaker than they read: the `--out` containment check is
-lexical only, the sidecar answer is not cross-checked against the request, the trial wrapper's
-"repository unchanged" evidence omits the object database and config, and `check.mjs` reports a
-browser launch failure as a Mermaid syntax failure.
-
-No necessity-category findings were classified (no impossible-state guards stood out), so there
-is no `necessity:` count.
-
-I did not run the full test suites (already green per the brief). The only commands run were
-targeted: `node tools/mermaid-check/check.mjs` on small synthetic `.mmd` files in the scratchpad
-and one run with a bogus browser path.
+However, the guard still has a reproducible hole. The three named alias forms the plan accepted as residual (subst drives, 8.3 names) are not the only ones: Windows path namespaces that never go through a link at all (`\\?\C:\...`, loopback UNC `\\localhost\C$\...`) pass both the lexical and the resolved test and write inside the repository. I reproduced this against `vdiff.dll`. Two further ways to land bytes in the repository (a pre-existing file link in `--out`, and a check-then-write gap) are listed as warnings.
 
 ## Critical Issues
 
-### CR-01: Mermaid class ids that are Mermaid keywords make the whole diagram unparseable
+### CR-01: `--out` written as `\\?\C:\...` or `\\localhost\C$\...` bypasses the containment guard and writes inside the analysed repository
 
-**File:** `src/Vdiff.Core/Output/MermaidWriter.cs:52` and `:91-116`
-**Issue:** `ClassId` turns the fqn into an identifier and uses it bare: `class <id>["<fqn>"]:::state`.
-A global-scope type whose name is a Mermaid class-diagram keyword becomes a parse error. I ran the
-local check (`tools/mermaid-check/check.mjs`) on `classDiagram` / `class <name>["<name>"]:::added { ... }` / `classDef ...`:
+**File:** `src/Vdiff.Core/Cli/CliApp.cs:84-103`, `src/Vdiff.Core/Cli/FinalPath.cs:49-79`, `scripts/trace-run.ps1:166-208`
+**Issue:** `Path.GetFullPath` on Windows keeps the `\\?\` extended prefix and the `\\localhost\C$` UNC root verbatim. `IsSameOrUnder` therefore compares `\\?\C:\repo\out` against `C:\repo` and says "not inside". `FinalPath.Resolve` then walks from the root `\\?\C:\` (or `\\localhost\C$`), finds no link, and returns the same spelling, so the second (resolved) test also says "not inside". Both namespaces address the same files as `C:\repo`, so `Directory.CreateDirectory` and the five writes land inside the repository.
 
-| id | result |
-|----|--------|
-| `link`, `note`, `click`, `callback`, `href`, `cssClass` | `FAILED: Parse error on line 2` |
-| `style`, `end`, `direction`, `call`, `interface`, `class`, `title`, `T1`, `_` | OK |
+Reproduced on this machine with a synthetic repo (commit `c`, `base == head`):
 
-`link`, `note`, `callback` and `click` are ordinary C++ type names (a list node `struct link`, a
-UI `struct click`). A namespaced type is safe (`ns::link` becomes `ns__link`), so this hits only global-scope
-types. One such type in a PR makes the entire sticky-thread diagram fail to render, which defeats
-the core value. The same keyword list may grow with the pinned Mermaid version.
-
-The tests miss it. `MermaidCliSyntaxTests` uses only `shop::Cell` and `Gen<n>`, and
-`MermaidLint.ClassLine` accepts any `[A-Za-z_][A-Za-z0-9_]*` id, so neither can fail on this.
-**Fix:** Never emit a bare fqn-derived id. Prefix every id so it cannot equal a keyword, keep the
-readable name in the label (which is already there):
-```csharp
-var baseId = "C_" + builder;          // or "T" + running index
 ```
-(`C_` also removes the current special case for a leading digit.) Add a test that diffs a header
-declaring `struct link`, `struct note`, `struct click`, `struct callback`, `struct href` and
-`struct cssClass`, and asserts `check.mjs` exits 0. Add the same names to a unit test of `Render`.
+vdiff --repo C:\...\er\repo --base c --head c --out \\?\C:\...\er\repo\out-ext
+  -> vdiff: wrote 5 files to \\?\C:\...\er\repo\out-ext ; exit 0
+vdiff --repo C:\...\er\repo --base c --head c --out \\localhost\C$\...\er\repo\out-unc
+  -> vdiff: wrote 5 files to \\localhost\C$\...\er\repo\out-unc ; exit 0
+git status --short  ->  ?? out-ext/   ?? out-unc/
+```
+
+This is the same defect class as the original WR-01 ("an alias of the repository path"), is not a symlink or junction, and is not covered by the T-01-39 residual, which names only subst drive letters and 8.3 short names. The doc comments and the 01-12 SUMMARY therefore under-state the remaining gap. `trace-run.ps1` has the same hole: `Get-FullPath` keeps both prefixes, so `-Out \\?\C:\repo\out` passes `Test-SameOrUnder`, vdiff writes into the repo, and the script only notices afterwards (`repo_unchanged: no`, reason `repo-changed`), after the write has happened. The same applies to a link whose target is a volume GUID path (`\??\Volume{guid}\...`): the script strips `\??\`, gets a non-rooted `Volume{guid}\...`, combines it with the link's parent, and returns a garbage path that matches nothing (fail open, not fail closed).
+
+**Fix:** Normalise the namespace before both comparisons, or fail closed on any form the resolver cannot canonicalise. The robust option is to compare identity rather than spelling: open the deepest existing ancestor of `--out` and of each protected directory and take the final path (`GetFinalPathNameByHandle`, then strip `\\?\` / map `\\?\UNC\`), which also fixes subst and 8.3 in the same stroke. If a P/Invoke is unwanted (the script runs on 5.1 without compiled code), the minimum is to refuse, on Windows, any `--out`/`-Out`/`-LogPath` that starts with `\\?\`, `\\.\`, or a UNC root, and any link target that does not parse as `X:\` or a plain UNC path:
+
+```csharp
+if (OperatingSystem.IsWindows())
+{
+    var root = Path.GetPathRoot(Path.GetFullPath(path)) ?? "";
+    if (root.StartsWith(@"\\", StringComparison.Ordinal))   // \\?\, \\.\, \\server\share
+    {
+        throw new VdiffException(UnresolvableMessage);
+    }
+}
+```
+
+Add tests for `\\?\<repo>\out`, `\\localhost\<drive>$\...\out`, and the PowerShell equivalents, and add the forms to the T-01-39 text if they are deliberately left as residual.
 
 ## Warnings
 
-### WR-01: `--out` containment check is lexical only and can be bypassed by an alias of the repository path
+### WR-01: A pre-existing file link in `--out` redirects a write into the repository
 
-**File:** `src/Vdiff.Core/Cli/CliApp.cs:77-102` (same pattern in `scripts/trace-run.ps1:142-151`)
-**Issue:** `RefuseUnsafeOut` compares `Path.GetFullPath(out)` with the roots reported by
-`git rev-parse`. Git reports real (symlink-resolved) paths. `GetFullPath` resolves nothing. So an
-`--out` that reaches the repository through a symlink, a directory junction, a `subst` drive or
-an 8.3 short name is not seen as inside it. The common real case is macOS, where the temp area
-is `/var/...` and git reports `/private/var/...`. The tool would then write five files into the
-analysed work tree, which is the one thing it must never do (T-01-28). `OutputWriter.WriteText`
-also follows a pre-existing symlink at one of the five file names (`File.WriteAllBytes`), so a
-link left in a reused `--out` directory redirects the write.
-**Fix:** Resolve the deepest existing ancestor of `--out` to its final target before comparing
-(`new DirectoryInfo(p).ResolveLinkTarget(returnFinalTarget: true)` for each existing segment, or
-compare `Directory` identity by file id), and apply the same resolution to the three git roots.
-Optionally open the five files with `FileMode.Create` after checking that none is a reparse point
-or symlink. Mirror the change in `Test-SameOrUnder`.
+**File:** `src/Vdiff.Core/Output/OutputWriter.cs:47-62` (reached from `src/Vdiff.Core/Cli/CliApp.cs:51`)
+**Issue:** The guard resolves the `--out` directory only. `OutputWriter.WriteText` calls `File.WriteAllBytes(Path.Combine(outDir, name), ...)`, which follows a file symbolic link and writes through a hard link. If `--out` is a real directory outside the repo that already contains `summary.mmd` (or any of the five names) as a link or hard link to a repo file, the tool overwrites that repo file. Reproduced: `mklink /H out\summary.mmd repo\README.txt`, run vdiff with `--out out`, exit 0, `git status` shows ` M README.txt` (content replaced by the Mermaid text). This is operator-planted, but the roadmap criterion is "nothing outside --out is written, the analysed repository is never changed" and nothing in the guard or its documented residual covers it.
+**Fix:** Before each write, refuse an existing target that is a reparse point or has more than one hard link, or write to a temp name in `outDir` and `File.Move(temp, final, overwrite: true)` (replaces the directory entry instead of writing through it):
 
-### WR-02: The sidecar answer is not cross-checked against the request, so the client does not fail closed on a missing or invented file
+```csharp
+var target = Path.Combine(outDir, fileName);
+var info = new FileInfo(target);
+if (info.Exists && info.LinkTarget is not null)
+{
+    throw new VdiffException("--out holds a link where an output file goes");
+}
+var temp = Path.Combine(outDir, fileName + ".tmp-" + Guid.NewGuid().ToString("N"));
+File.WriteAllBytes(temp, bytes);
+File.Move(temp, target, overwrite: true);
+```
 
-**File:** `src/Vdiff.Core/Extraction/CppSidecar.cs:253-259` and `:268-286`
-**Issue:** The class contract says the client "fails closed" and that a file is "never dropped".
-`ParseResponse` checks only schema, a non-null list and a valid status per entry. It does not check
-that the response holds exactly one entry per requested file, in request order, with the requested
-paths. If the sidecar returned fewer entries (a bug, a version skew, a truncated but valid JSON
-document) the missing files vanish from that side's model without a trace. The differ then reports
-every type in them as added or removed, with no warning. A path the request never contained is
-accepted and modelled under that name. `ModelBuilder.Build` has no check either.
-**Fix:** In `Extract`, after `ParseResponse`, require `response.Files.Count == files.Count` and
-`response.Files[i].Path == files[i].Path` (ordinal) for every `i`; otherwise throw a
-`VdiffException("the sidecar response does not match the request")`. The Rust side already
-returns files in request order (tested in `main.rs`), so this costs nothing.
+### WR-02: Containment is checked once, minutes before the write
 
-### WR-03: The trial wrapper's "repo_unchanged: yes" ignores the object database, config, hooks and `.git` file set
-
-**File:** `scripts/trace-run.ps1:167-195`
-**Issue:** The snapshot hashes `status`, `HEAD`, the symbolic ref, `for-each-ref`, worktrees,
-stash and the bytes of `.git/index`. The failure modes the project is most worried about are not
-in it: a lazy fetch writing objects or a pack into `.git/objects`, an fsmonitor daemon or socket
-file appearing under `.git`, a changed `.git/config`, `FETCH_HEAD`, `packed-refs` or a new hook.
-None of these changes status or refs, so the wrapper would print `repo_unchanged: yes` and
-`result: pass` while the private clone had been written to. The test-side `RepoSnapshot` hashes
-the whole sandbox; the wrapper, which produces the real SPK-02 evidence, does not.
-**Fix:** Add cheap, bounded probes to the hashed text: `git count-objects -v`, the hash of
-`.git/config`, `.git/packed-refs` and `.git/shallow`, and a recursive listing of names and sizes
-of `.git` (skip `objects/` file bodies but include `objects/pack/*` names and sizes, plus
-`objects/info`, `hooks`, `info`). Keep the output free of paths and counts, as now.
-
-### WR-04: `check.mjs` reports a browser launch failure as a Mermaid syntax failure
-
-**File:** `tools/mermaid-check/check.mjs:142-146`
-**Issue:** The script maps mermaid-cli exit 1 to `EXIT_SYNTAX`. mermaid-cli also exits 1 when
-Chrome cannot start. I confirmed it with `VDIFF_MERMAID_BROWSER` pointing at an existing
-non-browser executable: output `mermaid-check: FAILED / Error: Failed to launch the browser process`, exit 1. A
-missing sandbox permission in a container, a Chrome crash or a bad `--disable-gpu` interaction
-therefore looks like a bad diagram. `trace-run.ps1` then prints `mermaid_syntax: fail`, which
-would be recorded as evidence about the writer. The header comment promises that exit 4 means
-"the check itself broke".
-**Fix:** Classify by stderr. Exit 1 only when stderr contains `Parse error` or `Syntax error`
-(or the diagram text that mermaid-cli prints for parse failures); treat `Failed to launch the browser` and any
-other failure as `EXIT_BROKEN` (4), or as `EXIT_PREREQUISITE` (3) for the launch case so the
-wrapper reports `skipped`.
+**File:** `src/Vdiff.Core/Cli/CliApp.cs:43-51`
+**Issue:** `RefuseUnsafeOut` runs before `TracerPipeline.Run`, which may take up to the 20-minute budget; `OutputWriter.WriteAll` then calls `Directory.CreateDirectory(outPath)` on the lexical path. A link (or a directory the operator renames or replaces) that changes between the check and the write defeats the guard, and the resolved result is thrown away rather than used for the write. Likewise `trace-run.ps1` checks at lines 300-310 and writes the log at line 336 after a run of up to 25 minutes. The 01-12 plan does not list this as accepted residual.
+**Fix:** Cheapest: call `RefuseUnsafeOut(outPath, location)` again immediately before `OutputWriter.WriteAll` (and have the script re-run its `Test-SameOrUnder` for `$logFull` just before `WriteAllText`). Better: have `RefuseUnsafeOut` return the resolved out path and write to that, so the checked and written paths are the same string.
 
 ## Info
 
-### IN-01: A panic in one file's extraction fails the whole sidecar run instead of labelling that file `error`
+### IN-01: The `IOException` branch still prints .NET exception text with full paths
 
-**File:** `extractors/cpp-ts/src/main.rs:26-54` and `:72-86`
-**Issue:** The design (D-11) isolates per-file failures as `status: "error"`. `process_file` has
-no `catch_unwind`, so any panic in a rayon worker unwinds through `pool.install`, the process
-exits 101, and the C# client fails the whole run. I found no reachable panic (the slicing is
-guarded and there is no `unwrap` in non-test code), so this is defence in depth for hostile input.
-**Fix:** Wrap the body of `process_file` in `std::panic::catch_unwind(AssertUnwindSafe(...))`
-and return a `FileResult` with status `error` on `Err`. The existing panic hook already prints a
-fixed line.
+**File:** `src/Vdiff.Core/Cli/CliApp.cs:60-62`
+**Issue:** T-01-38 ("an unresolvable link making the CLI print a .NET exception message that carries a full path") is closed for the resolver only. Any other `IOException` or `UnauthorizedAccessException` still reaches `Fail(stderr, "could not write the output: " + e.Message)`, which prints the path (observed above: `The filename, directory name, or volume label syntax is incorrect. : 'C:\...'`). The path is the operator's own, so this is low risk, but the threat register entry reads as if the leak is gone.
+**Fix:** Print a fixed message (`"could not write the output"`) and the exception type name, as the generic branch already does, or narrow the T-01-38 wording to "resolver failures".
 
-### IN-02: Inheritance edges do not show added versus removed, and base resolution by suffix can pick a wrong type
+### IN-02: Relative link targets are never exercised on Windows
 
-**File:** `src/Vdiff.Core/Output/MermaidWriter.cs:123-165` (line 134)
-**Issue:** Edges are built from `Bases.Added` concatenated with `Bases.Removed` and drawn with the
-same `<|--` arrow, so a removed base looks like a current one. The product value is "which edges
-changed shape". A base written `Base` inside namespace `a` also resolves to the single displayed
-type ending in `::Base` even if that is `b::Base`. Accepted for a tracer, but it should be a
-known limitation.
-**Fix:** Record the edge direction of the change (for example a dashed link or a trailing label
-`removed`) and, before the unique-suffix fallback, try the derived type's own scope chain.
+**File:** `tests/Vdiff.Tests/Safety/FinalPathTests.cs:78-88`, `tests/Vdiff.Tests/Support/LinkScratch.cs:33-52`, `scripts/trace-run.ps1:193`
+**Issue:** `LinkScratch.Link` makes an absolute-target junction on Windows and ignores `relativeTarget`, so `A_relative_link_target_is_resolved_from_the_links_own_directory` is identical to the absolute-target test on the development OS, and the PowerShell branch `if (-not [IO.Path]::IsPathRooted($target)) { Combine($prefix, $target) }` is only covered on non-Windows hosts (if the test suite runs there at all). The code reads correct, but it is unproven where this project is developed.
+**Fix:** On Windows, create the relative case with a real symlink when the process may (`Directory.CreateSymbolicLink`, works in Developer Mode) and skip-with-reason only if the privilege is missing; or state in the test that the branch is covered by the Ubuntu leg of the pipeline.
 
-### IN-03: Macro blanking cost is unbounded and outside the per-file parse budget
+### IN-03: Rooted-without-drive and drive-relative link targets resolve against the wrong drive
 
-**File:** `extractors/cpp-ts/src/blank.rs:21-62`
-**Issue:** `blank` scans every line once per macro name: cost is about `bytes x macros`. With the
-CLI limits (256 names, 4 MiB per blob, 256 MiB total) a hostile change can spend tens of
-seconds of CPU here before any parse deadline starts. The 120 s process timeout still bounds it
-and fails the run, so this is a robustness gap, not a hang.
-**Fix:** Do one pass per line that finds identifier tokens and looks each up in a `HashSet`
-of names, which makes the cost linear in the input.
+**File:** `scripts/trace-run.ps1:190-194`, `src/Vdiff.Core/Cli/FinalPath.cs:66-67`
+**Issue:** A symbolic link target of `\foo` or `C:foo` counts as rooted (`IsPathRooted` is true) and is then expanded with the process's current drive or directory, not the link's. Rare (needs a hand-made symlink), but the result is a silent mis-resolution rather than a refusal, which the stated rule ("never a guess") forbids.
+**Fix:** In both implementations, when the target is rooted but `Path.GetPathRoot(target)` is not a full `X:\` or UNC root, combine it with the link's resolved prefix root or throw.
 
-### IN-04: Timeouts in the wrapper and the Mermaid check do not kill the process tree
+### IN-04: Case-insensitive file systems outside Windows compare case-sensitively
 
-**File:** `scripts/trace-run.ps1:103-106` and `tools/mermaid-check/check.mjs:122-126`
-**Issue:** `$proc.Kill()` (Windows PowerShell 5.1 has no tree overload) and `spawnSync(..., { timeout })` end
-only the direct child. A timed-out `dotnet vdiff.dll` leaves its sidecar and git children, and a
-timed-out mermaid-cli leaves its headless Chrome. `BoundedProcess` itself does this correctly.
-**Fix:** On PowerShell 7 use `$proc.Kill($true)`; on 5.1 run `taskkill /T /F /PID`. In
-`check.mjs` spawn with `detached` and kill the group on Unix, or `taskkill /T` on Windows.
-
-### IN-05: The report page has no Content-Security-Policy
-
-**File:** `src/Vdiff.Core/Output/HtmlWriter.cs:20`
-**Issue:** The page is safe today because every repository-derived value passes `HtmlEncode`
-and there is no script. That safety is one forgotten `Enc(...)` away from script execution in a
-page opened from a pipeline artifact.
-**Fix:** Add `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">`
-to the head. One line, and it also pins the "no external URL" promise.
-
-### IN-06: Output writing is not atomic, and every `IOException` is reported as an output failure
-
-**File:** `src/Vdiff.Core/Output/OutputWriter.cs:43-52` and `src/Vdiff.Core/Cli/CliApp.cs:60-62`
-**Issue:** The five files are written one after another, so a disk-full or permission error part-way
-leaves a mix of new and old files in `--out`, while the class comment says a failure leaves it
-"absent or untouched" (that holds only for failures before the write). The catch clause also labels
-any `IOException` or `UnauthorizedAccessException` "could not write the output", including one
-thrown by an earlier read-side step, and prints the .NET message, which can contain a full path.
-**Fix:** Write to a temporary sibling directory and rename it into place, or write each file
-to `name.tmp` and move all five at the end. Narrow the catch to the `WriteAll` call, and report a fixed message.
+**File:** `src/Vdiff.Core/Cli/CliApp.cs:112`, `scripts/trace-run.ps1:46`
+**Issue:** `IsSameOrUnder` uses `Ordinal` on every non-Windows OS. On macOS (APFS default is case-insensitive), `--out /Users/x/Repo/out` against a repo at `/Users/x/repo` is "outside". The resolver does not canonicalise case either. The product has a macOS frontend, so this will matter when the tool runs there. Not a regression of this diff, but the new resolved check inherits it.
+**Fix:** Compare with `OrdinalIgnoreCase` when the volume is case-insensitive (probe by checking whether the lower-cased and upper-cased spelling of the repo root both exist), or canonicalise case through the final-path call suggested in CR-01.
 
 ---
 
