@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Offline Tracer
 status: executing
-stopped_at: Completed 01-10-PLAN.md
-last_updated: "2026-11-17T12:09:14.719Z"
+stopped_at: Completed 01-11-PLAN.md
+last_updated: "2026-11-17T13:20:10.183Z"
 last_activity: 2026-11-16
 last_activity_desc: Phase 01 execution started
-state_head: b60fd727fa2fc3935de5dd30649bae593d70fe0d
+state_head: 2e7d7ce4f4470c19cd4c935efcb56b90514e031e
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 12
-  completed_plans: 10
+  completed_plans: 11
   percent: 0
 ---
 
@@ -64,6 +64,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P08 | interrupted, ~40 min continuation | 2 tasks | 6 files |
 | Phase 01 P09 | not timed | 2 tasks | 4 files |
 | Phase 01 P10 | 45min | 3 tasks | 4 files |
+| Phase 01 P11 | 25 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,7 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-08: Mermaid trailing [state] tag and classDef-per-state format stays provisional until spike S1; an empty diff renders classDiagram plus three classDef lines
 - [Phase 01]: 01-09: mermaid-cli 12.2.0 / puppeteer 25.17.0 pinned; check.mjs raises maxTextSize/maxEdges so >50,000-char diagrams are really parsed; MermaidWriter needed no change
 - [Phase 01]: 01-10: Public trial record holds only the six-line block, run date and generic text; TRC-03 and SPK-02 recorded as met (single run passed, ADR-001 accepted 2026-11-16)
+- [Phase 01]: 01-11: every Mermaid class id is prefixed C_ (total prefix instead of a keyword deny-list) so repository type names cannot equal a Mermaid keyword
 
 ### Pending Todos
 
@@ -112,6 +114,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-17T11:11:14.207Z
-Stopped at: Completed 01-10-PLAN.md
+Last session: 2026-11-17T13:20:10.122Z
+Stopped at: Completed 01-11-PLAN.md
 Resume file: None
