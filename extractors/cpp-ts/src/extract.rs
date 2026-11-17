@@ -763,11 +763,188 @@ mod tests {
     }
 
     #[test]
-    fn a_conversion_operator_or_other_unhandled_child_yields_no_member() {
+    fn friend_using_and_static_assert_children_yield_nothing() {
         let t = the_only_type(
-            "struct S { operator bool() const; friend bool operator==(const S&, const S&);\n\
+            "struct S { friend bool operator==(const S&, const S&); friend class Other;\n\
              using Base::f; static_assert(true, \"x\"); int ok; };\n",
         );
         assert_eq!(members(&t), ["public field ok"]);
+    }
+
+    #[test]
+    fn enums_have_enumerators_and_the_underlying_type_in_bases() {
+        let types = extract("enum Color { Red, Green = 2 };\nenum class E : unsigned char { X };\n");
+        assert_eq!(ids(&types), ["enum Color", "enum E"]);
+        assert!(types[0].bases.is_empty());
+        assert_eq!(types[1].bases, ["unsigned char"]);
+        assert_eq!(members(&types[0]), ["none enumerator Red", "none enumerator Green"]);
+        assert_eq!(members(&types[1]), ["none enumerator X"]);
+        let green = member(&types[0], "Green");
+        assert_eq!((green.name.as_str(), green.kind, green.access), ("Green", "enumerator", "none"));
+        assert_eq!(green.signature, "Green = 2");
+        assert_eq!(member(&types[0], "Red").signature, "Red");
+        assert_eq!(types[0].start_byte, 0);
+        assert_eq!(types[0].end_byte, "enum Color { Red, Green = 2 }".len());
+    }
+
+    #[test]
+    fn enum_forward_declarations_and_anonymous_enums_are_not_types() {
+        let types = extract("enum class F : int;\nenum { Z };\ntypedef enum { Y } YT;\nenum Real { W };\n");
+        assert_eq!(ids(&types), ["enum Real"]);
+    }
+
+    #[test]
+    fn enumerators_under_preprocessor_conditionals_are_found() {
+        let types = extract("enum E2 { P,\n#if X\n Q,\n#endif\n R };\n");
+        assert_eq!(members(&types[0]), ["none enumerator P", "none enumerator Q", "none enumerator R"]);
+    }
+
+    #[test]
+    fn nested_class_struct_and_enum_are_types_with_the_enclosing_type_in_scope() {
+        let types = extract(
+            "namespace shop { class Box { public: enum Mode { A, B }; struct In { int v; };\n\
+             class Deep { enum class K { Z }; }; int own; }; }\n",
+        );
+        assert_eq!(
+            ids(&types),
+            [
+                "class shop::Box",
+                "enum shop::Box::Mode",
+                "struct shop::Box::In",
+                "class shop::Box::Deep",
+                "enum shop::Box::Deep::K"
+            ]
+        );
+        // A type-only declaration is not a member of the enclosing type.
+        assert_eq!(members(&types[0]), ["private field own"]);
+    }
+
+    #[test]
+    fn a_nested_type_declared_with_a_variable_yields_the_variable_without_the_body() {
+        let types = extract("struct S { struct In { int v; } inst; enum Mode { M } mode; };\n");
+        assert_eq!(ids(&types), ["struct S", "struct S::In", "enum S::Mode"]);
+        assert_eq!(members(&types[0]), ["public field inst", "public field mode"]);
+        assert_eq!(member(&types[0], "inst").signature, "struct In inst");
+        assert_eq!(member(&types[0], "mode").signature, "enum Mode mode");
+    }
+
+    #[test]
+    fn using_and_typedef_inside_a_type_are_alias_members() {
+        let t = the_only_type(
+            "class A { public: using Item = std::pair<int, int>; typedef int Handle;\n\
+             typedef struct Tag { int q; } Tag_t; int x; };\n",
+        );
+        assert_eq!(
+            members(&t),
+            ["public alias Item", "public alias Handle", "public alias Tag_t", "public field x"]
+        );
+        assert_eq!(member(&t, "Item").signature, "using Item = std::pair<int, int>");
+        assert_eq!(member(&t, "Handle").signature, "typedef int Handle");
+        assert_eq!(member(&t, "Tag_t").signature, "typedef struct Tag Tag_t");
+    }
+
+    #[test]
+    fn a_typedef_that_names_a_struct_inside_a_type_still_yields_that_struct() {
+        let types = extract("class A { typedef struct Tag { int q; } Tag_t; };\n");
+        assert_eq!(ids(&types), ["class A", "struct A::Tag"]);
+    }
+
+    #[test]
+    fn a_member_template_is_one_member_whose_signature_has_the_template_header() {
+        let t = the_only_type(
+            "class A { public: template <class T> void put(T t);\n\
+             template <typename U> using V = std::vector<U>; template <class W> W get() const { return w_; } };\n",
+        );
+        assert_eq!(members(&t), ["public method put(T t)", "public alias V", "public method get() const"]);
+        assert_eq!(member(&t, "put(T t)").signature, "template <class T> void put(T t)");
+        assert_eq!(member(&t, "V").signature, "template <typename U> using V = std::vector<U>");
+        assert_eq!(member(&t, "get() const").signature, "template <class W> W get() const");
+    }
+
+    #[test]
+    fn a_nested_class_template_is_a_type_in_the_scope_of_its_enclosing_class() {
+        let types = extract(
+            "template <class T> class Outer { template <class U> struct Inner { U u; }; T t; };\n",
+        );
+        assert_eq!(ids(&types), ["class Outer", "struct Outer::Inner"]);
+        assert_eq!(members(&types[0]), ["private field t"]);
+    }
+
+    #[test]
+    fn conversion_operators_are_methods_named_from_operator_through_the_type() {
+        let t = the_only_type(
+            "class C { public: operator bool() const; operator std::string() const { return s_; }\n\
+             explicit operator int*(); };\n",
+        );
+        assert_eq!(
+            members(&t),
+            [
+                "public method operator bool() const",
+                "public method operator std::string() const",
+                "public method operator int*()"
+            ]
+        );
+        let b = member(&t, "operator bool() const");
+        assert_eq!((b.name.as_str(), b.kind), ("operator bool", "method"));
+        assert_eq!(b.signature, "operator bool() const");
+        assert_eq!(member(&t, "operator std::string() const").name, "operator std::string");
+        // The body of an in-class definition is not part of the signature.
+        assert_eq!(member(&t, "operator std::string() const").signature, "operator std::string() const");
+        assert_eq!(member(&t, "operator int*()").signature, "explicit operator int*()");
+    }
+
+    #[test]
+    fn a_const_and_a_non_const_overload_have_different_keys() {
+        let t = the_only_type("class A { int get(); int get() const; operator bool(); operator bool() const; };\n");
+        assert_eq!(
+            members(&t),
+            [
+                "private method get()",
+                "private method get() const",
+                "private method operator bool()",
+                "private method operator bool() const"
+            ]
+        );
+    }
+
+    #[test]
+    fn a_nested_enum_under_a_preprocessor_conditional_in_a_class_body_is_found() {
+        let types = extract("class A {\n#ifdef X\n enum Flavour { Sweet, Sour };\n#else\n struct Plain {};\n#endif\n int a; };\n");
+        assert_eq!(ids(&types), ["class A", "enum A::Flavour", "struct A::Plain"]);
+        assert_eq!(members(&types[1]), ["none enumerator Sweet", "none enumerator Sour"]);
+    }
+
+    #[test]
+    fn unions_are_not_extracted() {
+        let types = extract("union U { int a; float b; };\nstruct S { union { int c; float d; } u; int e; };\n");
+        assert_eq!(ids(&types), ["struct S"]);
+    }
+
+    #[test]
+    fn output_order_is_source_order_with_each_parent_before_its_nested_types() {
+        let types = extract(
+            "struct First { struct Nested {}; };\nenum Second { S1 };\nnamespace n { class Third { enum E3 { X }; }; }\n",
+        );
+        assert_eq!(
+            ids(&types),
+            ["struct First", "struct First::Nested", "enum Second", "class n::Third", "enum n::Third::E3"]
+        );
+    }
+
+    #[test]
+    fn known_gap_a_typedef_of_an_anonymous_struct_yields_no_type() {
+        // D-11 / C36: labelled limitation, not fixed in Phase 1. The rest of the file is extracted.
+        let types = extract("typedef struct { int a; } Name;\nclass After { int z; };\n");
+        assert_eq!(ids(&types), ["class After"]);
+        assert!(types.iter().all(|t| t.name != "Name"));
+    }
+
+    #[test]
+    fn known_gap_a_macro_call_with_arguments_in_a_class_body_keeps_the_class_and_the_real_member() {
+        // D-11 / C36: the grammar may produce a bogus member for `DECLARE_X(Foo)`; that member is
+        // deliberately not asserted, so a grammar change in either direction is not a failure here.
+        let t = the_only_type("class Foo { public: DECLARE_X(Foo) int real; };\n");
+        assert_eq!(t.name, "Foo");
+        assert!(t.members.iter().any(|m| m.key == "real" && m.kind == "field"), "{:?}", members(&t));
     }
 }
