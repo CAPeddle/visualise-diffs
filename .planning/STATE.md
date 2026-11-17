@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Offline Tracer
-status: executing
-stopped_at: Completed 01-13-PLAN.md
-last_updated: "2026-11-17T19:22:03.107Z"
+status: verifying
+stopped_at: Completed 01-14-PLAN.md
+last_updated: "2026-11-17T19:42:27.840Z"
 last_activity: 2026-11-17
 last_activity_desc: Phase 01 execution started
-state_head: 3d34f6e986623f7d26057d9f4a979ed946394c05
+state_head: cc570a192c1135ed7855da85d332cf038b57dcf5
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 14
-  completed_plans: 13
+  completed_plans: 14
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 
 Phase: 01 (Offline Tracer) — EXECUTING
 Plan: 14 of 14
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-17 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
@@ -67,6 +67,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P11 | 25 min | 2 tasks | 5 files |
 | Phase 01 P12 | 50min | 3 tasks | 7 files |
 | Phase 01 P13 | resumed run | 3 tasks | 8 files |
+| Phase 01 P14 | 40min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,7 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-11: every Mermaid class id is prefixed C_ (total prefix instead of a keyword deny-list) so repository type names cannot equal a Mermaid keyword
 - [Phase 01]: 01-12: resolve links by a segment walk (40-link budget, fail closed with a fixed message) in CliApp.RefuseUnsafeOut and trace-run.ps1; subst drives and 8.3 short names are an accepted limit (T-01-39)
 - [Phase 01]: 01-13: --out accept-list on full path text with fixed UnsupportedRootMessage; outputs written via temp name + File.Move; containment re-checked before write (T-01-40 mitigated, tracked as T-01-43)
+- [Phase 01]: 01-14: Write-LogFile reads GetAttributes (not Get-Item LinkType) so a dangling link is seen on Windows PowerShell 5.1; Test-NonDriveRoot uses -cnotmatch with the backslash as x5C
 
 ### Pending Todos
 
@@ -118,6 +120,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-17T19:22:02.795Z
-Stopped at: Completed 01-13-PLAN.md
+Last session: 2026-11-17T19:42:27.505Z
+Stopped at: Completed 01-14-PLAN.md
 Resume file: None
