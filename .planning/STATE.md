@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Offline Tracer
 status: executing
-stopped_at: Completed 01-12-PLAN.md
-last_updated: "2026-11-17T15:21:16.727Z"
+stopped_at: Completed 01-13-PLAN.md
+last_updated: "2026-11-17T19:22:03.107Z"
 last_activity: 2026-11-17
 last_activity_desc: Phase 01 execution started
-state_head: 6b4cbf01e81a04acd6419050d1a73a6a670bb6ee
+state_head: 3d34f6e986623f7d26057d9f4a979ed946394c05
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 14
-  completed_plans: 12
+  completed_plans: 13
   percent: 0
 ---
 
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 ## Current Position
 
 Phase: 01 (Offline Tracer) — EXECUTING
-Plan: 13 of 14
-Status: Executing Phase 01
+Plan: 14 of 14
+Status: Ready to execute
 Last activity: 2026-11-17 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
@@ -66,6 +66,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P10 | 45min | 3 tasks | 4 files |
 | Phase 01 P11 | 25 min | 2 tasks | 5 files |
 | Phase 01 P12 | 50min | 3 tasks | 7 files |
+| Phase 01 P13 | resumed run | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,7 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-10: Public trial record holds only the six-line block, run date and generic text; TRC-03 and SPK-02 recorded as met (single run passed, ADR-001 accepted 2026-11-16)
 - [Phase 01]: 01-11: every Mermaid class id is prefixed C_ (total prefix instead of a keyword deny-list) so repository type names cannot equal a Mermaid keyword
 - [Phase 01]: 01-12: resolve links by a segment walk (40-link budget, fail closed with a fixed message) in CliApp.RefuseUnsafeOut and trace-run.ps1; subst drives and 8.3 short names are an accepted limit (T-01-39)
+- [Phase 01]: 01-13: --out accept-list on full path text with fixed UnsupportedRootMessage; outputs written via temp name + File.Move; containment re-checked before write (T-01-40 mitigated, tracked as T-01-43)
 
 ### Pending Todos
 
@@ -116,6 +118,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-17T13:43:36.002Z
-Stopped at: Completed 01-12-PLAN.md
+Last session: 2026-11-17T19:22:02.795Z
+Stopped at: Completed 01-13-PLAN.md
 Resume file: None
