@@ -105,6 +105,25 @@ public class AliasedOutTests
     }
 
     [Fact]
+    public void An_out_through_a_link_loop_is_refused_with_a_fixed_message_that_names_no_path()
+    {
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (baseId, headId) = BuildSmallHistory(repo);
+        var first = links.Link("loop-a", Path.Combine(links.Root, "loop-b"));
+        links.Link("loop-b", first);
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+
+        var exit = RunCli(Args(repo.RepoDir, baseId, headId, Path.Combine(first, "x")), out var stdout, out var stderr);
+
+        Assert.Equal(1, exit);
+        Assert.Equal("vdiff: " + FinalPath.UnresolvableMessage + "\n", stderr);
+        Assert.Empty(stdout);
+        Assert.Empty(Directory.GetFileSystemEntries(repo.OutDir));
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+    }
+
+    [Fact]
     public void An_out_reached_through_a_directory_link_to_a_directory_outside_the_repository_is_still_accepted()
     {
         using var repo = new SyntheticRepo();
