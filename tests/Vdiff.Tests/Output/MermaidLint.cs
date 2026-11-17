@@ -8,11 +8,13 @@ namespace Vdiff.Tests.Output;
 /// lines ending in a state tag, inheritance edges between declared classes, one classDef per used
 /// state, balanced braces and LF line ends. It is not a Mermaid parser: it proves the structure
 /// cannot be altered by repository text, not that the renderer draws every glyph well (plan
-/// 01-09 runs the real parser).
+/// 01-09 runs the real parser). It also checks the class-id prefix: every class id and edge
+/// endpoint must start with <c>C_</c>, because a bare fqn-derived id can equal a Mermaid keyword
+/// (link, note, click ...) and make the whole diagram unparseable (review finding CR-01, plan 01-11).
 /// </summary>
 public static class MermaidLint
 {
-    const string Id = "[A-Za-z_][A-Za-z0-9_]*";
+    const string Id = "C_[A-Za-z0-9_]*";
 
     static readonly Regex ClassLine = new(
         "^  class (" + Id + ")\\[\"[^\"{}]*\"\\]:::(\\w+)( \\{)?$", RegexOptions.CultureInvariant);

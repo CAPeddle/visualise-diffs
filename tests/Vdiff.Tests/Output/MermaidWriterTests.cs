@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Vdiff.Core.Model;
 using Vdiff.Core.Output;
 
@@ -65,6 +66,10 @@ public class MermaidWriterTests
     }
 
     static string[] Lines(string text) => text.Split('\n');
+
+    static readonly Regex ClassIdOnLine = new("^  class (\\S+?)\\[", RegexOptions.CultureInvariant);
+
+    static readonly Regex EdgeEndpoints = new("^  (\\S+) <\\|-- (\\S+)$", RegexOptions.CultureInvariant);
 
     [Fact]
     public void Output_starts_with_classDiagram_uses_LF_and_ends_with_exactly_one_LF()
@@ -144,6 +149,76 @@ public class MermaidWriterTests
         var text = Render(Diff(Type(fqn, "added")));
 
         Assert.Equal(expectedId, new string(Lines(text)[1].Skip("  class ".Length).TakeWhile(c => c != '[').ToArray()));
+    }
+
+    [Theory]
+    [InlineData("link")]
+    [InlineData("note")]
+    [InlineData("click")]
+    [InlineData("callback")]
+    [InlineData("href")]
+    [InlineData("cssClass")]
+    public void Keyword_named_global_types_get_a_prefixed_class_id_and_keep_their_readable_label(string name)
+    {
+        var text = Render(Diff(Type(name, "added")));
+
+        var classLines = Lines(text).Where(l => l.StartsWith("  class ", StringComparison.Ordinal)).ToArray();
+        Assert.Equal([$"  class C_{name}[\"{name}\"]:::added"], classLines);
+        Assert.DoesNotContain($"  class {name}[", text);
+    }
+
+    [Fact]
+    public void A_keyword_named_base_is_drawn_with_prefixed_ids_on_the_edge()
+    {
+        var text = Render(Diff(
+            Type("link", "modified"),
+            Type("derived", "added", basesAdded: ["link"])));
+
+        Assert.Contains("  C_link <|-- C_derived\n", text);
+        Assert.DoesNotContain("  link <|--", text);
+    }
+
+    [Fact]
+    public void Every_class_id_and_edge_endpoint_starts_with_the_C_prefix()
+    {
+        var types = new[]
+        {
+            Type("link", "added"),
+            Type("note", "added"),
+            Type("click", "added"),
+            Type("callback", "added"),
+            Type("href", "added"),
+            Type("cssClass", "added"),
+            Type("", "added"),
+            Type("::a", "added"),
+            Type("9lives", "added"),
+            Type("a b", "added"),
+            Type("shop::Widget", "modified"),
+            Type("derived", "added", basesAdded: ["link", "shop::Widget"]),
+        };
+
+        var text = Render(Diff(types));
+
+        var ids = new List<string>();
+        foreach (var line in Lines(text))
+        {
+            var classMatch = ClassIdOnLine.Match(line);
+            if (classMatch.Success)
+            {
+                ids.Add(classMatch.Groups[1].Value);
+            }
+
+            var edgeMatch = EdgeEndpoints.Match(line);
+            if (edgeMatch.Success)
+            {
+                ids.Add(edgeMatch.Groups[1].Value);
+                ids.Add(edgeMatch.Groups[2].Value);
+            }
+        }
+
+        // At least one id per class line and two per edge line were read, so an empty read cannot pass.
+        Assert.True(ids.Count >= types.Length + 2, $"only {ids.Count} ids were read back");
+        Assert.All(ids, id => Assert.StartsWith("C_", id, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -310,14 +385,17 @@ public class MermaidWriterTests
         var broken = new Dictionary<string, string>
         {
             ["missing header"] = "graph TD\n" + defs,
-            ["unbalanced braces"] = "classDiagram\n  class A[\"A\"]:::added {\n    +f() [added]\n" + defs,
-            ["no state"] = "classDiagram\n  class A[\"A\"]\n" + defs,
-            ["state without classDef"] = "classDiagram\n  class A[\"A\"]:::removed\n" + ClassDefAdded,
-            ["member without a tag"] = "classDiagram\n  class A[\"A\"]:::added {\n    +f()\n  }\n" + defs,
-            ["brace inside a member"] = "classDiagram\n  class A[\"A\"]:::added {\n    +f() { [added]\n  }\n" + defs,
+            ["unbalanced braces"] = "classDiagram\n  class C_A[\"A\"]:::added {\n    +f() [added]\n" + defs,
+            ["no state"] = "classDiagram\n  class C_A[\"A\"]\n" + defs,
+            ["state without classDef"] = "classDiagram\n  class C_A[\"A\"]:::removed\n" + ClassDefAdded,
+            ["member without a tag"] = "classDiagram\n  class C_A[\"A\"]:::added {\n    +f()\n  }\n" + defs,
+            ["brace inside a member"] = "classDiagram\n  class C_A[\"A\"]:::added {\n    +f() { [added]\n  }\n" + defs,
             ["bare classDiagram"] = "classDiagram\n",
-            ["edge to an undeclared class"] = "classDiagram\n  class A[\"A\"]:::added\n  A <|-- B\n" + defs,
+            ["edge to an undeclared class"] = "classDiagram\n  class C_A[\"A\"]:::added\n  C_A <|-- C_B\n" + defs,
             ["carriage return"] = "classDiagram\r\n" + defs,
+            ["bare keyword class id"] = "classDiagram\n  class link[\"link\"]:::added\n" + defs,
+            ["unprefixed edge endpoint"] =
+                "classDiagram\n  class C_A[\"A\"]:::added\n  class C_B[\"B\"]:::added\n  A <|-- C_B\n" + defs,
         };
 
         foreach (var (name, text) in broken)
@@ -325,6 +403,6 @@ public class MermaidWriterTests
             Assert.True(MermaidLint.Check(text).Count > 0, "the lint accepted: " + name);
         }
 
-        Assert.Empty(MermaidLint.Check("classDiagram\n  class A[\"A\"]:::added {\n    +f() [added]\n  }\n" + defs));
+        Assert.Empty(MermaidLint.Check("classDiagram\n  class C_A[\"A\"]:::added {\n    +f() [added]\n  }\n" + defs));
     }
 }
