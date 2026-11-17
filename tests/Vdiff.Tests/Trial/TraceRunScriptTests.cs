@@ -219,6 +219,7 @@ public class TraceRunScriptTests
     [InlineData("unknown-commit", "tool-failed", "yes")]
     [InlineData("missing-repo-directory", "bad-arguments", "unknown")]
     [InlineData("repo-omitted", "bad-arguments", "unknown")]
+    [InlineData("out-omitted", "bad-arguments", "unknown")]
     public void Every_failure_case_fails_closed_with_a_fixed_reason_and_leaks_nothing(string scenario, string expectedReason, string expectedRepoUnchanged)
     {
         using var repo = new SyntheticRepo();
@@ -236,6 +237,7 @@ public class TraceRunScriptTests
             "unknown-commit" => CoreArguments(repo.RepoDir, c1, unknownId, repo.OutDir),
             "missing-repo-directory" => CoreArguments(missingRepo, c1, c2, repo.OutDir),
             "repo-omitted" => ["-Base", c1, "-Head", c2, "-Out", repo.OutDir],
+            "out-omitted" => ["-Repo", repo.RepoDir, "-Base", c1, "-Head", c2],
             _ => throw new InvalidOperationException(scenario),
         };
 
@@ -392,6 +394,159 @@ public class TraceRunScriptTests
         Assert.Equal("script-error", values[1]);
         AssertNothingLeaks(result, repo.RepoDir, repo.OutDir, first, second, c1, c2);
         Assert.Empty(Directory.GetFileSystemEntries(repo.OutDir));
+    }
+
+    // ---- (c3) other Windows namespaces and volume GUID links (CR-01 on the script side, T-01-41, T-01-44) ----
+
+    static readonly string[] NonDriveKinds = ["extended", "device", "loopback-unc", "extended-unc"];
+
+    [Theory]
+    [MemberData(nameof(Hosts))]
+    public void Aliased_out_in_a_non_drive_namespace_is_refused_with_out_not_outside(string host)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (c1, c2, _) = BuildHistory(repo);
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+        var spellings = NonDriveKinds.Select(k => PathSpellings.NonDriveNamespace(k, Path.Combine(repo.RepoDir, "out-here"))).ToArray();
+
+        foreach (var spelled in spellings)
+        {
+            var result = RunScript(host, CoreArguments(repo.RepoDir, c1, c2, spelled), skipMermaid: true, TimeSpan.FromMinutes(5));
+
+            var values = ParseSixLines(result.StdoutText);
+            Assert.Equal(1, result.ExitCode);
+            Assert.Equal("fail", values[0]);
+            Assert.Equal("out-not-outside", values[1]);
+            Assert.Equal("unknown", values[3]);
+            Assert.Equal("no", values[4]);
+            Assert.Equal("skipped", values[5]);
+            AssertNothingLeaks(result, [repo.RepoDir, repo.OutDir, c1, c2, .. spellings]);
+            Assert.Empty(Directory.EnumerateDirectories(repo.RepoDir, "out-here", SearchOption.AllDirectories));
+            Assert.Empty(Directory.GetFileSystemEntries(repo.OutDir));
+            Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(Hosts))]
+    public void Aliased_log_path_in_a_non_drive_namespace_is_refused_with_bad_arguments(string host)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (c1, c2, _) = BuildHistory(repo);
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+        var spellings = new[] { "extended", "loopback-unc" }
+            .Select(k => PathSpellings.NonDriveNamespace(k, Path.Combine(repo.RepoDir, "vdiff.log")))
+            .ToArray();
+
+        foreach (var spelled in spellings)
+        {
+            var arguments = CoreArguments(repo.RepoDir, c1, c2, repo.OutDir);
+            arguments.AddRange(["-LogPath", spelled]);
+            var result = RunScript(host, arguments, skipMermaid: true, TimeSpan.FromMinutes(5));
+
+            var values = ParseSixLines(result.StdoutText);
+            Assert.Equal(1, result.ExitCode);
+            Assert.Equal("fail", values[0]);
+            Assert.Equal("bad-arguments", values[1]);
+            AssertNothingLeaks(result, [repo.RepoDir, repo.OutDir, c1, c2, .. spellings]);
+            Assert.False(File.Exists(Path.Combine(repo.RepoDir, "vdiff.log")), "the script wrote its log into the analysed repository");
+            Assert.Empty(Directory.GetFileSystemEntries(repo.OutDir));
+            Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(Hosts))]
+    public void Aliased_out_through_a_junction_with_a_volume_guid_target_fails_closed_with_script_error(string host)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (c1, c2, _) = BuildHistory(repo);
+        var alias = links.Link("alias", PathSpellings.VolumeGuidPath(repo.RepoDir));
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+
+        var result = RunScript(host, CoreArguments(repo.RepoDir, c1, c2, Path.Combine(alias, "out-here")), skipMermaid: true, TimeSpan.FromMinutes(5));
+
+        var values = ParseSixLines(result.StdoutText);
+        Assert.Equal(1, result.ExitCode);
+        Assert.Equal("fail", values[0]);
+        Assert.Equal("script-error", values[1]);
+        Assert.Equal("no", values[4]);
+        Assert.Equal("skipped", values[5]);
+        AssertNothingLeaks(result, repo.RepoDir, repo.OutDir, alias, c1, c2);
+        Assert.Empty(Directory.EnumerateDirectories(repo.RepoDir, "out-here", SearchOption.AllDirectories));
+        Assert.Empty(Directory.GetFileSystemEntries(repo.OutDir));
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+    }
+
+    [Theory]
+    [MemberData(nameof(Hosts))]
+    public void Aliased_out_in_a_sibling_directory_whose_name_extends_the_repository_name_still_passes(string host)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (c1, c2, _) = BuildHistory(repo);
+        var sibling = Path.Combine(repo.Root, "repo-out");
+        var before = RepoSnapshot.Take(repo.Root, sibling);
+
+        var result = RunScript(host, CoreArguments(repo.RepoDir, c1, c2, sibling), skipMermaid: true, TimeSpan.FromMinutes(5));
+
+        var values = ParseSixLines(result.StdoutText);
+        AssertPassed(result, values);
+        AssertNothingLeaks(result, repo.RepoDir, repo.OutDir, sibling, c1, c2);
+        Assert.Equal(FiveFiles, OutputFiles(sibling));
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, sibling));
+    }
+
+    [Theory]
+    [MemberData(nameof(Hosts))]
+    public void Aliased_repo_spelled_in_the_extended_namespace_still_refuses_an_out_inside_it(string host)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (c1, c2, _) = BuildHistory(repo);
+        var extendedRepo = PathSpellings.NonDriveNamespace("extended", repo.RepoDir);
+        var insideRepo = Path.Combine(repo.RepoDir, "out-here");
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+
+        var result = RunScript(host, CoreArguments(extendedRepo, c1, c2, insideRepo), skipMermaid: true, TimeSpan.FromMinutes(5));
+
+        var values = ParseSixLines(result.StdoutText);
+        Assert.Equal(1, result.ExitCode);
+        Assert.Equal("fail", values[0]);
+        Assert.Equal("out-not-outside", values[1]);
+        Assert.Equal("unknown", values[3]);
+        Assert.Equal("no", values[4]);
+        AssertNothingLeaks(result, repo.RepoDir, repo.OutDir, extendedRepo, insideRepo, c1, c2);
+        Assert.False(Directory.Exists(insideRepo), "the script wrote into the analysed repository");
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
     }
 
     // ---- (d) fsmonitor (C47) ----
