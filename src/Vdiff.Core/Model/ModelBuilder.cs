@@ -42,21 +42,35 @@ public static class ModelBuilder
 
         parsed = parsed.OrderBy(f => f.Path, StringComparer.Ordinal).ToList();
 
-        // Unique ids in source order (file, then start byte), so repeated definitions never crash a run.
+        // Unique ids in source order (file ordinal, then start byte), so repeated definitions never
+        // crash a run: the first keeps the plain id, later ones get #2, #3 (T-01-17).
         var seenTypeIds = new Dictionary<string, int>(StringComparer.Ordinal);
+        var memberDuplicates = new List<string>();
         var types = new List<TypeModel>();
         foreach (var file in parsed)
         {
-            foreach (var type in file.Types.OrderBy(t => t.StartByte))
+            foreach (var type in file.Types
+                         .OrderBy(t => t.StartByte)
+                         .ThenBy(t => t.EndByte)
+                         .ThenBy(t => t.Kind, StringComparer.Ordinal)
+                         .ThenBy(t => t.Scope, StringComparer.Ordinal)
+                         .ThenBy(t => t.Name, StringComparer.Ordinal))
             {
                 var fqn = type.Scope.Length == 0 ? type.Name : type.Scope + "::" + type.Name;
                 var id = Unique(seenTypeIds, type.Kind + " " + fqn);
                 types.Add(new TypeModel(
                     id, fqn, type.Kind, type.Name, type.Scope, file.Path, [.. type.Bases],
                     new SourceSpan(type.StartByte, type.EndByte, type.StartLine, type.EndLine),
-                    BuildMembers(type)));
+                    BuildMembers(type, id, memberDuplicates)));
             }
         }
+
+        var duplicates = seenTypeIds
+            .Where(pair => pair.Value > 1)
+            .Select(pair => Describe(pair.Key, pair.Value))
+            .Concat(memberDuplicates)
+            .OrderBy(d => d, StringComparer.Ordinal)
+            .ToList();
 
         return new ModelFile(
             ModelFile.SchemaName,
@@ -73,18 +87,33 @@ public static class ModelBuilder
                 .OrderBy(t => t.Id, StringComparer.Ordinal)
                 .ThenBy(t => t.File, StringComparer.Ordinal)
                 .ThenBy(t => t.Span.StartByte)
-                .ToList());
+                .ToList())
+        {
+            Duplicates = duplicates,
+        };
     }
 
-    static List<MemberModel> BuildMembers(SidecarType type)
+    static List<MemberModel> BuildMembers(SidecarType type, string typeId, List<string> duplicates)
     {
         var seenKeys = new Dictionary<string, int>(StringComparer.Ordinal);
         var members = new List<MemberModel>();
-        foreach (var member in type.Members.OrderBy(m => m.StartByte))
+        // Total order, so two members that start at the same byte are never left to input order (C39).
+        foreach (var member in type.Members
+                     .OrderBy(m => m.StartByte)
+                     .ThenBy(m => m.EndByte)
+                     .ThenBy(m => m.Key, StringComparer.Ordinal)
+                     .ThenBy(m => m.Signature, StringComparer.Ordinal)
+                     .ThenBy(m => m.Kind, StringComparer.Ordinal)
+                     .ThenBy(m => m.Access, StringComparer.Ordinal))
         {
             members.Add(new MemberModel(
                 Unique(seenKeys, member.Key), member.Name, member.Kind, member.Access, member.Signature,
                 new SourceSpan(member.StartByte, member.EndByte, member.StartLine, member.EndLine)));
+        }
+
+        foreach (var (key, count) in seenKeys.Where(pair => pair.Value > 1))
+        {
+            duplicates.Add("member " + Describe(key, count, typeId));
         }
 
         return members
@@ -92,6 +121,11 @@ public static class ModelBuilder
             .ThenBy(m => m.Span.StartByte)
             .ToList();
     }
+
+    /// <summary>One <c>duplicates</c> entry: <c>class shop::X (2 definitions)</c>, or a member of a named type.</summary>
+    static string Describe(string name, int count, string? ownerId = null) =>
+        (ownerId is null ? name : name + " of " + ownerId)
+        + " (" + count.ToString(CultureInfo.InvariantCulture) + " definitions)";
 
     /// <summary>The first use of a name is the name itself; later uses get <c>#2</c>, <c>#3</c>.</summary>
     static string Unique(Dictionary<string, int> seen, string name)
