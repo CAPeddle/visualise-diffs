@@ -10,8 +10,12 @@ public sealed record SidecarCommand(string File, IReadOnlyList<string> LeadingAr
 /// <summary>Limits for one sidecar run (T-01-05, T-01-32).</summary>
 public sealed record SidecarLimits(TimeSpan Timeout, long MaxStdoutBytes, long MaxStderrBytes, TimeSpan ParseBudget)
 {
-    public static SidecarLimits Default { get; } =
+    static readonly SidecarLimits BuiltIn =
         new(TimeSpan.FromSeconds(120), 64L * 1024 * 1024, 1024 * 1024, TimeSpan.FromSeconds(10));
+
+    public static SidecarLimits Default => BuiltIn;
+
+    public static SidecarLimits FromEnvironment(Func<string, string?> getEnvironmentVariable) => BuiltIn;
 }
 
 /// <summary>One file handed to the sidecar: a label path and the raw bytes.</summary>
