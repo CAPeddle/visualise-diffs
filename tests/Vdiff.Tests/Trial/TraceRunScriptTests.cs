@@ -300,6 +300,100 @@ public class TraceRunScriptTests
         Assert.DoesNotContain("Gamma", diff, StringComparison.Ordinal);
     }
 
+    // ---- (c2) links: -Out and -LogPath reached through a symbolic link or junction (WR-01, T-01-37) ----
+
+    [Theory]
+    [MemberData(nameof(Hosts))]
+    public void Aliased_out_through_a_directory_link_into_the_repository_is_refused_with_out_not_outside(string host)
+    {
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (c1, c2, _) = BuildHistory(repo);
+        var rootLink = links.Link("to-root", repo.RepoDir);
+        var includeLink = links.Link("to-include", Path.Combine(repo.RepoDir, "include"));
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+
+        foreach (var link in new[] { rootLink, includeLink })
+        {
+            var result = RunScript(host, CoreArguments(repo.RepoDir, c1, c2, Path.Combine(link, "out-here")), skipMermaid: true, TimeSpan.FromMinutes(5));
+
+            var values = ParseSixLines(result.StdoutText);
+            Assert.Equal(1, result.ExitCode);
+            Assert.Equal("fail", values[0]);
+            Assert.Equal("out-not-outside", values[1]);
+            Assert.Equal("unknown", values[3]);
+            Assert.Equal("no", values[4]);
+            Assert.Equal("skipped", values[5]);
+            AssertNothingLeaks(result, repo.RepoDir, repo.OutDir, rootLink, includeLink, c1, c2);
+            Assert.Empty(Directory.EnumerateDirectories(repo.RepoDir, "out-here", SearchOption.AllDirectories));
+            Assert.Empty(Directory.GetFileSystemEntries(repo.OutDir));
+            Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(Hosts))]
+    public void Aliased_log_path_through_a_directory_link_into_the_repository_is_refused_and_no_log_is_written(string host)
+    {
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (c1, c2, _) = BuildHistory(repo);
+        var link = links.Link("to-root", repo.RepoDir);
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+
+        var arguments = CoreArguments(repo.RepoDir, c1, c2, repo.OutDir);
+        arguments.AddRange(["-LogPath", Path.Combine(link, "vdiff.log")]);
+        var result = RunScript(host, arguments, skipMermaid: true, TimeSpan.FromMinutes(5));
+
+        var values = ParseSixLines(result.StdoutText);
+        Assert.Equal(1, result.ExitCode);
+        Assert.Equal("fail", values[0]);
+        Assert.Equal("bad-arguments", values[1]);
+        AssertNothingLeaks(result, repo.RepoDir, repo.OutDir, link, c1, c2);
+        Assert.False(File.Exists(Path.Combine(repo.RepoDir, "vdiff.log")), "the script wrote its log into the analysed repository");
+        Assert.Empty(Directory.GetFileSystemEntries(repo.OutDir));
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+    }
+
+    [Theory]
+    [MemberData(nameof(Hosts))]
+    public void Aliased_out_through_a_directory_link_to_a_directory_outside_the_repository_still_passes(string host)
+    {
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (c1, c2, _) = BuildHistory(repo);
+        var link = links.Link("to-out", repo.OutDir);
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+
+        var result = RunScript(host, CoreArguments(repo.RepoDir, c1, c2, Path.Combine(link, "run")), skipMermaid: true, TimeSpan.FromMinutes(5));
+
+        var values = ParseSixLines(result.StdoutText);
+        AssertPassed(result, values);
+        AssertNothingLeaks(result, repo.RepoDir, repo.OutDir, link, c1, c2);
+        Assert.Equal(FiveFiles, OutputFiles(Path.Combine(repo.OutDir, "run")));
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+    }
+
+    [Theory]
+    [MemberData(nameof(Hosts))]
+    public void Aliased_out_through_a_link_loop_fails_closed_with_script_error(string host)
+    {
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (c1, c2, _) = BuildHistory(repo);
+        var first = links.Link("loop-a", Path.Combine(links.Root, "loop-b"));
+        var second = links.Link("loop-b", first);
+
+        var result = RunScript(host, CoreArguments(repo.RepoDir, c1, c2, Path.Combine(first, "x")), skipMermaid: true, TimeSpan.FromMinutes(5));
+
+        var values = ParseSixLines(result.StdoutText);
+        Assert.Equal(1, result.ExitCode);
+        Assert.Equal("fail", values[0]);
+        Assert.Equal("script-error", values[1]);
+        AssertNothingLeaks(result, repo.RepoDir, repo.OutDir, first, second, c1, c2);
+        Assert.Empty(Directory.GetFileSystemEntries(repo.OutDir));
+    }
+
     // ---- (d) fsmonitor (C47) ----
 
     static ProcessResult UnprotectedGit(string repoDir, params string[] args)
