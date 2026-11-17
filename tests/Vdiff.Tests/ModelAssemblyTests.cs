@@ -6,7 +6,7 @@ using Vdiff.Core.Model;
 namespace Vdiff.Tests;
 
 /// <summary>The model builder and differ on hand-made sidecar answers (no process, no repository).</summary>
-public class ModelBuilderTests
+public class ModelAssemblyTests
 {
     static SidecarResponse Response(params SidecarFile[] files) =>
         new() { Schema = "vdiff-cpp-ts/v0", TreeSitter = "0.27.0", TreeSitterCpp = "0.23.4", Files = files };
