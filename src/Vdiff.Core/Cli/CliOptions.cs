@@ -18,6 +18,7 @@ public sealed partial record CliOptions(
     bool Help)
 {
     public const int MaxBlankNames = 256;
+    public const int MaxBlankNameLength = 128;
     public const int MaxIncludeGlobs = 64;
     public const int MaxGlobLength = 512;
 
@@ -103,9 +104,9 @@ public sealed partial record CliOptions(
 
         foreach (var macro in blank)
         {
-            if (!IdentifierPattern().IsMatch(macro))
+            if (macro.Length > MaxBlankNameLength || !IdentifierPattern().IsMatch(macro))
             {
-                throw new VdiffException("a --blank name must be an ASCII identifier (letters, digits and underscore, not starting with a digit)");
+                throw new VdiffException($"a --blank name must be an ASCII identifier of at most {MaxBlankNameLength} characters (letters, digits and underscore, not starting with a digit)");
             }
         }
 
