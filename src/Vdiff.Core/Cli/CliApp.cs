@@ -78,8 +78,14 @@ public static class CliApp
     /// (T-01-28). The containment test runs twice: on the lexical full paths, and again on the paths
     /// after <see cref="FinalPath.Resolve"/>, so an <c>--out</c> reached through a symbolic link or
     /// a directory junction (T-01-36), or a repository reached through one, is refused too.
-    /// Bound (T-01-39): links and junctions are resolved; subst drive letters and DOS 8.3 short
-    /// names are not, and are an accepted limit of the closure of verification gap 2.
+    /// Bound (T-01-39): the guard compares drive-letter paths after resolving symbolic links and
+    /// directory junctions. It does not resolve subst or mapped drive letters or DOS 8.3 short
+    /// names, and review findings IN-03 (link targets written without a drive letter) and IN-04
+    /// (case-insensitive file systems other than Windows compared case-sensitively) remain open.
+    /// A path in another Windows namespace (extended-length, device, UNC including loopback) and
+    /// a link whose target is a volume GUID path are refused with
+    /// <see cref="FinalPath.UnsupportedRootMessage"/>, not resolved (T-01-41); this includes a
+    /// work tree or git directory that git reports in such a namespace.
     /// </summary>
     static void RefuseUnsafeOut(string outPath, RepoLocation location)
     {

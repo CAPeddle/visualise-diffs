@@ -143,4 +143,94 @@ public class AliasedOutTests
 
         Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
     }
+
+    static void AssertUnsupportedRootAndUntouched(
+        SyntheticRepo repo, RepoSnapshot before, int exit, string stdout, string stderr)
+    {
+        Assert.Equal(1, exit);
+        Assert.Equal("vdiff: " + FinalPath.UnsupportedRootMessage + "\n", stderr);
+        Assert.Empty(stdout);
+        Assert.Empty(Directory.EnumerateDirectories(repo.RepoDir, "aliased-out", SearchOption.AllDirectories));
+        Assert.Empty(Directory.GetFileSystemEntries(repo.OutDir));
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+    }
+
+    [Theory]
+    [InlineData("extended")]
+    [InlineData("device")]
+    [InlineData("loopback-unc")]
+    [InlineData("extended-unc")]
+    public void An_out_in_a_non_drive_namespace_is_refused_with_the_fixed_message_and_nothing_is_created(string kind)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var repo = new SyntheticRepo();
+        var (baseId, headId) = BuildSmallHistory(repo);
+        var outPath = PathSpellings.NonDriveNamespace(kind, Path.Combine(repo.RepoDir, "aliased-out"));
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+
+        var exit = RunCli(Args(repo.RepoDir, baseId, headId, outPath), out var stdout, out var stderr);
+
+        AssertUnsupportedRootAndUntouched(repo, before, exit, stdout, stderr);
+    }
+
+    [Fact]
+    public void A_repo_spelled_in_the_extended_namespace_still_refuses_an_out_inside_it()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var repo = new SyntheticRepo();
+        var (baseId, headId) = BuildSmallHistory(repo);
+        var extendedRepo = PathSpellings.NonDriveNamespace("extended", repo.RepoDir);
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+
+        var exit = RunCli(Args(extendedRepo, baseId, headId, Path.Combine(repo.RepoDir, "results")), out _, out var stderr);
+
+        AssertRefusedAndUntouched(repo, before, exit, stderr, "results");
+    }
+
+    [Fact]
+    public void An_out_through_a_junction_with_a_volume_guid_target_is_refused_with_the_fixed_message()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (baseId, headId) = BuildSmallHistory(repo);
+        var alias = links.Link("alias", PathSpellings.VolumeGuidPath(repo.RepoDir));
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+
+        var exit = RunCli(Args(repo.RepoDir, baseId, headId, Path.Combine(alias, "aliased-out")), out var stdout, out var stderr);
+
+        AssertUnsupportedRootAndUntouched(repo, before, exit, stdout, stderr);
+    }
+
+    [Fact]
+    public void A_sibling_directory_whose_name_extends_the_repository_name_is_still_accepted()
+    {
+        using var repo = new SyntheticRepo();
+        var (baseId, headId) = BuildSmallHistory(repo);
+        var sibling = Path.Combine(repo.Root, "repo-out");
+        var before = RepoSnapshot.Take(repo.Root, sibling);
+
+        var exit = RunCli(Args(repo.RepoDir, baseId, headId, sibling), out _, out var stderr);
+
+        Assert.Equal(0, exit);
+        Assert.Empty(stderr);
+        foreach (var name in FiveFiles)
+        {
+            Assert.True(File.Exists(Path.Combine(sibling, name)), name);
+        }
+
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, sibling));
+    }
 }

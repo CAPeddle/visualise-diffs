@@ -124,4 +124,59 @@ public class FinalPathTests
         Assert.Equal(FinalPath.UnresolvableMessage, e.Message);
         Assert.DoesNotContain(links.Root, e.Message, Comparison);
     }
+
+    [Theory]
+    [InlineData("extended")]
+    [InlineData("device")]
+    [InlineData("loopback-unc")]
+    [InlineData("extended-unc")]
+    [InlineData("volume-guid-path")]
+    public void A_path_outside_the_drive_letter_namespace_is_refused_on_windows(string kind)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var links = new LinkScratch();
+        var spelled = PathSpellings.NonDriveNamespace(kind, Path.Combine(MakeReal(links, "real"), "x"));
+
+        var e = Assert.Throws<VdiffException>(() => FinalPath.Resolve(spelled));
+
+        Assert.Equal(FinalPath.UnsupportedRootMessage, e.Message);
+        Assert.DoesNotContain(links.Root, e.Message, Comparison);
+    }
+
+    [Fact]
+    public void A_junction_whose_target_is_a_volume_guid_path_is_refused_on_windows()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var links = new LinkScratch();
+        var real = MakeReal(links, "real");
+        var alias = links.Link("alias", PathSpellings.VolumeGuidPath(real));
+
+        var e = Assert.Throws<VdiffException>(() => FinalPath.Resolve(Path.Combine(alias, "x")));
+
+        Assert.Equal(FinalPath.UnsupportedRootMessage, e.Message);
+    }
+
+    [Fact]
+    public void A_drive_letter_path_with_a_lower_case_drive_and_forward_slashes_is_still_accepted()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var links = new LinkScratch();
+        var real = MakeReal(links, "real");
+        var resolvedReal = FinalPath.Resolve(real);
+        var spelled = char.ToLowerInvariant(real[0]) + real[1..].Replace('\\', '/');
+
+        AssertSamePath(resolvedReal, FinalPath.Resolve(spelled));
+    }
 }
