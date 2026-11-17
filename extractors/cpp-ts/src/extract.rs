@@ -175,10 +175,13 @@ impl Walk<'_> {
                         self.scope.pop();
                     }
                 }
+                // A declaration is entered only to find a type specifier inside it; it cannot nest
+                // in itself, and a type specifier it holds is counted by `collect_type`, so it is
+                // not a level. Without this a member of a type sitting at the cap would count as a
+                // skipped subtree of its own.
+                "declaration" | "type_definition" | "field_declaration" => self.collect(child, depth),
                 "declaration_list" | "field_declaration_list" | "template_declaration" | "linkage_specification"
-                | "declaration" | "type_definition" | "field_declaration" | "ERROR" => {
-                    self.collect(child, depth + 1)
-                }
+                | "ERROR" => self.collect(child, depth + 1),
                 kind if PREPROC_KINDS.contains(&kind) => self.collect(child, depth + 1),
                 _ => {}
             }
@@ -1140,5 +1143,205 @@ mod tests {
         let t = the_only_type("class Foo { public: DECLARE_X(Foo) int real; };\n");
         assert_eq!(t.name, "Foo");
         assert!(t.members.iter().any(|m| m.key == "real" && m.kind == "field"), "{:?}", members(&t));
+    }
+}
+
+#[cfg(test)]
+mod robustness {
+    use super::*;
+
+    /// Parses and extracts one source; returns the status, the file's error-node count (parse
+    /// errors plus depth-cap skips, as the response reports it) and the types.
+    fn analyse(source: &[u8]) -> (Status, usize, Vec<TypeInfo>) {
+        let mut parser = cpp_parser();
+        let (status, tree) = parse_bounded(&mut parser, source, Duration::from_secs(30));
+        match tree {
+            Some(tree) => {
+                let root = tree.root_node();
+                let (types, skipped) = extract_with_skips(root, source);
+                (status, count_error_nodes(root) + skipped, types)
+            }
+            None => (status, 0, Vec::new()),
+        }
+    }
+
+    fn nested_namespaces(depth: usize, inner: &str) -> String {
+        format!("{}{}{}\n", "namespace n { ".repeat(depth), inner, "} ".repeat(depth))
+    }
+
+    fn names(types: &[TypeInfo]) -> Vec<&str> {
+        types.iter().map(|t| t.name.as_str()).collect()
+    }
+
+    #[test]
+    fn a_syntax_error_labels_the_file_and_the_types_that_parsed_are_kept_and_a_clean_file_reports_zero() {
+        let (status, errors, types) = analyse(b"class A { int a; };\nint f( ;\nclass B { int b; };\n");
+        assert_eq!(status, Status::Ok);
+        assert!(errors >= 1, "error nodes: {errors}");
+        assert_eq!(names(&types), ["A", "B"]);
+
+        let (_, clean_errors, clean_types) = analyse(b"class A { int a; };\nclass B { int b; };\n");
+        assert_eq!(clean_errors, 0);
+        assert_eq!(clean_types.len(), 2);
+    }
+
+    #[test]
+    fn nesting_below_the_cap_is_extracted_in_full_and_not_labelled() {
+        let source = nested_namespaces(MAX_DEPTH - 1, "class Deep { int d; };");
+        let (status, errors, types) = analyse(source.as_bytes());
+        assert_eq!(status, Status::Ok);
+        assert_eq!(errors, 0);
+        assert_eq!(names(&types), ["Deep"]);
+        assert_eq!(types[0].scope.matches("::").count(), MAX_DEPTH - 2);
+    }
+
+    #[test]
+    fn a_type_at_the_cap_is_kept_but_its_body_is_not_searched_for_nested_types_so_the_file_is_labelled() {
+        let source = nested_namespaces(MAX_DEPTH, "class Deep { class Hidden {}; int d; };");
+        let (status, errors, types) = analyse(source.as_bytes());
+        assert_eq!(status, Status::Ok);
+        assert_eq!(names(&types), ["Deep"]);
+        assert_eq!(types[0].members.len(), 1, "the type's own members are still read");
+        assert_eq!(errors, 1, "the nested type may have been missed: the file is labelled");
+    }
+
+    #[test]
+    fn nesting_one_level_past_the_cap_is_not_descended_and_adds_one_error_node() {
+        let source = nested_namespaces(MAX_DEPTH + 1, "class TooDeep { int d; };");
+        let (status, errors, types) = analyse(source.as_bytes());
+        assert_eq!(status, Status::Ok);
+        assert!(types.is_empty(), "{:?}", names(&types));
+        assert_eq!(errors, 1, "one skipped subtree, and a parse with no error of its own");
+    }
+
+    #[test]
+    fn ten_thousand_nested_namespaces_complete_and_label_the_file() {
+        // This test thread has the default 2 MiB stack: an uncapped recursive descent would overflow it.
+        let source = nested_namespaces(10_000, "class Bottom {};");
+        let (status, errors, types) = analyse(source.as_bytes());
+        assert_eq!(status, Status::Ok);
+        assert!(types.is_empty());
+        assert!(errors >= 1, "the file must be labelled: {errors}");
+    }
+
+    #[test]
+    fn deeply_nested_types_and_preprocessor_blocks_are_capped_too() {
+        let classes = format!("{}{}", "class C { ".repeat(5_000), "}; ".repeat(5_000));
+        let (status, errors, types) = analyse(classes.as_bytes());
+        assert_eq!(status, Status::Ok);
+        assert!(errors >= 1, "nested types past the cap label the file: {errors}");
+        assert!(types.len() >= MAX_DEPTH / 2 && types.len() <= MAX_DEPTH + 1, "{}", types.len());
+
+        let conditionals = format!("class P {{\n{}int x;\n{}}};\n", "#if A\n".repeat(5_000), "#endif\n".repeat(5_000));
+        let (status, errors, types) = analyse(conditionals.as_bytes());
+        assert_eq!(status, Status::Ok);
+        assert_eq!(names(&types), ["P"]);
+        assert!(errors >= 1, "conditionals nested past the cap label the file: {errors}");
+    }
+
+    #[test]
+    fn two_hundred_thousand_nested_parentheses_complete_and_report_their_error_nodes() {
+        let source = format!("int x = {}1{};\nclass After {{ int a; }};\n", "(".repeat(200_000), ")".repeat(200_000));
+        let (status, errors, _) = analyse(source.as_bytes());
+        // The parse finishes, or is labelled a timeout; it never crashes this thread.
+        assert!(matches!(status, Status::Ok | Status::Timeout | Status::Error), "{status:?}");
+        println!("nested parentheses: status {status:?}, error nodes {errors}");
+    }
+
+    #[test]
+    fn twenty_thousand_nested_template_arguments_complete_and_report_their_error_nodes() {
+        let source = format!("{}int{} x;\nclass After {{ int a; }};\n", "std::vector<".repeat(20_000), ">".repeat(20_000));
+        let (status, errors, types) = analyse(source.as_bytes());
+        assert!(matches!(status, Status::Ok | Status::Timeout | Status::Error), "{status:?}");
+        println!("nested template arguments: status {status:?}, error nodes {errors}, types {}", types.len());
+    }
+
+    #[test]
+    fn random_bytes_with_nuls_and_0xff_never_panic_and_the_response_stays_one_json_object() {
+        let mut state: u64 = 0x9E37_79B9_7F4A_7C15;
+        let mut next = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        for round in 0..40 {
+            let len = (next() % 3000) as usize;
+            let mut bytes: Vec<u8> = (0..len).map(|_| (next() >> 24) as u8).collect();
+            if round % 4 == 0 {
+                bytes.splice(0..0, [0x00, 0xFF, 0xFE, 0x00]);
+            }
+            let _ = analyse(&bytes);
+
+            let header = format!(
+                "{{\"schema\":\"vdiff-cpp-ts-request/v0\",\"blank\":[\"X\"],\"files\":[{{\"path\":\"r.h\",\"len\":{}}}]}}\n",
+                bytes.len()
+            );
+            let mut input = header.into_bytes();
+            input.extend_from_slice(&bytes);
+            let output = crate::run(&input).expect("hostile file bytes never fail the request");
+            let value: serde_json::Value = serde_json::from_slice(&output).expect("one JSON object");
+            assert!(value.is_object());
+            assert!(matches!(value["files"][0]["status"].as_str(), Some("ok" | "timeout" | "error")));
+        }
+    }
+
+    #[test]
+    fn an_empty_file_gives_no_types_and_no_error_nodes() {
+        let (status, errors, types) = analyse(b"");
+        assert_eq!(status, Status::Ok);
+        assert_eq!(errors, 0);
+        assert!(types.is_empty());
+    }
+
+    #[test]
+    fn a_crlf_file_has_correct_one_based_line_numbers() {
+        let source = b"// header\r\nclass A {\r\n  int x;\r\n  void f();\r\n};\r\n";
+        let (_, errors, types) = analyse(source);
+        assert_eq!(errors, 0);
+        assert_eq!(types.len(), 1);
+        assert_eq!((types[0].start_line, types[0].end_line), (2, 5));
+        let x = types[0].members.iter().find(|m| m.key == "x").expect("x");
+        assert_eq!((x.start_line, x.end_line), (3, 3));
+        let f = types[0].members.iter().find(|m| m.key == "f()").expect("f()");
+        assert_eq!(f.start_line, 4);
+        // The line break is two bytes, so the byte offset of the class counts both.
+        assert_eq!(types[0].start_byte, "// header\r\n".len());
+    }
+
+    #[test]
+    fn non_ascii_identifiers_extract_with_correct_names_bases_and_byte_offsets() {
+        let source = "class Caf\u{e9}Type : public B\u{e4}se { public: int \u{e9}x; };\n";
+        let (_, errors, types) = analyse(source.as_bytes());
+        assert_eq!(errors, 0);
+        assert_eq!(types.len(), 1);
+        assert_eq!(types[0].name, "Caf\u{e9}Type");
+        assert_eq!(types[0].bases, ["B\u{e4}se"]);
+        let member = &types[0].members[0];
+        assert_eq!(member.key, "\u{e9}x");
+        assert_eq!(member.start_byte, source.find("int \u{e9}x;").unwrap());
+        assert_eq!(member.end_byte, member.start_byte + "int \u{e9}x;".len());
+        assert_eq!(types[0].end_byte, source.find("};").unwrap() + 1);
+    }
+
+    #[test]
+    fn a_latin_1_byte_inside_a_comment_leaves_every_span_exact() {
+        let mut source = b"// caf".to_vec();
+        source.push(0xE9);
+        source.extend_from_slice(b"\nclass A { int x; };\n");
+        let (_, errors, types) = analyse(&source);
+        assert_eq!(errors, 0);
+        assert_eq!(types.len(), 1);
+        assert_eq!(types[0].start_byte, "// caf".len() + 1 + 1);
+        assert_eq!(types[0].start_line, 2);
+        let x = &types[0].members[0];
+        assert_eq!(x.start_byte, types[0].start_byte + "class A { ".len());
+    }
+
+    #[test]
+    fn a_failed_request_prints_a_fixed_message_never_file_content() {
+        let failure = crate::run(b"SECRET-CONTENT\n").expect_err("not a request");
+        assert_eq!(failure.exit_code, 2);
+        assert!(!failure.message.contains("SECRET"));
     }
 }
