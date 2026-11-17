@@ -20,7 +20,7 @@ roadmap) and have no counterpart in that file yet.
 ### Spikes (decisions that gate units)
 
 - [ ] **SPK-01**: Spike S1 recorded — Mermaid `classDiagram` + `classDef` rendering in ADO PR comments/descriptions tested; renderer default and trailing member-tag format fixed (closes O3; gates U8, U9)
-- [ ] **SPK-02**: Spike S2 recorded as ADR-001 — C++ tree-sitter packaging chosen (.NET binding vs Rust sidecar with `tree-sitter` 0.27 + `tree-sitter-cpp`) on package size, Linux install, speed, macro blanking (gates U3)
+- [x] **SPK-02**: Spike S2 recorded as ADR-001 — C++ tree-sitter packaging chosen (.NET binding vs Rust sidecar with `tree-sitter` 0.27 + `tree-sitter-cpp`) on package size, Linux install, speed, macro blanking (gates U3)
 - [ ] **SPK-03**: Spike S3 recorded — C# extraction runner decided (Roslyn against reference assemblies; Ubuntu vs Windows per D18; reframing pending, see O4 in PROJECT.md) (gates U4, R26 runner)
 
 ### Model and harness
@@ -103,7 +103,7 @@ Phases are defined in `.planning/ROADMAP.md`. Each requirement maps to exactly o
 | TRC-01 | Phase 1 | Complete |
 | TRC-02 | Phase 1 | Complete |
 | TRC-03 | Phase 1 | Complete |
-| SPK-02 | Phase 1 | Gaps Found |
+| SPK-02 | Phase 1 | Complete |
 | R-10 | Phase 2 | Pending |
 | R-23 | Phase 2 | Pending |
 | ACC-01 | Phase 2 | Pending |
