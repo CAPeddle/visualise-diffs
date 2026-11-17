@@ -67,7 +67,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. The Mermaid summary is a `classDiagram` with a `classDef` per type state and trailing member state tags (the plan's provisional format until S1 confirms it), and it passes a Mermaid syntax check in the test run. The HTML page is one self-contained file that opens in a browser with no network access and lists the changed types and members with their states.
   4. A run against a small real C++ PR (its base and head commits) on a private local clone completes well inside the R26 budget (P90 under 5 minutes, 20-minute hard limit), with its output in a directory outside this repository. The outcome is recorded in this repository, if at all, only as pass or fail against that budget, with no target identifiers and no target-measured figures.
   5. ADR-001 in `docs/decisions/` records the C++ tree-sitter packaging choice (.NET binding or Rust sidecar with `tree-sitter` 0.27 + `tree-sitter-cpp`), with the comparison on package size, Linux agent install, speed and macro-blanking ease, and the tracer's C++ extraction runs through the sidecar it chose. ADR-001 was accepted by the PO on 2026-11-16; the tracer is built on it, and the choice is reversible behind the model JSON.
-**Plans**: 2/10 plans executed in 5 waves
+**Plans**: 3/10 plans executed in 5 waves
 
 Plans:
 **Wave 1**
@@ -75,7 +75,7 @@ Plans:
 - [x] 01-02-PLAN.md — Wave 1: .NET core read path (solution scaffold, bounded process runner, read-only git object reader, scope filter, sidecar client, synthetic-repo test support)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 01-03-PLAN.md — Wave 2: end-to-end tracer (model, differ, writers, CLI, repository-unchanged assertion) plus the npm package-legitimacy checkpoint
+- [x] 01-03-PLAN.md — Wave 2: end-to-end tracer (model, differ, writers, CLI, repository-unchanged assertion) plus the npm package-legitimacy checkpoint
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 01-04-PLAN.md — Wave 3: repository-unchanged matrix, hostile arguments and content, public-repository guards
@@ -204,7 +204,7 @@ pending O4. The gates are listed in the Overview.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Offline Tracer | 2/10 | In Progress | - |
+| 1. Offline Tracer | 3/10 | In Progress | - |
 | 2. Model Contract and Fixture Harness | 0/TBD | Not started | - |
 | 3. Git Layer | 0/TBD | Not started | - |
 | 4. Extractors | 0/TBD | Not started | - |
