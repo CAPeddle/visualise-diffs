@@ -67,7 +67,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. The Mermaid summary is a `classDiagram` with a `classDef` per type state and trailing member state tags (the plan's provisional format until S1 confirms it), and it passes a Mermaid syntax check in the test run. The HTML page is one self-contained file that opens in a browser with no network access and lists the changed types and members with their states.
   4. A run against a small real C++ PR (its base and head commits) on a private local clone completes well inside the R26 budget (P90 under 5 minutes, 20-minute hard limit), with its output in a directory outside this repository. The outcome is recorded in this repository, if at all, only as pass or fail against that budget, with no target identifiers and no target-measured figures.
   5. ADR-001 in `docs/decisions/` records the C++ tree-sitter packaging choice (.NET binding or Rust sidecar with `tree-sitter` 0.27 + `tree-sitter-cpp`), with the comparison on package size, Linux agent install, speed and macro-blanking ease, and the tracer's C++ extraction runs through the sidecar it chose. ADR-001 was accepted by the PO on 2026-11-16; the tracer is built on it, and the choice is reversible behind the model JSON.
-**Plans**: 12/12 plans executed in 5 waves (2 gap-closure plans added from 01-VERIFICATION.md)
+**Plans**: 12/14 plans executed in 5 waves (2 gap-closure plans added from 01-VERIFICATION.md; 2 more from its re-review residuals)
 
 Plans:
 **Wave 1**
@@ -93,6 +93,11 @@ Plans:
 **Gap closure** *(from 01-VERIFICATION.md; the two gaps are independent, but 01-12 runs after 01-11 because both build the same test assembly)*
 - [x] 01-11-PLAN.md — Gap closure: prefix every Mermaid class id with `C_` so a keyword-named global type cannot make `summary.mmd` unparseable (CR-01, TRC-02)
 - [x] 01-12-PLAN.md — Gap closure: `--out` containment resolves symbolic links and junctions in `CliApp` and `trace-run.ps1` (WR-01, TRC-01, TRC-03)
+
+**Gap closure 2** *(from the 01-VERIFICATION.md re-review residuals, option (b); 01-14 runs after 01-13 because it reuses its test helpers)*
+- [ ] 01-13-PLAN.md — Gap closure: --out containment hardening in the CLI: refuse non-drive Windows namespaces, write outputs through a temp name plus move, re-check containment before the write (CR-01, WR-01, WR-02, TRC-01)
+- [ ] 01-14-PLAN.md — Gap closure: the same hardening in trace-run.ps1 (namespace refusal, volume GUID link target, log written without following a planted link) plus SPK-02 bookkeeping (CR-01, WR-01, WR-02, TRC-03, SPK-02)
+
 **Note**: The HTML page here is deliberately minimal; the full offline report (no cap, per-language tabs, search, mode banner) is Phase 7 (R-22). Spikes S1 and S3 are no longer in this phase: S1 is in Phase 8 and S3 in Phase 4.
 
 ### Phase 2: Model Contract and Fixture Harness
