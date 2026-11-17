@@ -284,6 +284,29 @@ function Get-WallClock([double]$Seconds) {
     return 'over-20-min'
 }
 
+# Writes the diagnostic log without following a link planted at its name (T-01-45, WR-01).
+# A directory, symbolic link or junction at the name means no log (a create-new open would
+# follow a dangling link and create its target); a plain file or a hard link is removed by name,
+# which removes only the directory entry and never the file it points to; the log is then
+# created new. Attributes are read, not followed, so a dangling link is seen too.
+function Write-LogFile([string]$Path, [string]$Text) {
+    $dirName = Split-Path -Parent $Path
+    if ($dirName -and -not (Test-Path -LiteralPath $dirName)) { [void](New-Item -ItemType Directory -Path $dirName) }
+    $attributes = $null
+    try { $attributes = [IO.File]::GetAttributes($Path) }
+    catch [System.IO.FileNotFoundException] { $attributes = $null }
+    catch [System.IO.DirectoryNotFoundException] { $attributes = $null }
+    if ($null -ne $attributes) {
+        if (($attributes -band [IO.FileAttributes]::Directory) -ne 0) { return }
+        if (($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return }
+        [IO.File]::Delete($Path)
+    }
+    $bytes = (New-Object System.Text.UTF8Encoding($false)).GetBytes($Text)
+    $stream = [IO.File]::Open($Path, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+    try { $stream.Write($bytes, 0, $bytes.Length) }
+    finally { $stream.Dispose() }
+}
+
 # ---- the run ----------------------------------------------------------------------------
 
 # $F holds the six fields. Early exits from Invoke-Trace leave the before-run defaults.
@@ -361,11 +384,17 @@ function Invoke-Trace([hashtable]$F) {
     $seconds = $clock.Elapsed.TotalSeconds
     $F.wall = Get-WallClock $seconds
 
+    # The log is diagnostic: it is checked again here, after the long vdiff run and just before the
+    # write (T-01-46), and an unsafe or unresolvable path skips it silently. No reason changes.
     if ($logFull) {
         try {
-            $dirName = Split-Path -Parent $logFull
-            if ($dirName -and -not (Test-Path -LiteralPath $dirName)) { [void](New-Item -ItemType Directory -Path $dirName) }
-            [IO.File]::WriteAllText($logFull, ([string]$run.Stdout + "`n" + [string]$run.Stderr), (New-Object System.Text.UTF8Encoding($false)))
+            $logSafe = -not (Test-NonDriveRoot $logFull)
+            if ($logSafe) {
+                foreach ($dir in $protected) {
+                    if (Test-SameOrUnder $logFull $dir) { $logSafe = $false; break }
+                }
+            }
+            if ($logSafe) { Write-LogFile $logFull ([string]$run.Stdout + "`n" + [string]$run.Stderr) }
         }
         catch { $null = $_ }
     }
