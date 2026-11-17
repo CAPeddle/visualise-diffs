@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Offline Tracer
 status: executing
-stopped_at: Completed 01-05-PLAN.md
-last_updated: "2026-11-17T05:48:57.721Z"
+stopped_at: Completed 01-06-PLAN.md
+last_updated: "2026-11-17T06:07:20.979Z"
 last_activity: 2026-11-16
 last_activity_desc: Phase 01 execution started
-state_head: 72ced305fbe1bb256ab55210d6bcdd0d82e1d388
+state_head: 8a10a6a1d67ac7c8e3edae6d592697dbae1b4d1c
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 10
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 ## Current Position
 
 Phase: 01 (Offline Tracer) — EXECUTING
-Plan: 4 of 10
+Plan: 5 of 10
 Status: Ready to execute
 Last activity: 2026-11-16 — Phase 01 execution started
 
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P03 | 13 min | 3 tasks | 16 files |
 | Phase 01 P04 | 28 min | 3 tasks | 4 files |
 | Phase 01 P05 | 11 min | 2 tasks | 6 files |
+| Phase 01 P06 | 15 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,8 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-04: --blank macro names are capped at 128 characters (CliOptions.MaxBlankNameLength)
 - [Phase 01]: 01-04: synthetic-only guard flags a remote verb only as the first argument of a git call; ignore-rule guard requires a committed .gitignore as the source
 - [Phase 01]: Plan 01-05: sidecar timeout and parse-budget overrides live in SidecarLimits.FromEnvironment; Default reads the process environment so CliApp is unchanged; caps are not overridable
+- [Phase 01]: 01-06: sidecar depth cap of 128 on every recursive walk; each skipped subtree adds 1 to the file's error_nodes (main.rs adds extract_with_skips' count), so no protocol or C# change; a declaration is entered without counting a level
+- [Phase 01]: 01-06: enumerators are members of kind enumerator with access none, enum underlying type is in bases, aliases are kind alias, conversion operators are methods named operator <type>; sidecar JSON shape unchanged, 01-08 output code should expect these values
 
 ### Pending Todos
 
@@ -101,6 +104,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-17T05:48:57.684Z
-Stopped at: Completed 01-05-PLAN.md
+Last session: 2026-11-17T06:07:20.935Z
+Stopped at: Completed 01-06-PLAN.md
 Resume file: None
