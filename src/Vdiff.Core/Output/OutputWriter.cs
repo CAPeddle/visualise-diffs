@@ -51,8 +51,41 @@ public static class OutputWriter
         WriteText(outDir, HtmlFile, html);
     }
 
+    /// <summary>
+    /// Writes one file to a random temporary name created with <see cref="FileMode.CreateNew"/>
+    /// in <paramref name="outDir"/>, then moves it onto the final name with overwrite. The move
+    /// replaces the directory entry instead of writing through it, so a hard link or file
+    /// symbolic link planted at a final name is replaced and the file it pointed to is never
+    /// touched (T-01-42, review finding WR-01). A process killed between the create and the move
+    /// can leave one <c>*.tmp-*</c> file in <paramref name="outDir"/>, never in the analysed
+    /// repository; that is accepted.
+    /// </summary>
     static void WriteText(string outDir, string fileName, string text)
     {
-        File.WriteAllBytes(Path.Combine(outDir, fileName), Utf8NoBom.GetBytes(text.ReplaceLineEndings("\n")));
+        var bytes = Utf8NoBom.GetBytes(text.ReplaceLineEndings("\n"));
+        var finalPath = Path.Combine(outDir, fileName);
+        var tempPath = finalPath + ".tmp-" + Guid.NewGuid().ToString("N");
+        try
+        {
+            using (var stream = new FileStream(tempPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                stream.Write(bytes, 0, bytes.Length);
+            }
+
+            File.Move(tempPath, finalPath, overwrite: true);
+        }
+        catch
+        {
+            try
+            {
+                File.Delete(tempPath);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                // best effort: the original failure is the one to report
+            }
+
+            throw;
+        }
     }
 }
