@@ -123,64 +123,148 @@ fn cut_on_char_boundary(mut s: String, max: usize) -> String {
     s
 }
 
-/// Extracts classes and structs, with their members, from a parsed C++ file (tracer subset).
+/// Containers are descended at most this many levels deep. Deeper subtrees are not entered; each
+/// one adds 1 to the skip count that [`extract_with_skips`] returns, so the caller can label the
+/// file as incomplete instead of presenting it as fully extracted (T-01-14, T-01-16).
+pub const MAX_DEPTH: usize = 128;
+
+/// Extracts classes, structs and enums, with their members, from a parsed C++ file.
 ///
 /// Types are reached by a whitelist descent over declaration containers, never by walking every
 /// node, so a function body is not entered and a local class cannot appear with a wrong scope.
-/// Depth handling for pathological nesting belongs to plan 01-06.
+/// Unions are not extracted. Use [`extract_with_skips`] when the depth-cap skip count matters.
+#[cfg(test)]
 pub fn extract_types(root: Node, src: &[u8]) -> Vec<TypeInfo> {
-    let mut out = Vec::new();
-    let mut scope = Vec::new();
-    collect(root, src, &mut scope, &mut out);
-    out
+    extract_with_skips(root, src).0
 }
 
-fn collect(container: Node, src: &[u8], scope: &mut Vec<String>, out: &mut Vec<TypeInfo>) {
-    let mut cursor = container.walk();
-    for child in container.children(&mut cursor) {
-        match child.kind() {
-            "class_specifier" | "struct_specifier" => collect_type(child, src, scope, out),
-            "namespace_definition" => {
-                if let Some(body) = child.child_by_field_name("body") {
-                    let name = child
-                        .child_by_field_name("name")
-                        .map(|n| collapse(&text(n, src)))
-                        .unwrap_or_else(|| "(anonymous)".to_string());
-                    scope.push(name);
-                    collect(body, src, scope, out);
-                    scope.pop();
-                }
-            }
-            "declaration_list" | "field_declaration_list" | "template_declaration" | "linkage_specification"
-            | "declaration" | "type_definition" | "field_declaration" | "ERROR" => collect(child, src, scope, out),
-            kind if PREPROC_KINDS.contains(&kind) => collect(child, src, scope, out),
-            _ => {}
+/// Like `extract_types`, and also returns how many subtrees the depth cap ([`MAX_DEPTH`]) left
+/// unvisited. A non-zero count means the file's type list may be incomplete.
+pub fn extract_with_skips(root: Node, src: &[u8]) -> (Vec<TypeInfo>, usize) {
+    let mut walk = Walk { src, scope: Vec::new(), out: Vec::new(), skipped: 0 };
+    walk.collect(root, 0);
+    (walk.out, walk.skipped)
+}
+
+struct Walk<'s> {
+    src: &'s [u8],
+    scope: Vec<String>,
+    out: Vec<TypeInfo>,
+    skipped: usize,
+}
+
+impl Walk<'_> {
+    fn collect(&mut self, container: Node, depth: usize) {
+        if depth > MAX_DEPTH {
+            self.skipped += 1;
+            return;
         }
+        let mut cursor = container.walk();
+        for child in container.children(&mut cursor) {
+            match child.kind() {
+                "class_specifier" | "struct_specifier" => self.collect_type(child, depth),
+                "enum_specifier" => self.collect_enum(child),
+                "namespace_definition" => {
+                    if let Some(body) = child.child_by_field_name("body") {
+                        let name = child
+                            .child_by_field_name("name")
+                            .map(|n| collapse(&text(n, self.src)))
+                            .unwrap_or_else(|| "(anonymous)".to_string());
+                        self.scope.push(name);
+                        self.collect(body, depth + 1);
+                        self.scope.pop();
+                    }
+                }
+                "declaration_list" | "field_declaration_list" | "template_declaration" | "linkage_specification"
+                | "declaration" | "type_definition" | "field_declaration" | "ERROR" => {
+                    self.collect(child, depth + 1)
+                }
+                kind if PREPROC_KINDS.contains(&kind) => self.collect(child, depth + 1),
+                _ => {}
+            }
+        }
+    }
+
+    fn collect_type(&mut self, spec: Node, depth: usize) {
+        // A forward declaration has no body and an unnamed struct has no name: neither is a type.
+        let (Some(name_node), Some(body)) = (spec.child_by_field_name("name"), spec.child_by_field_name("body"))
+        else {
+            return;
+        };
+        let is_class = spec.kind() == "class_specifier";
+        let name = collapse(&text(name_node, self.src));
+        let members = members_of(body, self.src, if is_class { "private" } else { "public" }, &mut self.skipped);
+        self.out.push(TypeInfo {
+            kind: if is_class { "class" } else { "struct" },
+            name: name.clone(),
+            scope: self.scope.join("::"),
+            bases: base_names(spec, self.src),
+            start_byte: spec.start_byte(),
+            end_byte: spec.end_byte(),
+            start_line: spec.start_position().row + 1,
+            end_line: spec.end_position().row + 1,
+            members,
+        });
+        // Nested types follow their parent, with the parent's name added to their scope.
+        self.scope.push(name);
+        self.collect(body, depth + 1);
+        self.scope.pop();
+    }
+
+    /// An enum with a name and a body. Its `bases` hold the underlying type (empty when none) and
+    /// each enumerator is a member of kind `enumerator` with access `none`.
+    fn collect_enum(&mut self, spec: Node) {
+        let (Some(name_node), Some(body)) = (spec.child_by_field_name("name"), spec.child_by_field_name("body"))
+        else {
+            return;
+        };
+        let bases = spec
+            .child_by_field_name("base")
+            .map(|b| vec![collapse(&text(b, self.src))])
+            .unwrap_or_default();
+        let mut members = Vec::new();
+        enumerators(body, self.src, 0, &mut self.skipped, &mut members);
+        self.out.push(TypeInfo {
+            kind: "enum",
+            name: collapse(&text(name_node, self.src)),
+            scope: self.scope.join("::"),
+            bases,
+            start_byte: spec.start_byte(),
+            end_byte: spec.end_byte(),
+            start_line: spec.start_position().row + 1,
+            end_line: spec.end_position().row + 1,
+            members,
+        });
     }
 }
 
-fn collect_type(spec: Node, src: &[u8], scope: &mut Vec<String>, out: &mut Vec<TypeInfo>) {
-    // A forward declaration has no body and an unnamed struct has no name: neither is a type.
-    let (Some(name_node), Some(body)) = (spec.child_by_field_name("name"), spec.child_by_field_name("body")) else {
+fn enumerators(container: Node, src: &[u8], depth: usize, skipped: &mut usize, out: &mut Vec<MemberInfo>) {
+    if depth > MAX_DEPTH {
+        *skipped += 1;
         return;
-    };
-    let is_class = spec.kind() == "class_specifier";
-    let name = collapse(&text(name_node, src));
-    out.push(TypeInfo {
-        kind: if is_class { "class" } else { "struct" },
-        name: name.clone(),
-        scope: scope.join("::"),
-        bases: base_names(spec, src),
-        start_byte: spec.start_byte(),
-        end_byte: spec.end_byte(),
-        start_line: spec.start_position().row + 1,
-        end_line: spec.end_position().row + 1,
-        members: members_of(body, src, if is_class { "private" } else { "public" }),
-    });
-    // Nested types follow their parent, with the parent's name added to their scope.
-    scope.push(name);
-    collect(body, src, scope, out);
-    scope.pop();
+    }
+    let mut cursor = container.walk();
+    for child in container.children(&mut cursor) {
+        match child.kind() {
+            "enumerator" => {
+                let Some(name_node) = child.child_by_field_name("name") else { continue };
+                let name = collapse(&text(name_node, src));
+                out.push(MemberInfo {
+                    key: name.clone(),
+                    name,
+                    kind: "enumerator",
+                    access: "none",
+                    signature: cut_on_char_boundary(collapse(&text(child, src)), MAX_SIGNATURE_BYTES),
+                    start_byte: child.start_byte(),
+                    end_byte: child.end_byte(),
+                    start_line: child.start_position().row + 1,
+                    end_line: child.end_position().row + 1,
+                });
+            }
+            kind if PREPROC_KINDS.contains(&kind) => enumerators(child, src, depth + 1, skipped, out),
+            _ => {}
+        }
+    }
 }
 
 fn base_names(spec: Node, src: &[u8]) -> Vec<String> {
@@ -200,14 +284,25 @@ fn base_names(spec: Node, src: &[u8]) -> Vec<String> {
     bases
 }
 
-fn members_of(body: Node, src: &[u8], default_access: &'static str) -> Vec<MemberInfo> {
+fn members_of(body: Node, src: &[u8], default_access: &'static str, skipped: &mut usize) -> Vec<MemberInfo> {
     let mut out = Vec::new();
     let mut access = default_access;
-    member_items(body, src, &mut access, &mut out);
+    member_items(body, src, &mut access, &mut out, 0, skipped);
     out
 }
 
-fn member_items(container: Node, src: &[u8], access: &mut &'static str, out: &mut Vec<MemberInfo>) {
+fn member_items(
+    container: Node,
+    src: &[u8],
+    access: &mut &'static str,
+    out: &mut Vec<MemberInfo>,
+    depth: usize,
+    skipped: &mut usize,
+) {
+    if depth > MAX_DEPTH {
+        *skipped += 1;
+        return;
+    }
     let mut cursor = container.walk();
     for child in container.children(&mut cursor) {
         match child.kind() {
@@ -220,22 +315,109 @@ fn member_items(container: Node, src: &[u8], access: &mut &'static str, out: &mu
                 };
             }
             "field_declaration" | "declaration" | "function_definition" => {
-                declaration_members(child, src, *access, out)
+                declaration_members(child, child, "", false, src, *access, out)
             }
-            kind if PREPROC_KINDS.contains(&kind) => member_items(child, src, access, out),
+            "type_definition" => declaration_members(child, child, "", true, src, *access, out),
+            "alias_declaration" => alias_member(child, child, "", src, *access, out),
+            "template_declaration" => template_member(child, src, *access, out),
+            kind if PREPROC_KINDS.contains(&kind) => member_items(child, src, access, out, depth + 1, skipped),
             _ => {}
         }
     }
 }
 
-/// One member per declarator of a field, declaration or function definition. A declarator shape
-/// this plan does not handle (a conversion operator, say) yields no member rather than a wrong one.
-fn declaration_members(decl: Node, src: &[u8], access: &'static str, out: &mut Vec<MemberInfo>) {
+/// A member template: the declaration wrapped by `template <...>`. It yields the members of that
+/// declaration, spanning the whole template, with the template header in front of the signature.
+/// A nested class template has no member form here: it is a type, reached by the type descent.
+fn template_member(template: Node, src: &[u8], access: &'static str, out: &mut Vec<MemberInfo>) {
+    let mut cursor = template.walk();
+    let inner = template.named_children(&mut cursor).find(|c| {
+        matches!(c.kind(), "declaration" | "field_declaration" | "function_definition" | "alias_declaration")
+    });
+    let Some(inner) = inner else { return };
+    let header = collapse(&lossy(src, template.start_byte(), inner.start_byte()));
+    if inner.kind() == "alias_declaration" {
+        alias_member(inner, template, &header, src, access, out);
+    } else {
+        declaration_members(inner, template, &header, false, src, access, out);
+    }
+}
+
+/// `using Name = type;` as a member of kind `alias`, keyed by its name.
+fn alias_member(alias: Node, span: Node, header: &str, src: &[u8], access: &'static str, out: &mut Vec<MemberInfo>) {
+    let Some(name_node) = alias.child_by_field_name("name") else { return };
+    let name = collapse(&text(name_node, src));
+    let whole = lossy(src, alias.start_byte(), alias.end_byte());
+    let whole = whole.trim_end();
+    let whole = collapse(whole.strip_suffix(';').unwrap_or(whole));
+    out.push(member(name.clone(), name, "alias", access, with_header(header, whole), span));
+}
+
+fn with_header(header: &str, signature: String) -> String {
+    if header.is_empty() {
+        signature
+    } else {
+        format!("{header} {signature}")
+    }
+}
+
+fn member(
+    name: String,
+    key: String,
+    kind: &'static str,
+    access: &'static str,
+    signature: String,
+    span: Node,
+) -> MemberInfo {
+    MemberInfo {
+        name,
+        kind,
+        access,
+        key,
+        signature: cut_on_char_boundary(signature, MAX_SIGNATURE_BYTES),
+        start_byte: span.start_byte(),
+        end_byte: span.end_byte(),
+        start_line: span.start_position().row + 1,
+        end_line: span.end_position().row + 1,
+    }
+}
+
+/// The text of `src[start..end]` with the range `skip` left out, collapsed to single spaces.
+fn collapsed_without(src: &[u8], start: usize, end: usize, skip: Option<(usize, usize)>) -> String {
+    match skip {
+        Some((from, to)) if start <= from && from <= to && to <= end => {
+            collapse(&format!("{} {}", lossy(src, start, from), lossy(src, to, end)))
+        }
+        _ => collapse(&lossy(src, start, end)),
+    }
+}
+
+/// One member per declarator of a field, declaration, function definition or typedef (`alias`
+/// asks for kind `alias`). A declarator shape not handled here yields no member rather than a
+/// wrong one. `span` is the node whose span the members take (the declaration, or the enclosing
+/// template); `header` is the template header text, empty outside a member template.
+fn declaration_members(
+    decl: Node,
+    span: Node,
+    header: &str,
+    alias: bool,
+    src: &[u8],
+    access: &'static str,
+    out: &mut Vec<MemberInfo>,
+) {
     let mut cursor = decl.walk();
     let declarators: Vec<Node> = decl.children_by_field_name("declarator", &mut cursor).collect();
     if declarators.is_empty() {
         return;
     }
+
+    // A type declared in the same declaration (`struct In { ... } inst;`) is its own type, so its
+    // body stays out of the signature of the variable.
+    let skip = decl
+        .child_by_field_name("type")
+        .filter(|t| matches!(t.kind(), "class_specifier" | "struct_specifier" | "enum_specifier"))
+        .and_then(|t| t.child_by_field_name("body"))
+        .map(|b| (b.start_byte(), b.end_byte()));
 
     // The signature stops where a body or a constructor initializer list starts, so `= 0`,
     // `= default`, `= delete` and field default values stay in.
@@ -246,16 +428,15 @@ fn declaration_members(decl: Node, src: &[u8], access: &'static str, out: &mut V
             end = end.min(child.start_byte());
         }
     }
-    let whole = lossy(src, decl.start_byte(), end);
-    let whole = whole.trim_end();
-    let whole = collapse(whole.strip_suffix(';').unwrap_or(whole));
+    let whole = collapsed_without(src, decl.start_byte(), end, skip);
+    let whole = whole.strip_suffix(';').map(str::trim_end).unwrap_or(&whole).to_string();
 
     // With several declarators (`int n_, m_;`) each member is the shared specifiers plus its own
     // declarator, so `n_` and `m_` do not both carry the whole declaration as their signature.
-    let shared_prefix = collapse(&lossy(src, decl.start_byte(), declarators[0].start_byte()));
+    let shared_prefix = collapsed_without(src, decl.start_byte(), declarators[0].start_byte(), skip);
 
     for declarator in &declarators {
-        let Some(resolved) = resolve(*declarator, src) else { continue };
+        let Some(resolved) = resolve(*declarator, src, 0) else { continue };
         let signature = if declarators.len() == 1 {
             whole.clone()
         } else {
@@ -271,17 +452,8 @@ fn declaration_members(decl: Node, src: &[u8], access: &'static str, out: &mut V
             let own = collapse(&lossy(src, declarator.start_byte(), segment_end));
             format!("{shared_prefix} {own}")
         };
-        out.push(MemberInfo {
-            name: resolved.name,
-            kind: resolved.kind,
-            access,
-            key: resolved.key,
-            signature: cut_on_char_boundary(signature, MAX_SIGNATURE_BYTES),
-            start_byte: decl.start_byte(),
-            end_byte: decl.end_byte(),
-            start_line: decl.start_position().row + 1,
-            end_line: decl.end_position().row + 1,
-        });
+        let (kind, key) = if alias { ("alias", resolved.name.clone()) } else { (resolved.kind, resolved.key) };
+        out.push(member(resolved.name, key, kind, access, with_header(header, signature), span));
     }
 }
 
@@ -304,9 +476,29 @@ fn inner_declarator(node: Node) -> Option<Node> {
     found
 }
 
+/// `name`, then the parameter list text, then each trailing cv-qualifier, of a function
+/// declarator or the abstract one of a conversion operator.
+fn function_key(name: &str, declarator: Node, src: &[u8]) -> String {
+    let parameters = declarator
+        .child_by_field_name("parameters")
+        .map(|p| collapse(&text(p, src)))
+        .unwrap_or_default();
+    let mut key = format!("{name}{parameters}");
+    let mut cursor = declarator.walk();
+    for qualifier in declarator.children(&mut cursor).filter(|c| c.kind() == "type_qualifier") {
+        key.push(' ');
+        key.push_str(&collapse(&text(qualifier, src)));
+    }
+    key
+}
+
 /// Follows declarators down to the member's name. For `destructor_name` and `operator_name` the
-/// name is that node's own text (`~Gadget`, `operator==`), not its innermost leaf.
-fn resolve(declarator: Node, src: &[u8]) -> Option<Resolved> {
+/// name is that node's own text (`~Gadget`, `operator==`), not its innermost leaf; a conversion
+/// operator is named from `operator` through its target type (`operator bool`).
+fn resolve(declarator: Node, src: &[u8], depth: usize) -> Option<Resolved> {
+    if depth > MAX_DEPTH {
+        return None;
+    }
     let mut node = declarator;
     loop {
         let kind = node.kind();
@@ -319,19 +511,19 @@ fn resolve(declarator: Node, src: &[u8]) -> Option<Resolved> {
                 let inner = node.child_by_field_name("declarator")?;
                 if !NAME_KINDS.contains(&inner.kind()) {
                     // `int (*cb)(int);`: the name is whatever the wrapped declarator resolves to.
-                    return resolve(inner, src);
+                    return resolve(inner, src, depth + 1);
                 }
                 let name = collapse(&text(inner, src));
-                let parameters = node
-                    .child_by_field_name("parameters")
-                    .map(|p| collapse(&text(p, src)))
-                    .unwrap_or_default();
-                let mut key = format!("{name}{parameters}");
-                let mut cursor = node.walk();
-                for qualifier in node.children(&mut cursor).filter(|c| c.kind() == "type_qualifier") {
-                    key.push(' ');
-                    key.push_str(&collapse(&text(qualifier, src)));
+                let key = function_key(&name, node, src);
+                return Some(Resolved { name, key, kind: "method" });
+            }
+            "operator_cast" => {
+                let mut function = node.child_by_field_name("declarator")?;
+                while function.kind() != "abstract_function_declarator" {
+                    function = function.child_by_field_name("declarator")?;
                 }
+                let name = collapse(&lossy(src, node.start_byte(), function.start_byte()));
+                let key = function_key(&name, function, src);
                 return Some(Resolved { name, key, kind: "method" });
             }
             "init_declarator" | "pointer_declarator" | "array_declarator" | "attributed_declarator"
@@ -816,7 +1008,7 @@ mod tests {
             ]
         );
         // A type-only declaration is not a member of the enclosing type.
-        assert_eq!(members(&types[0]), ["private field own"]);
+        assert_eq!(members(&types[0]), ["public field own"]);
     }
 
     #[test]
@@ -830,17 +1022,19 @@ mod tests {
 
     #[test]
     fn using_and_typedef_inside_a_type_are_alias_members() {
-        let t = the_only_type(
+        let types = extract(
             "class A { public: using Item = std::pair<int, int>; typedef int Handle;\n\
              typedef struct Tag { int q; } Tag_t; int x; };\n",
         );
+        let t = &types[0];
+        assert_eq!(ids(&types), ["class A", "struct A::Tag"]);
         assert_eq!(
-            members(&t),
+            members(t),
             ["public alias Item", "public alias Handle", "public alias Tag_t", "public field x"]
         );
-        assert_eq!(member(&t, "Item").signature, "using Item = std::pair<int, int>");
-        assert_eq!(member(&t, "Handle").signature, "typedef int Handle");
-        assert_eq!(member(&t, "Tag_t").signature, "typedef struct Tag Tag_t");
+        assert_eq!(member(t, "Item").signature, "using Item = std::pair<int, int>");
+        assert_eq!(member(t, "Handle").signature, "typedef int Handle");
+        assert_eq!(member(t, "Tag_t").signature, "typedef struct Tag Tag_t");
     }
 
     #[test]

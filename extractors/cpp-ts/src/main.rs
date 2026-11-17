@@ -34,11 +34,14 @@ fn process_file(
     match extract::parse_bounded(parser, &bytes, budget) {
         (extract::Status::Ok, Some(tree)) => {
             let root = tree.root_node();
+            // A subtree the depth cap left unvisited labels the file like a parse error does, so a
+            // partial extraction is never presented as complete (T-01-16).
+            let (types, skipped) = extract::extract_with_skips(root, &bytes);
             FileResult {
                 path: file.path.clone(),
                 status: extract::Status::Ok.as_str(),
-                error_nodes: extract::count_error_nodes(root),
-                types: extract::extract_types(root, &bytes),
+                error_nodes: extract::count_error_nodes(root) + skipped,
+                types,
             }
         }
         (status, _) => FileResult {

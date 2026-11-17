@@ -152,7 +152,7 @@ pub struct FileResult {
 
 #[derive(Serialize, Debug, PartialEq, Eq)]
 pub struct TypeInfo {
-    /// "class" or "struct".
+    /// "class", "struct" or "enum".
     pub kind: &'static str,
     pub name: String,
     /// Enclosing namespaces then enclosing types, joined with `::`; empty at global scope.
@@ -168,9 +168,9 @@ pub struct TypeInfo {
 #[derive(Serialize, Debug, PartialEq, Eq)]
 pub struct MemberInfo {
     pub name: String,
-    /// "method" or "field".
+    /// "method", "field", "alias" or "enumerator".
     pub kind: &'static str,
-    /// "public", "protected" or "private".
+    /// "public", "protected" or "private"; "none" for an enumerator.
     pub access: &'static str,
     pub key: String,
     pub signature: String,
