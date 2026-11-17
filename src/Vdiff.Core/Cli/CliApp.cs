@@ -10,13 +10,17 @@ namespace Vdiff.Core.Cli;
 /// The whole tool behind <c>Main</c>: returns 0 on success and 1 on any failure (R27 contract)
 /// and prints <c>vdiff: message</c> to stderr on failure, never file content. Order of work:
 /// check the arguments, the repository and the git version, resolve both commits, refuse an
-/// <c>--out</c> inside the repository, run the pipeline in memory, and only then create
-/// <c>--out</c> and write the five files, so a failure before the write leaves it absent or
-/// untouched (T-01-28).
+/// <c>--out</c> inside the repository, run the pipeline in memory, refuse an <c>--out</c> inside
+/// the repository a second time (a link may have been swapped in while the pipeline ran), and only
+/// then create <c>--out</c> and write the five files, so a failure before the write leaves it
+/// absent or untouched (T-01-28).
 /// </summary>
 public static class CliApp
 {
-    public static int Run(IReadOnlyList<string> args, TextWriter stdout, TextWriter stderr)
+    public static int Run(IReadOnlyList<string> args, TextWriter stdout, TextWriter stderr) =>
+        Run(args, stdout, stderr, null);
+
+    internal static int Run(IReadOnlyList<string> args, TextWriter stdout, TextWriter stderr, Action? afterPipeline)
     {
         try
         {
@@ -48,6 +52,9 @@ public static class CliApp
 
             var mermaid = MermaidWriter.Render(result.Diff);
             var html = HtmlWriter.Render(result.Diff, mermaid);
+
+            // Test seam for the swap between the check and the write (WR-02); null in production.
+            afterPipeline?.Invoke();
             OutputWriter.WriteAll(outPath, result.Base, result.Head, result.Diff, mermaid, html);
 
             stdout.Write($"vdiff: wrote 5 files to {outPath}\n");
@@ -86,8 +93,13 @@ public static class CliApp
     /// a link whose target is a volume GUID path are refused with
     /// <see cref="FinalPath.UnsupportedRootMessage"/>, not resolved (T-01-41); this includes a
     /// work tree or git directory that git reports in such a namespace.
+    /// The check runs before the pipeline for a fast failure and again immediately before the write.
+    /// The second call mitigates T-01-40, a link swapped in between check and write: plan 01-12
+    /// accepted that threat, plan 01-13 mitigates it and tracks it as T-01-43. The interval between
+    /// the second check and the first write is not closed, and a hostile concurrent process able to
+    /// use it could edit the repository directly.
     /// </summary>
-    static void RefuseUnsafeOut(string outPath, RepoLocation location)
+    internal static void RefuseUnsafeOut(string outPath, RepoLocation location)
     {
         if (IsSameOrUnder(outPath, location.Root) || IsSameOrUnder(outPath, location.GitDir) || IsSameOrUnder(outPath, location.CommonDir))
         {

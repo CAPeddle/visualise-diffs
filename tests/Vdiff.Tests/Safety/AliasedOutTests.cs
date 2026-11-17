@@ -1,4 +1,6 @@
+using Vdiff.Core;
 using Vdiff.Core.Cli;
+using Vdiff.Core.Git;
 using Vdiff.Tests.Support;
 
 namespace Vdiff.Tests.Safety;
@@ -304,5 +306,55 @@ public class AliasedOutTests
         Assert.Equal(1, exit);
         Assert.StartsWith("vdiff: ", stderr);
         Assert.Empty(Directory.GetFileSystemEntries(repo.OutDir, "*.tmp-*"));
+    }
+
+    [Fact]
+    public void An_out_swapped_for_a_link_into_the_repository_after_the_first_check_is_refused_before_the_write()
+    {
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (baseId, headId) = BuildSmallHistory(repo);
+        Directory.CreateDirectory(links.Root);
+        var outPath = Path.Combine(links.Root, "swap", "aliased-out");
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+        var hookRan = false;
+        using var outWriter = new StringWriter();
+        using var errWriter = new StringWriter();
+
+        var exit = CliApp.Run(
+            Args(repo.RepoDir, baseId, headId, outPath),
+            outWriter,
+            errWriter,
+            () =>
+            {
+                hookRan = true;
+                links.Link("swap", repo.RepoDir);
+            });
+
+        Assert.True(hookRan);
+        Assert.Equal(1, exit);
+        Assert.Contains(Refusal, errWriter.ToString());
+        Assert.Empty(Directory.EnumerateDirectories(repo.RepoDir, "aliased-out", SearchOption.AllDirectories));
+        Assert.Empty(Directory.GetFileSystemEntries(repo.OutDir));
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+    }
+
+    [Fact]
+    public void A_protected_root_in_a_non_drive_namespace_is_refused_even_when_out_is_a_plain_path()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var repo = new SyntheticRepo();
+        var extendedRoot = PathSpellings.NonDriveNamespace("extended", repo.RepoDir);
+        var gitDir = Path.Combine(repo.RepoDir, ".git");
+        var location = new RepoLocation(extendedRoot, gitDir, gitDir, false);
+
+        var e = Assert.Throws<VdiffException>(
+            () => CliApp.RefuseUnsafeOut(Path.Combine(repo.RepoDir, "results"), location));
+
+        Assert.Equal(FinalPath.UnsupportedRootMessage, e.Message);
     }
 }
