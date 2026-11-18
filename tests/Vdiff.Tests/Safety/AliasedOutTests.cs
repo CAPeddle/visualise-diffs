@@ -528,4 +528,132 @@ public class AliasedOutTests
 
         Assert.Equal(FinalPath.UnsupportedRootMessage, e.Message);
     }
+
+    // ---- VDIFF_PROTECTED_DIRS: the directories the CLI cannot know from its arguments (G-01-1, T-01-56, T-01-58) ----
+
+    static string ProtectedRefusalLine => "vdiff: " + CliApp.ProtectedOutRefusal + "\n";
+
+    /// <summary>Hooks that supply the variable and nothing else, so no process-wide environment changes.</summary>
+    static CliHooks WithProtected(string? value, CliHooks? more = null) =>
+        (more ?? new CliHooks()) with { GetEnvironmentVariable = name => name == CliApp.ProtectedDirectoriesVariable ? value : null };
+
+    [Theory]
+    [InlineData("below")]
+    [InlineData("itself")]
+    [InlineData("through-link")]
+    public void An_out_inside_a_directory_named_by_the_protected_directories_variable_is_refused(string kind)
+    {
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (baseId, headId) = BuildSmallHistory(repo);
+        var vroot = Path.Combine(repo.Root, "vroot");
+        Directory.CreateDirectory(vroot);
+        var outPath = kind switch
+        {
+            "below" => Path.Combine(vroot, "inner", "run"),
+            "itself" => vroot,
+            "through-link" => Path.Combine(links.Link("jv", vroot), "run"),
+            _ => throw new InvalidOperationException(kind),
+        };
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+        using var outWriter = new StringWriter();
+        using var errWriter = new StringWriter();
+
+        var exit = CliApp.Run(Args(repo.RepoDir, baseId, headId, outPath), outWriter, errWriter, WithProtected(vroot));
+
+        Assert.Equal(1, exit);
+        Assert.Equal(ProtectedRefusalLine, errWriter.ToString());
+        Assert.Empty(outWriter.ToString());
+        Assert.Empty(Directory.GetFileSystemEntries(vroot));
+        Assert.Empty(Directory.GetFileSystemEntries(repo.OutDir));
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+    }
+
+    [Theory]
+    [InlineData("relative")]
+    [InlineData("empty-entry")]
+    [InlineData("nine-entries")]
+    public void A_malformed_protected_directories_variable_is_refused_with_a_fixed_message_naming_no_value(string kind)
+    {
+        using var repo = new SyntheticRepo();
+        var (baseId, headId) = BuildSmallHistory(repo);
+        var separator = Path.PathSeparator.ToString();
+        var absolute = Enumerable.Range(0, 9).Select(i => Path.Combine(repo.Root, "protected-" + i)).ToArray();
+        var value = kind switch
+        {
+            "relative" => "relative-protected-directory",
+            "empty-entry" => absolute[0] + separator + separator + absolute[1],
+            "nine-entries" => string.Join(separator, absolute),
+            _ => throw new InvalidOperationException(kind),
+        };
+        var outPath = Path.Combine(repo.Root, "never-out");
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+        using var outWriter = new StringWriter();
+        using var errWriter = new StringWriter();
+
+        var exit = CliApp.Run(Args(repo.RepoDir, baseId, headId, outPath), outWriter, errWriter, WithProtected(value));
+
+        Assert.Equal(1, exit);
+        Assert.Equal("vdiff: " + CliApp.ProtectedDirectoriesMalformed + "\n", errWriter.ToString());
+        Assert.Contains(CliApp.ProtectedDirectoriesVariable, errWriter.ToString());
+        Assert.DoesNotContain(value, errWriter.ToString());
+        Assert.Empty(outWriter.ToString());
+        Assert.False(Directory.Exists(outPath));
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+    }
+
+    [Fact]
+    public void A_swap_into_a_protected_directories_entry_after_the_second_check_is_refused_by_the_held_directory()
+    {
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (baseId, headId) = BuildSmallHistory(repo);
+        var vroot = Path.Combine(repo.Root, "vroot");
+        Directory.CreateDirectory(vroot);
+        var outPath = Path.Combine(links.Root, "swap", "aliased-out");
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+        var hookRan = false;
+        using var outWriter = new StringWriter();
+        using var errWriter = new StringWriter();
+
+        // The swap lands after the second containment check and before the directory is held.
+        var hooks = WithProtected(vroot, new CliHooks(AfterSecondCheck: () =>
+        {
+            hookRan = true;
+            links.Link("swap", vroot);
+        }));
+
+        var exit = CliApp.Run(Args(repo.RepoDir, baseId, headId, outPath), outWriter, errWriter, hooks);
+
+        Assert.True(hookRan);
+        Assert.Equal(1, exit);
+        Assert.Equal(ProtectedRefusalLine, errWriter.ToString());
+        Assert.Empty(outWriter.ToString());
+        Assert.Empty(Directory.GetFileSystemEntries(vroot));
+        Assert.Empty(Directory.GetFileSystemEntries(repo.OutDir));
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+    }
+
+    [Fact]
+    public void An_out_outside_every_protected_directories_entry_is_still_written()
+    {
+        using var repo = new SyntheticRepo();
+        var (baseId, headId) = BuildSmallHistory(repo);
+        var vroot = Path.Combine(repo.Root, "vroot");
+        Directory.CreateDirectory(vroot);
+        var outPath = Path.Combine(repo.OutDir, "run");
+        using var outWriter = new StringWriter();
+        using var errWriter = new StringWriter();
+
+        var exit = CliApp.Run(Args(repo.RepoDir, baseId, headId, outPath), outWriter, errWriter, WithProtected(vroot));
+
+        Assert.True(exit == 0, errWriter.ToString());
+        Assert.Empty(errWriter.ToString());
+        foreach (var name in FiveFiles)
+        {
+            Assert.True(File.Exists(Path.Combine(outPath, name)), name);
+        }
+
+        Assert.Empty(Directory.GetFileSystemEntries(vroot));
+    }
 }

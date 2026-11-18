@@ -14,10 +14,15 @@ namespace Vdiff.Core.Cli;
 /// <param name="AfterPipeline">Runs after the pipeline, before the second containment check.</param>
 /// <param name="AfterSecondCheck">Runs immediately after the second containment check.</param>
 /// <param name="AfterHeld">Runs immediately before the first output file is written, with the directory path the files go to.</param>
+/// <param name="GetEnvironmentVariable">
+/// Reads a variable instead of the process environment, so a test supplies <see cref="CliApp.ProtectedDirectoriesVariable"/>
+/// without changing the process-wide environment.
+/// </param>
 internal sealed record CliHooks(
     Action? AfterPipeline = null,
     Action? AfterSecondCheck = null,
-    Action<string>? AfterHeld = null);
+    Action<string>? AfterHeld = null,
+    Func<string, string?>? GetEnvironmentVariable = null);
 
 /// <summary>
 /// The whole tool behind <c>Main</c>: returns 0 on success and 1 on any failure (R27 contract)
@@ -30,6 +35,23 @@ internal sealed record CliHooks(
 /// </summary>
 public static class CliApp
 {
+    /// <summary>
+    /// The environment variable that adds protected directories: a list of at most
+    /// <see cref="MaxProtectedDirectories"/> absolute directories separated by the platform's path separator.
+    /// The trial script passes the vdiff repository root in it, which the CLI cannot know from its arguments.
+    /// </summary>
+    public const string ProtectedDirectoriesVariable = "VDIFF_PROTECTED_DIRS";
+
+    /// <summary>The refusal for an <c>--out</c> inside a directory named by <see cref="ProtectedDirectoriesVariable"/>.</summary>
+    public const string ProtectedOutRefusal = "--out must not lie inside a protected directory";
+
+    /// <summary>The refusal for a malformed <see cref="ProtectedDirectoriesVariable"/>: names the variable, never its value.</summary>
+    public const string ProtectedDirectoriesMalformed =
+        "VDIFF_PROTECTED_DIRS must list at most 8 absolute directories separated by the path separator";
+
+    /// <summary>The most directories <see cref="ProtectedDirectoriesVariable"/> may list.</summary>
+    public const int MaxProtectedDirectories = 8;
+
     public static int Run(IReadOnlyList<string> args, TextWriter stdout, TextWriter stderr) =>
         Run(args, stdout, stderr, (CliHooks?)null);
 
