@@ -2,130 +2,79 @@
 phase: 01-offline-tracer
 reviewed: 2026-11-18T00:00:00Z
 depth: standard
-files_reviewed: 11
+files_reviewed: 7
 files_reviewed_list:
   - scripts/trace-run.ps1
   - src/Vdiff.Core/Cli/CliApp.cs
   - src/Vdiff.Core/Cli/FinalPath.cs
-  - src/Vdiff.Core/Output/OutputWriter.cs
-  - src/Vdiff.Core/Vdiff.Core.csproj
   - tests/Vdiff.Tests/Safety/AliasedOutTests.cs
   - tests/Vdiff.Tests/Safety/FinalPathTests.cs
   - tests/Vdiff.Tests/Support/LinkScratch.cs
-  - tests/Vdiff.Tests/Support/PathSpellings.cs
   - tests/Vdiff.Tests/Trial/TraceRunScriptTests.cs
-  - docs/handoffs/phase-01-gap-closure-interrupted-by-shutdown.md
 findings:
-  critical: 1
-  warning: 2
-  info: 3
-  total: 6
-  necessity: 1
+  critical: 0
+  warning: 1
+  info: 2
+  total: 3
+  necessity: 0
 status: issues_found
 ---
 
-# Phase 01: Code Review Report (gap-closure re-review of plans 01-13 and 01-14)
+# Phase 01: Code Review Report (incremental re-review of plan 01-15)
 
 **Reviewed:** 2026-11-18
 **Depth:** standard
-**Files Reviewed:** 11
+**Files Reviewed:** 7
 **Status:** issues_found
 
 ## Summary
 
-Scope: the files changed by plans 01-13 (CLI side) and 01-14 (script side), checked against the previous findings CR-01, WR-01 and WR-02. No structural (fallow) findings and no external reviewer evidence were supplied. The necessity rubric was read.
+Scope: the diff `53215fb..HEAD` for the seven listed files, which is plan 01-15's change set (commits 8d6e84a..204030c). No structural (fallow) findings and no external reviewer evidence were supplied. The necessity rubric was not applied to new code beyond the previous WR-02 check (nothing new qualified).
 
-Disposition of the previous findings, verified against the code and by running it on this Windows host (PowerShell 7.7 and Windows PowerShell 5.1, a fresh Release build of the current source):
+The change replaces the one-entry `Volume{` denylist with an allow-list on the target text the runtime reports for each link: on Windows a link is followed only when `StartsWithDriveLetter` (C#) / `-not Test-NonDriveRoot` (script) holds for that text. I traced the new `FinalPath.Step` and `Resolve-FinalPathStep` paths and found no remaining way for a GLOBALROOT, bare-device, UNC or volume-GUID reparse target to reach the combine/follow step: the .NET and PowerShell runtimes strip a leading `\??\` (and, per the plan's measurement, .NET/PowerShell 7 strip four characters from a bare device name, giving `ice\...`), and every such residue is non-drive text, so it is refused. The `\??\` strip in the script followed by the text test is consistent with the C# side. The new `RawJunction` reparse buffer layout (tag, length, reserved, substitute offset/length, print offset/length, path buffer) is correct, the junction is registered for cleanup before the control call, and links are removed as links before the scratch root is deleted.
 
-- **WR-01 (planted file link at an output name): closed on the CLI side.** `OutputWriter.WriteText` creates a random `*.tmp-*` name with `FileMode.CreateNew` and `FileShare.None`, then `File.Move(..., overwrite: true)`, which replaces the directory entry rather than writing through it. Failure cleanup deletes the temp file and rethrows the original exception. The hard-link test covers all five names. The file-symbolic-link half of the claim is not exercised on this host (see WR-01 below). The script side (`Write-LogFile`) also does what it says: I ran it on both hosts for a new file, a new nested directory, and a pre-existing file; all write correctly, so the `catch [System.IO.FileNotFoundException]` filters do match on 5.1.
-- **WR-02 (check once, minutes before the write): mitigated as documented.** `RefuseUnsafeOut` now runs again immediately before `WriteAll`, and the script re-checks `$logFull` after the vdiff run. The remaining window is stated in the doc comments. The swap test drives the internal `Run` seam and does prove the second check fires.
-- **CR-01 (non-drive namespaces): closed for the spellings the tests cover, but not closed.** Direct `\\?\`, `\\.\`, UNC and extended-UNC spellings are refused, and so is a link whose target is `Volume{...}`. The same defect class is still reachable through a link whose NT-namespace target is anything other than `Volume{`. Reproduced on both implementations (CR-01 below).
+Verification run on this Windows host (fresh Release build of HEAD): `dotnet test --filter "FullyQualifiedName~FinalPathTests|FullyQualifiedName~AliasedOutTests|FullyQualifiedName~nt_namespace"` gave 64 passed, 0 failed, 0 skipped. That includes the GLOBALROOT, bare-device and UNC junction cases at the unit level, the GLOBALROOT and bare-device cases through the CLI and through `trace-run.ps1` (`-Out` and `-LogPath`, on every host the test class enumerates), and the drive-letter control junction. The new tests pin their own premise (the reported target is asserted not to be a drive-letter path, and the junction is asserted live), so a runtime that reports a different spelling fails with an explanation instead of passing vacuously.
 
-## Critical Issues
+No critical issue found. The remaining findings are about a behaviour change that is wider than the escape it closes, and test and documentation upkeep.
 
-### CR-01: A directory junction with a non-`Volume{` NT-namespace target bypasses both containment guards; vdiff and trace-run.ps1 write inside the analysed repository
+## Previous round
 
-**File:** `src/Vdiff.Core/Cli/FinalPath.cs:82-98, 115-116`, `scripts/trace-run.ps1:210-220`
-**Issue:** Both resolvers special-case exactly one NT-namespace spelling (`Volume{`) and otherwise trust what the runtime reports as the link target.
+Previous review commit: `53215fb`. Dispositions below are checked against HEAD, not taken from the plan summary.
 
-- .NET (`DirectoryInfo.LinkTarget` / `ResolveLinkTarget`) and PowerShell (`Get-Item .Target`) both strip the `\??\` prefix from a junction's substitute name unconditionally. For a target such as `\??\GLOBALROOT\Device\HarddiskVolume3\<path to repo>` the reported target is the relative-looking text `GLOBALROOT\Device\HarddiskVolume3\<path to repo>`.
-- `IsVolumeGuidTarget` does not match it. `ResolveLinkTarget` then treats it as relative to the link's parent, so `target.FullName` is a drive-letter path (`C:\...\scratch\GLOBALROOT\Device\...`) that passes `StartsWithDriveLetter`, matches nothing in the repository, and `Step` returns a lexical path that is not under the repository. In the script the same happens: `IsPathRooted` is false, so the target is combined with the link's parent.
-- Creating such a junction needs no privilege (a plain `FSCTL_SET_REPARSE_POINT` on an empty directory). The same path is open to a symbolic link with a `\??\UNC\host\share\...` target, which the script turns into `UNC\host\share\...` and treats as relative.
-
-Reproduced on this machine against a synthetic empty repository (`base == head`), with a junction `scratch\gr` whose substitute name was `\??\GLOBALROOT\Device\HarddiskVolume3\<repo path>`. `Get-Item gr` reports `LinkType: Junction`, `Target: GLOBALROOT\Device\HarddiskVolume3\...` on both PowerShell hosts; `DirectoryInfo.LinkTarget` reports the same.
-
-```
-vdiff.dll --repo <repo> --base c --head c --out <scratch>\gr\outx
-  -> vdiff: wrote 5 files to <scratch>\gr\outx ; exit 0
-git status --short  ->  ?? outx/
-
-trace-run.ps1 -Repo <repo> ... -Out <elsewhere> -LogPath <scratch>\gr\vdiff.log   (pwsh and powershell 5.1)
-  -> vdiff.log created inside <repo>; result: fail, reason: repo-changed
-```
-
-So the roadmap guarantee ("the analysed repository is never changed") is still broken by one more spelling of the same alias, and the doc comments ("a link whose target is a volume GUID path [is] refused, not resolved") describe a blacklist of one form while implying the namespace class is closed. The script only detects the damage afterwards, as `repo-changed`.
-
-**Fix:** Replace the blacklist with an allow-list on the raw target, in both implementations. On Windows, after the single `\??\` strip, accept a link target only when it is drive-rooted (`^[A-Za-z]:\\`) or is a genuinely relative symbolic-link target; refuse a junction (always absolute) whose reported target is not drive-rooted, and refuse any target whose first segment is an NT namespace name (`GLOBALROOT`, `UNC`, `Volume{`, `Device`). Minimal version:
-
-```csharp
-// FinalPath.Step, replacing the IsVolumeGuidTarget call
-if (OperatingSystem.IsWindows() && !IsAcceptableWindowsTarget(info.LinkTarget))
-{
-    throw new VdiffException(UnsupportedRootMessage);
-}
-
-static bool IsAcceptableWindowsTarget(string raw)
-{
-    var t = raw.TrimStart('\\', '?', '.');
-    if (t.StartsWith("Volume{", StringComparison.OrdinalIgnoreCase)) return false;
-    var first = t.Split('\\', 2)[0];
-    return !(first.Equals("GLOBALROOT", StringComparison.OrdinalIgnoreCase)
-          || first.Equals("UNC", StringComparison.OrdinalIgnoreCase)
-          || first.Equals("Device", StringComparison.OrdinalIgnoreCase));
-}
-```
-
-```powershell
-# Resolve-FinalPathStep, next to the Volume{ test
-if ($target -match '^(?i)(GLOBALROOT|UNC|Device|Volume\{)') { throw 'nt namespace link target' }
-```
-
-Add a test that builds such a junction without privilege (the `FSCTL_SET_REPARSE_POINT` route, or `mklink /J` followed by a reparse rewrite) for both `FinalPathTests`/`AliasedOutTests` and `TraceRunScriptTests` (`-Out` and `-LogPath`), asserting `UnsupportedRootMessage` and `script-error` respectively, alongside the existing `Volume{` cases. Also update the T-01-41 wording so it says what is refused.
+| Previous id | Title (short) | Resolved by this diff? |
+|-------------|---------------|------------------------|
+| CR-01 | Non-`Volume{` NT-namespace junction bypasses both guards | **Resolved.** Allow-list on the reported target in `FinalPath.Step:98` and `trace-run.ps1:226`; `Volume{` special case and `IsVolumeGuidTarget` removed. Reproduction shapes (GLOBALROOT, bare device) and UNC now have tests that fail closed with the fixed message (`UnsupportedRootMessage` / `script-error`) and leave the repository untouched. Residual, by design and documented: subst and mapped drive letters, 8.3 names, IN-04. |
+| WR-01 | File-symbolic-link half of the output-name test passes vacuously | **Not touched; still open.** `AliasedOutTests` still returns early when `TryFileLink` is false; this diff only adds tests. |
+| WR-02 | Redundant second `Test-NonDriveRoot $logFull` | **Resolved.** The call is gone from `Invoke-Trace` (script line 399-408 repeats only `Test-SameOrUnder`), the matching assertion is removed from `TraceRunScriptTests` (the first-check assertion at line 326 is kept), and the comment states why. |
+| IN-01 | Stale handoff committed to a public repository | **Resolved.** `docs/handoffs/phase-01-gap-closure-interrupted-by-shutdown.md` was deleted in `fac4f36`; `docs/` no longer contains `handoffs`. |
+| IN-02 | Source-text pin and silent non-Windows passes | **Not resolved; slightly worse.** The order test still searches script text (now with one fewer substring). Five more Windows-only tests added by this diff (`FinalPathTests` x2 plus the new theory, `AliasedOutTests` x1 theory, `TraceRunScriptTests` x2 theories) use `if (!OperatingSystem.IsWindows()) return;`, so the Ubuntu leg reports them as passed without running them. |
+| IN-03 | `TooManyLinksException` thrown for unrelated conditions | **Not resolved.** `FinalPath.cs:79` and `:105` still throw it for a null root and a null link target. Note the id was used in two senses: the doc comments this diff rewrites used "IN-03" for an older finding, "link targets written without a drive letter". That sense is now closed (such targets are refused) and the citation is removed from the three comment blocks, but the maintainer-naming finding above is unchanged. |
+| IN-04 | Case-insensitive non-Windows file systems compared case-sensitively | **Not touched; still open.** Still cited as open in the rewritten comments (`FinalPath.cs:54`, `CliApp.cs:101`, `trace-run.ps1:32,195`). |
+| WR-03, WR-04, IN-05, IN-06 | Recorded in the disposition file only | Outside this diff's files; not touched, still open. |
 
 ## Warnings
 
-### WR-01: The file-symbolic-link half of the output-name test passes vacuously on a host without the privilege
+### WR-05: Every non-drive-letter link target is now refused on Windows, with a message that names the wrong problem
 
-**File:** `tests/Vdiff.Tests/Safety/AliasedOutTests.cs:272-295`, `tests/Vdiff.Tests/Support/LinkScratch.cs:83-96`
-**Issue:** `A_file_symbolic_link_planted_at_an_output_name_is_replaced_and_its_target_is_unchanged` returns early with a pass when `TryFileLink` returns false. On Windows that needs Developer Mode or elevation; on this development host `New-Item -ItemType SymbolicLink` fails with "Administrator privilege required", so the claim in `OutputWriter`'s doc comment and in T-01-42 ("a hard link or file symbolic link planted at a final name is replaced") is proven here only for hard links. xUnit reports the test as passed, so a missing privilege is indistinguishable from success.
-**Fix:** Make the skip visible (xUnit v3 `Assert.Skip`, or a `SkippableFact`-style dynamic skip with a reason), and note in the test that the Ubuntu leg exercises it. The behaviour is very likely correct (`MoveFileEx`/`rename` replace the entry), but it should not be reported as covered.
+**File:** `src/Vdiff.Core/Cli/FinalPath.cs:95-101` (and `:16-22`), `scripts/trace-run.ps1:224-227`
+**Issue:** The new rule refuses any Windows link whose reported target is not `X:\...`. That correctly covers the NT-namespace class, but it also refuses ordinary links that carry no escape: a relative symbolic link (`mklink /D link ..\other`), a link to a drive-relative path, and a volume mount point (reported as `Volume{...}\`). Before this diff the relative and drive-less forms were resolved against the link's parent and followed. `FinalPath.Resolve` is called for `--out` and for the work tree, git directory and common git directory, so a repository or output path that merely passes through a relative symlink or a mounted-folder volume now ends the run with exit 1. The text printed is the fixed `UnsupportedRootMessage`: "a path must begin with a drive letter on Windows; extended-length, device, UNC and volume paths are not accepted". For a relative-symlink user that is wrong: their path does begin with a drive letter, and no listed namespace is involved. The doc comment on the constant admits the message covers the relative case, but the text itself does not, and the user never sees the comment. I could not create a relative symbolic link without elevation on this host, so the relative case is established from the code and from the `A_reported_link_target_...` theory (`..\work` and `work` map to false), not from a run.
 
-### WR-02: Necessity: a second `Test-NonDriveRoot $logFull` after the vdiff run re-checks a string that cannot have changed
-
-**File:** `scripts/trace-run.ps1:391`, pinned by `tests/Vdiff.Tests/Trial/TraceRunScriptTests.cs:322`
-**Category:** necessity
-**Issue:** The guarded state (a log path that became non-drive-rooted between the first check and the write) cannot occur: `$logFull` is assigned once (line 360) from the parameter and never reassigned, and `Test-NonDriveRoot` is a pure text test with no file-system input (line 168-171). The second check can never differ from the first. The check that does carry the T-01-46 value is the second `Test-SameOrUnder`, which reads the file system. This is not defence in depth: that rule applies to a layer that re-reads mutable state. The source-order test then pins the redundant call (`Assert.Contains("Test-NonDriveRoot $logFull", between)`), so the dead check is now load-bearing for the test suite.
-**Fix:** Drop the second `Test-NonDriveRoot` call and the matching assertion; keep the second `Test-SameOrUnder`.
+The conservative refusal is defensible: the runtime does not expose the relative flag, so an absolute symlink to `\??\GLOBALROOT\...` and a relative symlink to the directory `GLOBALROOT\...` report identical text and cannot be told apart through these APIs. The defect is the missing explanation and the absent test of the refused-but-harmless forms, not the fail-closed choice.
+**Fix:** Give the link-target refusal its own fixed message (still no path text, T-01-38), for example `a link target must be a drive-letter path on Windows; this link cannot be followed safely`, and keep `UnsupportedRootMessage` for a path argument. Mirror the distinction in the script by keeping `script-error` but documenting the cause in the header. Add a `Step`-level test for a relative symbolic link guarded by `TryFileLink`/`TryDirectoryLink` with a visible skip when the privilege is missing, so the behaviour the message describes is exercised somewhere. If relative targets matter to users, the alternative is to follow a link only when `info.LinkTarget` is relative and `info.Attributes` shows a symbolic link rather than a mount point, accepting that the API cannot separate it from an absolute NT-spelled symlink; that trade belongs in the threat register (T-01-41), not in a silent choice.
 
 ## Info
 
-### IN-01: Stale handoff committed to a public repository
+### IN-07: The new tests do not exercise the symbolic-link spelling of the escape, and the CLI and script tests omit the UNC kind
 
-**File:** `docs/handoffs/phase-01-gap-closure-interrupted-by-shutdown.md:1-47`
-**Issue:** The handoff describes plan 01-13 as "in progress", 01-14 as "not started" and the phase gates as "not run", and tells a reader to re-dispatch an executor. HEAD already contains both plans' commits and SUMMARYs, so the document is false for any new reader. It also carries a machine-local path (`C:/projects/shared-copilot/docs/investigations/.../check-public-diff.sh`), a GitHub account name and a session shutdown narrative, none of which belong in a public repository's tracked docs.
-**Fix:** Delete the file (it remains in git history), or mark it superseded at the top; do not leave it as the resume point.
+**File:** `tests/Vdiff.Tests/Safety/FinalPathTests.cs:167-197`, `tests/Vdiff.Tests/Safety/AliasedOutTests.cs:219-241`, `tests/Vdiff.Tests/Trial/TraceRunScriptTests.cs:573-655`
+**Issue:** The previous CR-01 named two shapes: a junction with a GLOBALROOT target, and a symbolic link with a `\??\UNC\host\share\...` target. All new link tests use `LinkScratch.RawJunction`, because it needs no privilege. `FinalPathTests` covers a UNC substitute name, but only as a junction (a non-live one), and `NtJunctionKinds` in the script tests and the two kinds in `AliasedOutTests` leave `unc` out. The symlink path through `Step`/`Resolve-FinalPathStep` (`LinkType -eq 'SymbolicLink'`) is therefore never run by the new tests with an NT-spelled target, and the pure `StartsWithDriveLetter` theory tests the predicate, not the integration. The rule is a text test applied identically to both link types, so the risk is low, but the claim "closed for both link types" rests on reading, not on a test.
+**Fix:** Add a privilege-gated symlink variant with a visible skip, and add `"unc"` to `NtJunctionKinds` and the `AliasedOutTests` theory (for `unc` skip the liveness assertion, as `FinalPathTests` already does).
 
-### IN-02: Source-text pin and silent non-Windows passes in the script tests
+### IN-08: The same ten-line "Bound (T-01-39 / T-01-41)" paragraph now exists in four places
 
-**File:** `tests/Vdiff.Tests/Trial/TraceRunScriptTests.cs:306-332, 480-482, 515-517, 549-551, 578-580, 602-604`
-**Issue:** `Log_write_is_preceded_by_a_second_containment_check_in_source_order` asserts on substrings of the script text, so a comment containing `Test-SameOrUnder $logFull` satisfies it and a refactor that keeps behaviour breaks it; it proves ordering of text, not of execution. Separately, the class summary says a missing host "fails the test; it never skips", yet five tests `return` silently on non-Windows and report as passed. Both overstate coverage.
-**Fix:** Keep the order test only as a documented backstop (the comment already says so) and strip comments before searching; mark the Windows-only theories with a visible skip instead of an early `return`.
-
-### IN-03: `TooManyLinksException` is thrown for unrelated conditions
-
-**File:** `src/Vdiff.Core/Cli/FinalPath.cs:73, 96`
-**Issue:** The internal signal is thrown for a null `GetPathRoot` and for a null `ResolveLinkTarget`, neither of which is a link budget overrun. Both are converted to the same fixed message, so behaviour is right, but the name misleads the next maintainer.
-**Fix:** Rename it (for example `UnresolvableLinkException`) or throw it with a reason string that is never printed.
+**File:** `src/Vdiff.Core/Cli/FinalPath.cs:45-54`, `src/Vdiff.Core/Cli/CliApp.cs:91-102`, `scripts/trace-run.ps1:22-34` and `:186-195`
+**Issue:** This diff rewrites and lengthens a paragraph that is copied verbatim into three files (four blocks). The previous round's paragraph was already copied; each rewrite has to touch every copy, and the plan's own acceptance greps exist to catch drift. A mismatch between copies would mislead a reader about what the guard refuses, which is the property the whole safety design depends on.
+**Fix:** Keep the full statement once (on `FinalPath.Resolve`) and have `CliApp.RefuseUnsafeOut` and the script reference it in one sentence plus the threat ids, as the script header already does for the reason vocabulary.
 
 ---
 
