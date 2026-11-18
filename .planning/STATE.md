@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Offline Tracer
-status: executing
-stopped_at: Completed 01-14-PLAN.md
-last_updated: "2026-11-18T10:42:17.229Z"
-last_activity: 2026-11-17
+status: verifying
+stopped_at: Completed 01-15-PLAN.md
+last_updated: "2026-11-18T11:45:27.209Z"
+last_activity: 2026-11-18
 last_activity_desc: Phase 01 execution started
-state_head: 2eaf36114217f3204c066d4f63125c902a580476
+state_head: b9a9b949a35390ceed3ecb720e596d076bfd9c3d
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 15
-  completed_plans: 14
+  completed_plans: 15
   percent: 0
 ---
 
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 
 ## Current Position
 
-Phase: 01 (Offline Tracer) — READY TO EXECUTE
-Plan: 14 of 14
-Status: Ready to execute
-Last activity: 2026-11-17 — Phase 01 execution started
+Phase: 01 (Offline Tracer) — EXECUTING
+Plan: 15 of 15
+Status: Phase complete — ready for verification
+Last activity: 2026-11-18 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -68,6 +68,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P12 | 50min | 3 tasks | 7 files |
 | Phase 01 P13 | resumed run | 3 tasks | 8 files |
 | Phase 01 P14 | 40min | 3 tasks | 3 files |
+| Phase 01 P15 | 45 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -97,6 +98,8 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-12: resolve links by a segment walk (40-link budget, fail closed with a fixed message) in CliApp.RefuseUnsafeOut and trace-run.ps1; subst drives and 8.3 short names are an accepted limit (T-01-39)
 - [Phase 01]: 01-13: --out accept-list on full path text with fixed UnsupportedRootMessage; outputs written via temp name + File.Move; containment re-checked before write (T-01-40 mitigated, tracked as T-01-43)
 - [Phase 01]: 01-14: Write-LogFile reads GetAttributes (not Get-Item LinkType) so a dangling link is seen on Windows PowerShell 5.1; Test-NonDriveRoot uses -cnotmatch with the backslash as x5C
+- [Phase 01]: 01-15 R-1/R-2: on Windows a link is followed only when its reported target is a drive-letter path (accept-list, C# and script); relative symlink targets refused too (T-01-47 accepted); volume GUID denylist removed
+- [Phase 01]: 01-15 R-4/R-5: junction fixture is a raw FSCTL_SET_REPARSE_POINT write (no privilege) with a drive-letter decoy print name; Windows symbolic link form is manual-only in 01-VALIDATION.md
 
 ### Pending Todos
 
@@ -120,6 +123,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-17T19:42:27.505Z
-Stopped at: Completed 01-14-PLAN.md
+Last session: 2026-11-18T11:45:27.135Z
+Stopped at: Completed 01-15-PLAN.md
 Resume file: None
