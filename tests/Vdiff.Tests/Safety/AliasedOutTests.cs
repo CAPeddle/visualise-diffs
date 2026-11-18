@@ -218,6 +218,7 @@ public class AliasedOutTests
 
     [Theory]
     [InlineData("globalroot")]
+    [InlineData("device-no-prefix")]
     public void An_out_through_a_junction_with_an_nt_namespace_target_is_refused_with_the_fixed_message(string kind)
     {
         if (!OperatingSystem.IsWindows())
