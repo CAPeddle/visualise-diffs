@@ -75,7 +75,7 @@ recorded: 2026-11-18T21:27:57.883Z
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
-| CR-01 | critical | open | - (not in the current review) |
+| CR-01 | critical | fixed | plan 01-18, commit 6ea1807; confirmed fixed by the 01-18-scope review (5e5f49c6) |
 | WR-01 | warning | open | - (not in the current review) |
 | WR-02 | warning | open | - (not in the current review) |
 | WR-03 | warning | open | - (not in the current review) |
