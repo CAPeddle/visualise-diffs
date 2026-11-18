@@ -25,8 +25,8 @@ internal sealed record CliHooks(
 /// check the arguments, the repository and the git version, resolve both commits, refuse an
 /// <c>--out</c> inside the repository, run the pipeline in memory, refuse an <c>--out</c> inside
 /// the repository a second time (a link may have been swapped in while the pipeline ran), and only
-/// then create <c>--out</c> and write the five files, so a failure before the write leaves it
-/// absent or untouched (T-01-28).
+/// then create and hold <c>--out</c> and write the five files, so a failure before the write leaves
+/// it absent or untouched (T-01-28).
 /// </summary>
 public static class CliApp
 {
@@ -72,7 +72,7 @@ public static class CliApp
             // Test seam for the swap between the check and the write (WR-02); null in production.
             hooks?.AfterPipeline?.Invoke();
 
-            // Second containment check, immediately before the write (T-01-40, tracked as T-01-43).
+            // Second containment check, then the output directory is held (T-01-43).
             var resolvedOut = RefuseUnsafeOut(outPath, location);
             hooks?.AfterSecondCheck?.Invoke();
 
@@ -119,12 +119,18 @@ public static class CliApp
     /// (extended-length, device, UNC including loopback) are refused too, which includes a work
     /// tree or git directory that git reports in such a namespace. Still unresolved: subst and
     /// mapped drive letters, DOS 8.3 short names, and review finding IN-04 (case-insensitive file
-    /// systems other than Windows compared case-sensitively).
-    /// The check runs before the pipeline for a fast failure and again immediately before the write.
-    /// The second call mitigates T-01-40, a link swapped in between check and write: plan 01-12
-    /// accepted that threat, plan 01-13 mitigates it and tracks it as T-01-43. The interval between
-    /// the second check and the first write is not closed, and a hostile concurrent process able to
-    /// use it could edit the repository directly.
+    /// systems other than Windows compared case-sensitively). The check-to-write interval is a
+    /// separate bound (T-01-43, T-01-46), described where the output is written.
+    /// The check runs before the pipeline for a fast failure and again after it; the second call
+    /// returns the resolved path that feeds <c>HeldDirectory.Create</c>.
+    /// Check-to-write interval (T-01-43, T-01-46). On Windows the output directory is opened without delete
+    /// sharing before the first file is created and held until the last file is in place, so the operating
+    /// system refuses to rename or delete it or any of its ancestors; its final path is read from the open
+    /// handle and judged against the protected roots, and every file is created and moved by that final path,
+    /// never by the path the operator typed, because a link entry in that path can still be retargeted while
+    /// the directory is held. On Linux and macOS no handle is held: the resolved path is judged before and
+    /// after the directories are created and the files are written by the resolved path, so the interval
+    /// between that judgement and each write stays open for a process that is able to rename a directory.
     /// </summary>
     internal static string RefuseUnsafeOut(string outPath, RepoLocation location)
     {
