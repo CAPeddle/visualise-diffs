@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Offline Tracer
-status: verifying
-stopped_at: Completed 01-15-PLAN.md
-last_updated: "2026-11-18T11:45:27.209Z"
+status: executing
+stopped_at: Completed 01-16-PLAN.md
+last_updated: "2026-11-18T17:35:07.581Z"
 last_activity: 2026-11-18
 last_activity_desc: Phase 01 execution started
-state_head: b9a9b949a35390ceed3ecb720e596d076bfd9c3d
+state_head: af16ede6897da36e8cc55069b351cc7552ffb8c9
 progress:
   total_phases: 9
   completed_phases: 0
-  total_plans: 15
-  completed_plans: 15
+  total_plans: 17
+  completed_plans: 16
   percent: 0
 ---
 
@@ -28,8 +28,8 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 ## Current Position
 
 Phase: 01 (Offline Tracer) — EXECUTING
-Plan: 15 of 15
-Status: Phase complete — ready for verification
+Plan: 17 of 17
+Status: Ready to execute
 Last activity: 2026-11-18 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
@@ -69,6 +69,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P13 | resumed run | 3 tasks | 8 files |
 | Phase 01 P14 | 40min | 3 tasks | 3 files |
 | Phase 01 P15 | 45 min | 3 tasks | 9 files |
+| Phase 01 P16 | 30 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,7 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-14: Write-LogFile reads GetAttributes (not Get-Item LinkType) so a dangling link is seen on Windows PowerShell 5.1; Test-NonDriveRoot uses -cnotmatch with the backslash as x5C
 - [Phase 01]: 01-15 R-1/R-2: on Windows a link is followed only when its reported target is a drive-letter path (accept-list, C# and script); relative symlink targets refused too (T-01-47 accepted); volume GUID denylist removed
 - [Phase 01]: 01-15 R-4/R-5: junction fixture is a raw FSCTL_SET_REPARSE_POINT write (no privilege) with a drive-letter decoy print name; Windows symbolic link form is manual-only in 01-VALIDATION.md
+- [Phase 01]: 01-16: hold --out without delete sharing on Windows and write only by the handle's final path; Linux/macOS bounded by statement (H-1..H-8)
 
 ### Pending Todos
 
@@ -123,6 +125,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-18T11:45:27.135Z
-Stopped at: Completed 01-15-PLAN.md
+Last session: 2026-11-18T17:35:07.092Z
+Stopped at: Completed 01-16-PLAN.md
 Resume file: None
