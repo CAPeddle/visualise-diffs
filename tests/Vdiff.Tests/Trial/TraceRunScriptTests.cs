@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using Vdiff.Core.Output;
 using Vdiff.Core.Process;
 using Vdiff.Tests.Support;
 
@@ -1038,6 +1039,81 @@ public class TraceRunScriptTests
         Assert.Equal(FiveFiles, OutputFiles(outRun));
         Assert.Contains("wrote 5 files", File.ReadAllText(log), StringComparison.Ordinal);
         Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+    }
+
+    // ---- (c5) a drive root is held as the root, like the CLI (CR-01, T-01-60) ----
+
+    // The driver defines the script's own top-level functions without running its top-level code and
+    // sets the script-scope variables those functions read. A new script-scope variable read by a helper
+    // later must be added here; the missing value then shows as a PowerShell error on stderr. ASCII only.
+    const string DriveRootDriver = """
+        param([string]$ScriptPath, [string]$Directory)
+        $ErrorActionPreference = 'Stop'
+        $tokens = $null
+        $errors = $null
+        $ast = [System.Management.Automation.Language.Parser]::ParseFile($ScriptPath, [ref]$tokens, [ref]$errors)
+        if ($errors.Count -gt 0) { throw 'the script does not parse' }
+        $found = $ast.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $false)
+        foreach ($definition in $found) { Invoke-Expression $definition.Extent.Text }
+        $script:IsWin = ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT)
+        $script:PathComparison = if ($script:IsWin) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+        $script:HoldTypeReady = $false
+        $script:LinkCount = 0
+        $script:MaxLinks = 40
+        $hold = Open-HeldDirectory $Directory @()
+        try { Write-Output ('held=' + $hold.Path) }
+        finally { Close-HeldDirectory $hold }
+        Write-Output ('full=' + (Get-FullPath $Directory))
+        """;
+
+    [Theory]
+    [MemberData(nameof(Hosts))]
+    public void The_script_holds_a_drive_root_as_the_root_and_agrees_with_the_cli_drive_root(string host)
+    {
+        // No real script run: the script's route to a root is a -LogPath under the root, which would
+        // write there. The driver defines the script's functions and calls two of them, read-only.
+        var root = Path.GetPathRoot(Directory.GetCurrentDirectory())!;
+        string cliPath;
+        using (var held = HeldDirectory.Create(root, _ => null))
+        {
+            cliPath = held.Path;
+        }
+
+        using var scratch = new LinkScratch();
+        var driver = Path.Combine(scratch.Root, "drive-root-driver.ps1");
+        File.WriteAllText(driver, DriveRootDriver, new UTF8Encoding(false));
+
+        var result = BoundedProcess.Run(
+            host,
+            [
+                "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", driver,
+                "-ScriptPath", Path.Combine(RepositoryRoot(), "scripts", "trace-run.ps1"),
+                "-Directory", root,
+            ],
+            new ProcessLimits(TimeSpan.FromMinutes(2), 1024 * 1024, 1024 * 1024));
+
+        Assert.True(result.ExitCode == 0, result.StderrTail);
+        Assert.Empty(result.StderrTail);
+        var lines = result.StdoutText.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        Assert.Equal(2, lines.Length);
+        Assert.StartsWith("held=", lines[0], StringComparison.Ordinal);
+        Assert.StartsWith("full=", lines[1], StringComparison.Ordinal);
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        var expected = TrimKeepingRoot(root);
+        var cli = TrimKeepingRoot(cliPath);
+        var scriptHeld = TrimKeepingRoot(lines[0]["held=".Length..]);
+        var scriptFull = TrimKeepingRoot(lines[1]["full=".Length..]);
+        Assert.True(string.Equals(expected, cli, comparison), "the CLI side did not hold the root: " + cli);
+        Assert.True(string.Equals(expected, scriptHeld, comparison), "Open-HeldDirectory did not hold the root: " + scriptHeld);
+        Assert.True(string.Equals(expected, scriptFull, comparison), "Get-FullPath did not return the root: " + scriptFull);
+    }
+
+    /// <summary>Trailing separators removed, never below the root of the path (test-local).</summary>
+    static string TrimKeepingRoot(string path)
+    {
+        var root = Path.GetPathRoot(path) ?? string.Empty;
+        var trimmed = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return trimmed.Length < root.Length ? root : trimmed;
     }
 
     // ---- (d) fsmonitor (C47) ----
