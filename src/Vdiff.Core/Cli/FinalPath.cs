@@ -86,7 +86,10 @@ public static class FinalPath
                     throw new TooManyLinksException();
                 }
 
-                if (OperatingSystem.IsWindows() && IsVolumeGuidTarget(info.LinkTarget))
+                // The runtime strips the NT prefix before it reports a target, so a GLOBALROOT or
+                // bare device target reads as a relative-looking text. The test is therefore on
+                // the reported text: only a drive-letter path is followed (R-1, R-2, T-01-41).
+                if (OperatingSystem.IsWindows() && !StartsWithDriveLetter(info.LinkTarget))
                 {
                     throw new VdiffException(UnsupportedRootMessage);
                 }
@@ -109,11 +112,8 @@ public static class FinalPath
         return prefix;
     }
 
-    static bool StartsWithDriveLetter(string full) =>
+    internal static bool StartsWithDriveLetter(string full) =>
         full.Length >= 3 && char.IsAsciiLetter(full[0]) && full[1] == ':' && full[2] == '\\';
-
-    static bool IsVolumeGuidTarget(string rawTarget) =>
-        rawTarget.TrimStart('\\', '?', '.').StartsWith("Volume{", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Internal signal for a link budget overrun; converted to the fixed message by <see cref="Resolve"/>.</summary>
     sealed class TooManyLinksException : Exception;
