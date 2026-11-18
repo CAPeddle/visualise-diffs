@@ -69,6 +69,9 @@ passed count (`Passed! +- Failed: +0, Passed: +[1-9]`, `test result: ok\. [1-9][
 | TRC-03 (WR-01) | script: hard-linked `-LogPath` entry replaced, repository file unchanged | integration | `--filter "FullyQualifiedName~Aliased_log_path_hard_linked"` | 01-14 |
 | TRC-03 (WR-02) | script: second namespace + containment check sits after the vdiff run and before `Write-LogFile` (source-order pin; a runtime swap cannot be staged) | unit (text) | `--filter "FullyQualifiedName~second_containment"` | 01-14 |
 | TRC-03 | script: several bad inputs at once report the highest-precedence reason (bad-arguments > out-not-outside > bad `-LogPath`) | integration | `--filter "FullyQualifiedName~Several_bad_inputs"` | 01-14 |
+| TRC-01 (gap 1) | `--out` through a junction whose substitute name is the GLOBALROOT form or the bare device form of the repository is refused with the fixed line, nothing created, repository unchanged; resolver refuses globalroot, device-no-prefix and unc, follows a raw drive-letter junction, accepts a reported link target only when it is a drive-letter path (18-row table) | integration + unit | `--filter "FullyQualifiedName~AliasedOutTests\|FullyQualifiedName~FinalPathTests"`; token `nt_namespace_target` | 01-15 |
+| TRC-03 (gap 1) | script: `-Out` and `-LogPath` below such a junction end with `script-error`, six fixed lines, nothing written into the repository (pwsh and Windows PowerShell 5.1) | integration | `--filter "FullyQualifiedName~TraceRunScriptTests.Aliased"`; token `nt_namespace_target` | 01-15 |
+| TRC-01 / TRC-03 (gap 1) | all of the above in one run (28 tests on Windows) | integration + unit | `--filter "FullyQualifiedName~nt_namespace_target\|FullyQualifiedName~raw_junction\|FullyQualifiedName~reported_link_target"` | 01-15 |
 
 *Status per task is tracked in the plan SUMMARY files.*
 
@@ -90,7 +93,8 @@ separate Wave 0 is needed. Complete: `SupportTests` pass, and the 01-12..01-14 h
 | Real run on the PO's private local Windows clone inside the R26 budget, repo unchanged | TRC-03 / SC4 | Private target content must not enter the public repo or CI | Orchestrator runs `pwsh -NoProfile -File scripts/trace-run.ps1` with inputs supplied at run time; only the six-line pass/fail block is recorded (plan 01-10 T2) |
 | npm package approval (mermaid-cli, puppeteer) | TRC-02 | Package-legitimacy gate flagged "too-new" | PO answers the 01-03 checkpoint; answer recorded as a `package-checkpoint:` line |
 | File symbolic link planted at an output name is replaced, target unchanged | TRC-01 (WR-01) | `AliasedOutTests::A_file_symbolic_link_planted_at_an_output_name_is_replaced_and_its_target_is_unchanged` returns early without SeCreateSymbolicLink, which the dev host lacks; the hard-link test covers the same replace path | Run the filter `FullyQualifiedName~A_file_symbolic_link` in an elevated shell, with Developer Mode on, or on Linux/macOS, and confirm the test asserted (not returned early) |
-| Doc comments name what stays unresolved (T-01-39, T-01-40, T-01-41, T-01-43) | TRC-01, TRC-03 | Wording is a human judgement; greps only check that the IDs are cited | Read the comments in `src/Vdiff.Core/Cli/CliApp.cs`, `src/Vdiff.Core/Cli/FinalPath.cs` and `scripts/trace-run.ps1` |
+| Doc comments name what is refused (every non-drive reported link target on Windows: GLOBALROOT, bare device, UNC, volume GUID, relative, drive-relative) and what stays unresolved (subst and mapped drive letters, DOS 8.3 short names, IN-04); cites T-01-39 and T-01-41 | TRC-01, TRC-03 | Wording is a human judgement; greps only check that the IDs are cited | Read the same bound in four places: the doc comments of `CliApp.RefuseUnsafeOut` and `FinalPath.Resolve` (`src/Vdiff.Core/Cli/`), the header of `scripts/trace-run.ps1` and the comment above `Resolve-FinalPath` (01-15) |
+| Symbolic link (not a junction) whose target is relative or NT-absolute is refused on Windows | TRC-01, TRC-03 (gap 1) | Creating such a link needs a privilege the dev host lacks (Developer Mode, an elevated shell); the rule is pinned at text level by `A_reported_link_target_is_accepted_only_when_it_is_a_drive_letter_path` | On a capable host make `mklink` (no `/J`) with a relative target, or with an NT-absolute target, into a sandbox repository and run `vdiff --out` below it: expect exit 1 and the fixed unsupported-root line, nothing created. The relative form also runs as `A_relative_link_target_is_resolved_from_the_links_own_directory` on Linux and macOS, where it stays accepted (01-15) |
 
 ---
 
@@ -103,7 +107,7 @@ separate Wave 0 is needed. Complete: `SupportTests` pass, and the 01-12..01-14 h
 - [ ] Feedback latency < 60 s (filtered runs ~30 s; the full suite takes ~8 min)
 - [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** validated 2026-11-18 by validate-phase. Full suite: 496 passed, 0 failed (xunit), 105 passed (cargo).
+**Approval:** validated 2026-11-18 by validate-phase. Full suite: 524 passed, 0 failed (xunit, re-measured after plan 01-15), 105 passed (cargo).
 
 ## Validation Audit 2026-11-18
 
