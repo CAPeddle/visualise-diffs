@@ -49,6 +49,8 @@ public static class CliApp
     public const string ProtectedDirectoriesMalformed =
         "VDIFF_PROTECTED_DIRS must list at most 8 absolute directories separated by the path separator";
 
+    const string RepositoryRefusal = "--out must not lie inside the analysed repository";
+
     /// <summary>The most directories <see cref="ProtectedDirectoriesVariable"/> may list.</summary>
     public const int MaxProtectedDirectories = 8;
 
@@ -69,6 +71,9 @@ public static class CliApp
                 return 0;
             }
 
+            // Read before any git work, so a malformed value fails fast and creates nothing (T-01-58).
+            var protectedDirectories = ParseProtectedDirectories(hooks?.GetEnvironmentVariable ?? Environment.GetEnvironmentVariable);
+
             var repoPath = Path.GetFullPath(options.Repo);
             if (!Directory.Exists(repoPath))
             {
@@ -82,7 +87,7 @@ public static class CliApp
             var headId = reader.ResolveCommit(options.Head);
 
             var outPath = Path.GetFullPath(options.Out);
-            _ = RefuseUnsafeOut(outPath, location);
+            _ = RefuseUnsafeOut(outPath, location, protectedDirectories);
 
             var command = CppSidecar.Locate();
             var result = TracerPipeline.Run(
@@ -95,10 +100,10 @@ public static class CliApp
             hooks?.AfterPipeline?.Invoke();
 
             // Second containment check, then the output directory is held (T-01-43).
-            var resolvedOut = RefuseUnsafeOut(outPath, location);
+            var resolvedOut = RefuseUnsafeOut(outPath, location, protectedDirectories);
             hooks?.AfterSecondCheck?.Invoke();
 
-            using var held = HeldDirectory.Create(resolvedOut, p => FindRefusal(p, location));
+            using var held = HeldDirectory.Create(resolvedOut, p => FindRefusal(p, location, protectedDirectories));
             hooks?.AfterHeld?.Invoke(held.Path);
             OutputWriter.WriteAll(held, result.Base, result.Head, result.Diff, mermaid, html);
 
@@ -145,6 +150,9 @@ public static class CliApp
     /// separate bound (T-01-43, T-01-46), described where the output is written.
     /// The check runs before the pipeline for a fast failure and again after it; the second call
     /// returns the resolved path that feeds <c>HeldDirectory.Create</c>.
+    /// The optional <paramref name="protectedDirectories"/> (from <see cref="ProtectedDirectoriesVariable"/>) only adds
+    /// directories an <c>--out</c> must stay out of, at both checks: the trial script passes the vdiff repository
+    /// root there, which the CLI cannot know from its arguments, and an unset or hostile environment cannot weaken the guard.
     /// Check-to-write interval (T-01-43, T-01-46). On Windows the output directory is opened without delete
     /// sharing before the first file is created and held until the last file is in place, so the operating
     /// system refuses to rename or delete it or any of its ancestors; its final path is read from the open
@@ -154,15 +162,20 @@ public static class CliApp
     /// after the directories are created and the files are written by the resolved path, so the interval
     /// between that judgement and each write stays open for a process that is able to rename a directory.
     /// </summary>
-    internal static string RefuseUnsafeOut(string outPath, RepoLocation location)
+    internal static string RefuseUnsafeOut(string outPath, RepoLocation location, IReadOnlyList<string>? protectedDirectories = null)
     {
         if (IsSameOrUnder(outPath, location.Root) || IsSameOrUnder(outPath, location.GitDir) || IsSameOrUnder(outPath, location.CommonDir))
         {
-            throw new VdiffException("--out must not lie inside the analysed repository");
+            throw new VdiffException(RepositoryRefusal);
+        }
+
+        if (protectedDirectories?.Any(dir => IsSameOrUnder(outPath, dir)) == true)
+        {
+            throw new VdiffException(ProtectedOutRefusal);
         }
 
         var resolvedOut = FinalPath.Resolve(outPath);
-        var refusal = FindRefusal(resolvedOut, location);
+        var refusal = FindRefusal(resolvedOut, location, protectedDirectories);
         if (refusal is not null)
         {
             throw new VdiffException(refusal);
@@ -179,15 +192,51 @@ public static class CliApp
     /// <summary>
     /// The refusal text when <paramref name="physicalPath"/> (already resolved) lies in the work tree,
     /// the git directory or the common git directory, each taken through <see cref="FinalPath.Resolve"/>,
-    /// otherwise null. The pre-write check and the judgement of the held directory both use it, so
-    /// the two cannot drift.
+    /// otherwise null; or, when it lies in one of the extra <paramref name="protectedDirectories"/> (each taken through
+    /// <see cref="FinalPath.Resolve"/> too), the protected-directory text. The pre-write check and the judgement of
+    /// the held directory both use it, so the two cannot drift.
     /// </summary>
-    internal static string? FindRefusal(string physicalPath, RepoLocation location) =>
-        IsSameOrUnder(physicalPath, FinalPath.Resolve(location.Root))
+    internal static string? FindRefusal(string physicalPath, RepoLocation location, IReadOnlyList<string>? protectedDirectories = null)
+    {
+        if (IsSameOrUnder(physicalPath, FinalPath.Resolve(location.Root))
             || IsSameOrUnder(physicalPath, FinalPath.Resolve(location.GitDir))
-            || IsSameOrUnder(physicalPath, FinalPath.Resolve(location.CommonDir))
-            ? "--out must not lie inside the analysed repository"
-            : null;
+            || IsSameOrUnder(physicalPath, FinalPath.Resolve(location.CommonDir)))
+        {
+            return RepositoryRefusal;
+        }
+
+        if (protectedDirectories is not null
+            && protectedDirectories.Any(dir => IsSameOrUnder(physicalPath, FinalPath.Resolve(dir))))
+        {
+            return ProtectedOutRefusal;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The directories named by <see cref="ProtectedDirectoriesVariable"/>: unset or empty gives none; otherwise the value
+    /// is split on <see cref="Path.PathSeparator"/> and an empty entry, a relative entry or more than
+    /// <see cref="MaxProtectedDirectories"/> entries is refused with <see cref="ProtectedDirectoriesMalformed"/>,
+    /// which names the variable and never the value. The variable only adds protected directories (T-01-58).
+    /// </summary>
+    internal static IReadOnlyList<string> ParseProtectedDirectories(Func<string, string?> getEnvironmentVariable)
+    {
+        var value = getEnvironmentVariable(ProtectedDirectoriesVariable);
+        if (string.IsNullOrEmpty(value))
+        {
+            return [];
+        }
+
+        var entries = value.Split(Path.PathSeparator);
+        if (entries.Length > MaxProtectedDirectories
+            || entries.Any(entry => entry.Length == 0 || !Path.IsPathFullyQualified(entry)))
+        {
+            throw new VdiffException(ProtectedDirectoriesMalformed);
+        }
+
+        return entries;
+    }
 
     /// <summary>
     /// True when <paramref name="path"/> is <paramref name="directory"/> or below it, compared on

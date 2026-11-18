@@ -571,8 +571,14 @@ function Invoke-Trace([hashtable]$F) {
         foreach ($name in $blankNames) { $vdiffArgs += @('--blank', $name) }
         foreach ($glob in $includeGlobs) { $vdiffArgs += @('--include', $glob) }
 
+        # The vdiff repository root travels in the environment, never as an argument: vdiff cannot know it
+        # from its own arguments (D-03 fixes them), and the variable only adds directories --out must stay
+        # out of (the CLI refuses an --out inside any of them at both of its checks and in its held output
+        # directory), so an unset or hostile environment cannot weaken that guard (T-01-58).
+        $protectedForChild = $script:VdiffRoot
+
         $clock = [Diagnostics.Stopwatch]::StartNew()
-        $run = Invoke-Native 'dotnet' $vdiffArgs $script:VdiffTimeoutMs @() $null
+        $run = Invoke-Native 'dotnet' $vdiffArgs $script:VdiffTimeoutMs @() @{ VDIFF_PROTECTED_DIRS = $protectedForChild }
         $clock.Stop()
         $seconds = $clock.Elapsed.TotalSeconds
         $F.wall = Get-WallClock $seconds
