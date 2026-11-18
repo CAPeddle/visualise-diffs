@@ -51,7 +51,9 @@ public static class FinalPath
     /// test is on the reported text and not on a prefix, and raw reparse data is not read. Paths in
     /// other Windows namespaces (extended-length, device, UNC including loopback) are refused too.
     /// Still unresolved: subst and mapped drive letters, DOS 8.3 short names, and review finding
-    /// IN-04 (case-insensitive file systems other than Windows compared case-sensitively).
+    /// IN-04 (case-insensitive file systems other than Windows compared case-sensitively). The
+    /// check-to-write interval is a separate bound (T-01-43, T-01-46), described where the output
+    /// is written.
     /// </para>
     /// </summary>
     public static string Resolve(string path)

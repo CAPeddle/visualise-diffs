@@ -41,6 +41,14 @@ public static class OutputWriter
     /// the operator typed. The directory is created and held by the caller, so this method creates
     /// no directory. Callers build every model and the diff first, so a failure before the
     /// directory is acquired leaves it absent or untouched.
+    /// Check-to-write interval (T-01-43, T-01-46). On Windows the output directory is opened without delete
+    /// sharing before the first file is created and held until the last file is in place, so the operating
+    /// system refuses to rename or delete it or any of its ancestors; its final path is read from the open
+    /// handle and judged against the protected roots, and every file is created and moved by that final path,
+    /// never by the path the operator typed, because a link entry in that path can still be retargeted while
+    /// the directory is held. On Linux and macOS no handle is held: the resolved path is judged before and
+    /// after the directories are created and the files are written by the resolved path, so the interval
+    /// between that judgement and each write stays open for a process that is able to rename a directory.
     /// </summary>
     internal static void WriteAll(
         HeldDirectory held, ModelFile baseModel, ModelFile headModel, DiffFile diff, string mermaid, string html)
