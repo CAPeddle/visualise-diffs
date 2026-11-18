@@ -3,6 +3,18 @@ phase: 01
 review: 01-REVIEW.md
 titles: json
 findings:
+  - id: WR-05
+    severity: warning
+    disposition: open
+    title: "Every non-drive-letter link target is now refused on Windows, with a message that names the wrong problem"
+  - id: IN-07
+    severity: info
+    disposition: open
+    title: "The new tests do not exercise the symbolic-link spelling of the escape, and the CLI and script tests omit the UNC kind"
+  - id: IN-08
+    severity: info
+    disposition: open
+    title: "The same ten-line \"Bound (T-01-39 / T-01-41)\" paragraph now exists in four places"
   - id: CR-01
     severity: critical
     disposition: open
@@ -47,21 +59,24 @@ findings:
     severity: info
     disposition: open
     title: "Output writing is not atomic, and every `IOException` is reported as an output failure"
-open: 11
-total: 11
-recorded: 2026-11-18T07:38:09.354Z
+open: 14
+total: 14
+recorded: 2026-11-18T12:11:56.374Z
 ---
 
 # Phase 01: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| CR-01 | critical | open | - |
-| WR-01 | warning | open | - |
-| WR-02 | warning | open | - |
-| IN-01 | info | open | - |
-| IN-02 | info | open | - |
-| IN-03 | info | open | - |
+| WR-05 | warning | open | - |
+| IN-07 | info | open | - |
+| IN-08 | info | open | - |
+| CR-01 | critical | open | - (not in the current review) |
+| WR-01 | warning | open | - (not in the current review) |
+| WR-02 | warning | open | - (not in the current review) |
+| IN-01 | info | open | - (not in the current review) |
+| IN-02 | info | open | - (not in the current review) |
+| IN-03 | info | open | - (not in the current review) |
 | IN-04 | info | open | - (not in the current review) |
 | WR-03 | warning | open | - (not in the current review) |
 | WR-04 | warning | open | - (not in the current review) |
