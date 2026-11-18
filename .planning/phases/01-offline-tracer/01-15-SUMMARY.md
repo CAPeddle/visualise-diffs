@@ -226,3 +226,7 @@ Gap-closure plan 01-15 is the last plan of phase 01; ready for re-verification (
 ---
 *Phase: 01-offline-tracer*
 *Completed: 2026-11-18*
+
+## Self-Check: PASSED
+
+All seven task commits, the SUMMARY commit and the state commit are ancestors of HEAD; the key files exist; no tracked file remains under docs/handoffs; the residual sentence is present.
