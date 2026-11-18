@@ -3,7 +3,7 @@ status: diagnosed
 phase: 01-offline-tracer
 source: [01-VERIFICATION.md]
 started: 2026-11-17T00:00:00Z
-updated: 2026-11-18T14:45:00Z
+updated: 2026-11-18T22:05:00Z
 ---
 
 ## Current Test
@@ -42,12 +42,40 @@ result: pass
 expected: Reviewer confirms or overrules each non-authoritative verdict listed in the Prohibitions section of 01-VERIFICATION.md (all seven read as honoured)
 result: pass
 
+### 8. Re-verify 01-UAT.md test 1 (G-01-1) against plans 01-16, 01-17 and now 01-18, and optionally repeat test 3 by hand
+expected: Product owner confirms the swap-window scope is closed on Windows as described in 01-17-SUMMARY.md (held directory, final-path writes, VDIFF_PROTECTED_DIRS) and that the stated Linux and macOS bound is acceptable. 01-UAT.md still records test 1 as result: issue; this verification does not edit it.
+result: [pending]
+
+### 9. Re-confirm the AR-04 sign-off (UAT test 6) on its actual basis
+expected: Recorded acknowledgement that AR-04 no longer rests on 'a 5.1 script cannot call a final-path function without compiling code' (plan 01-17 compiles two declarations with Add-Type for the swap window) and that subst, mapped drive letters, DOS 8.3 names and IN-04 are still accepted on the owner's sign-off alone
+result: [pending]
+
+### 10. Run the suite on a Linux host and a macOS host
+expected: See behavior_unverified_items[1], [2] and [3] in 01-VERIFICATION.md
+result: [pending]
+
+### 11. Protected verdict by handle, end to end, and skip-on-failure of the hold
+expected: See behavior_unverified_items[0] in 01-VERIFICATION.md; or accept the gap and take WR-03 as a follow-up
+result: [pending]
+
+### 12. A real drive-root run on a scratch volume (manual-only row of 01-VALIDATION.md, TRC-02 / CR-01)
+expected: On a volume the owner controls, run vdiff with --out set to that volume's root from an unrelated current directory: five files appear in the root and none in the current directory
+result: [pending]
+
+### 13. Re-run the trial wrapper once on the private clone with the current scripts/trace-run.ps1 (recommended)
+expected: Six-line block: pass, none, under budget, repo_unchanged yes, outputs_present yes, mermaid_syntax ok; only that block recorded
+result: [pending]
+
+### 14. Eleven judgment-tier prohibitions (plans 01-16, 01-17, 01-18) flagged unverified-prohibition
+expected: Reviewer confirms or overrules each non-authoritative verdict in the Prohibitions section of 01-VERIFICATION.md (all read as honoured; note WR-02 under the 01-16 message prohibition and under the 01-18 path prohibition)
+result: [pending]
+
 ## Summary
 
-total: 7
+total: 14
 passed: 6
 issues: 1
-pending: 0
+pending: 7
 skipped: 0
 blocked: 0
 
