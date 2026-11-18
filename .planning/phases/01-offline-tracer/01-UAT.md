@@ -70,9 +70,8 @@ blocked: 0
     - path: "scripts/trace-run.ps1"
       issue: "Get-FullPath relies on GetFullPath for 8.3 (fails on 5.1); Write-LogFile all by name; -Out checked once against vdiff root"
   missing:
-    - "Decide scope: swap window only, or also subst/mapped/5.1-8.3 (withdraws test 6 AR-04 acceptance)"
-    - "Canonicalise --out and protected roots through GetFinalPathNameByHandle on an opened ancestor; refuse non-drive results (incl. UNC)"
+    - "SCOPE (PO decision 2026-11-18): swap window only. Subst, mapped drive letters and 5.1 8.3 names stay accepted under AR-04 (test 6 sign-off stands); canonicalisation through GetFinalPathNameByHandle for those forms is OUT of scope"
     - "Pass resolved/held directory from RefuseUnsafeOut to WriteAll; hold out-dir handle without FILE_SHARE_DELETE, verify each temp file handle before writing"
-    - "Harden or route -LogPath through the CLI; do not rely on GetFullPath for 8.3 on 5.1; add a pre-write vdiff-root guard for -Out"
-    - "Tests: subst fixture, loopback net use (visible skip), 5.1 8.3 -LogPath, held-handle rename test; update T-01-39/43/46, AR-04 and the duplicated Bound comments"
+    - "Close the -LogPath check-to-write window (temp name plus move into a held or handle-verified directory, or route the log write through the CLI); add a pre-write vdiff-root guard for -Out"
+    - "Tests: held-handle rename/replace test during the write; update T-01-43/46 and the duplicated Bound comments"
   debug_session: ".planning/debug/out-guard-obscure-spellings-and-swaps.md"
