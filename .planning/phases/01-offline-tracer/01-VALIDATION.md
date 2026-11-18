@@ -2,10 +2,11 @@
 phase: "1"
 slug: "offline-tracer"
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: "2026-11-16"
+validated: "2026-11-18"
 ---
 
 # Phase 1 — Validation Strategy
@@ -57,6 +58,17 @@ passed count (`Passed! +- Failed: +0, Passed: +[1-9]`, `test result: ok\. [1-9][
 | TRC-01/02 | sidecar hang, flood, exit, garbage → exit 1, nothing written | integration | `--filter "FullyQualifiedName~SidecarBoundsTests"` | 01-05 |
 | TRC-03 / SC4 | trial script prints six fixed lines, no leaks | integration | `--filter "FullyQualifiedName~TraceRunScriptTests"` | 01-10 |
 | D-09 hygiene | no output/build dirs tracked; no remote use in tests | integration | `--filter "FullyQualifiedName~RepoHygieneTests"` | 01-04 |
+| TRC-02 | keyword-named global types pass the real Mermaid syntax check | integration | `--filter "FullyQualifiedName~Writer_output_for_keyword_named_global_types"` | 01-11 |
+| TRC-01 | `--out` through a directory link, link chain or loop is refused; loops fail closed | integration + unit | `--filter "FullyQualifiedName~AliasedOutTests\|FullyQualifiedName~FinalPathTests"` | 01-12 |
+| TRC-03 | trial script refuses an aliased `-Out` (link, chain, loop) | integration | `--filter "FullyQualifiedName~TraceRunScriptTests.Aliased"` | 01-12 |
+| TRC-01 (CR-01) | `--out` in a non-drive namespace or through a volume-GUID junction refused with the fixed line; protected root in such a namespace refused | integration + unit | `--filter "FullyQualifiedName~AliasedOutTests\|FullyQualifiedName~FinalPathTests"` | 01-13 |
+| TRC-01 (WR-01) | hard link planted at an output name is replaced, target unchanged; no temp file after a failed write | integration | `--filter "FullyQualifiedName~AliasedOutTests"` | 01-13 |
+| TRC-01 (WR-02) | link swapped in after the first check is refused before the write | integration | `--filter "FullyQualifiedName~An_out_swapped_for_a_link"` | 01-13 |
+| TRC-01 | no over-refusal: sibling dir, lower-case drive with forward slashes, link outside the repo | integration + unit | `--filter "FullyQualifiedName~AliasedOutTests\|FullyQualifiedName~FinalPathTests"` | 01-13 |
+| TRC-03 (CR-01) | script: namespace `-Out` → `out-not-outside`, namespace `-LogPath` → `bad-arguments`, volume-GUID junction → `script-error` (pwsh and Windows PowerShell 5.1) | integration | `--filter "FullyQualifiedName~TraceRunScriptTests.Aliased"` | 01-14 |
+| TRC-03 (WR-01) | script: hard-linked `-LogPath` entry replaced, repository file unchanged | integration | `--filter "FullyQualifiedName~Aliased_log_path_hard_linked"` | 01-14 |
+| TRC-03 (WR-02) | script: second namespace + containment check sits after the vdiff run and before `Write-LogFile` (source-order pin; a runtime swap cannot be staged) | unit (text) | `--filter "FullyQualifiedName~second_containment"` | 01-14 |
+| TRC-03 | script: several bad inputs at once report the highest-precedence reason (bad-arguments > out-not-outside > bad `-LogPath`) | integration | `--filter "FullyQualifiedName~Several_bad_inputs"` | 01-14 |
 
 *Status per task is tracked in the plan SUMMARY files.*
 
@@ -66,7 +78,8 @@ passed count (`Passed! +- Failed: +0, Passed: +[1-9]`, `test result: ok\. [1-9][
 
 Existing infrastructure: none (greenfield). Plans 01-01 and 01-02 create all of it
 (solution, test project, `SyntheticRepo`, `RepoSnapshot`, `SidecarFixture`, fake sidecar), so no
-separate Wave 0 is needed.
+separate Wave 0 is needed. Complete: `SupportTests` pass, and the 01-12..01-14 helpers
+(`PathSpellings`, `LinkScratch`) are in place.
 
 ---
 
@@ -76,16 +89,26 @@ separate Wave 0 is needed.
 |----------|-------------|------------|-------------------|
 | Real run on the PO's private local Windows clone inside the R26 budget, repo unchanged | TRC-03 / SC4 | Private target content must not enter the public repo or CI | Orchestrator runs `pwsh -NoProfile -File scripts/trace-run.ps1` with inputs supplied at run time; only the six-line pass/fail block is recorded (plan 01-10 T2) |
 | npm package approval (mermaid-cli, puppeteer) | TRC-02 | Package-legitimacy gate flagged "too-new" | PO answers the 01-03 checkpoint; answer recorded as a `package-checkpoint:` line |
+| File symbolic link planted at an output name is replaced, target unchanged | TRC-01 (WR-01) | `AliasedOutTests::A_file_symbolic_link_planted_at_an_output_name_is_replaced_and_its_target_is_unchanged` returns early without SeCreateSymbolicLink, which the dev host lacks; the hard-link test covers the same replace path | Run the filter `FullyQualifiedName~A_file_symbolic_link` in an elevated shell, with Developer Mode on, or on Linux/macOS, and confirm the test asserted (not returned early) |
+| Doc comments name what stays unresolved (T-01-39, T-01-40, T-01-41, T-01-43) | TRC-01, TRC-03 | Wording is a human judgement; greps only check that the IDs are cited | Read the comments in `src/Vdiff.Core/Cli/CliApp.cs`, `src/Vdiff.Core/Cli/FinalPath.cs` and `scripts/trace-run.ps1` |
 
 ---
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 60 s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies (except the two deliberate checkpoints, 01-03 T3 and 01-10 T2)
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [ ] Feedback latency < 60 s (filtered runs ~30 s; the full suite takes ~8 min)
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** validated 2026-11-18 by validate-phase. Full suite: 496 passed, 0 failed (xunit), 105 passed (cargo).
+
+## Validation Audit 2026-11-18
+
+| Metric | Count |
+|---|---|
+| Gaps found | 4 |
+| Resolved | 2 |
+| Escalated | 2 |
