@@ -483,6 +483,34 @@ public class AliasedOutTests
     }
 
     [Fact]
+    public void A_swap_before_the_held_directory_is_opened_is_refused_by_its_final_path()
+    {
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (baseId, headId) = BuildSmallHistory(repo);
+        var outPath = Path.Combine(links.Root, "swap", "aliased-out");
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+        var hookRan = false;
+        using var outWriter = new StringWriter();
+        using var errWriter = new StringWriter();
+
+        // The swap lands after the second containment check and before the directory is held.
+        var hooks = new CliHooks(AfterSecondCheck: () =>
+        {
+            hookRan = true;
+            links.Link("swap", repo.RepoDir);
+        });
+
+        var exit = CliApp.Run(Args(repo.RepoDir, baseId, headId, outPath), outWriter, errWriter, hooks);
+
+        Assert.True(hookRan);
+        Assert.Equal("vdiff: " + Refusal + "\n", errWriter.ToString());
+        Assert.Empty(outWriter.ToString());
+        AssertRefusedAndUntouched(repo, before, exit, errWriter.ToString(), "aliased-out");
+        Assert.Empty(Directory.GetFileSystemEntries(repo.RepoDir, "*.tmp-*", SearchOption.AllDirectories));
+    }
+
+    [Fact]
     public void A_protected_root_in_a_non_drive_namespace_is_refused_even_when_out_is_a_plain_path()
     {
         if (!OperatingSystem.IsWindows())
