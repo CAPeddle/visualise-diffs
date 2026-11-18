@@ -89,13 +89,17 @@ public static class CliApp
     /// after <see cref="FinalPath.Resolve"/>, so an <c>--out</c> reached through a symbolic link or
     /// a directory junction (T-01-36), or a repository reached through one, is refused too.
     /// Bound (T-01-39): the guard compares drive-letter paths after resolving symbolic links and
-    /// directory junctions. It does not resolve subst or mapped drive letters or DOS 8.3 short
-    /// names, and review findings IN-03 (link targets written without a drive letter) and IN-04
-    /// (case-insensitive file systems other than Windows compared case-sensitively) remain open.
-    /// A path in another Windows namespace (extended-length, device, UNC including loopback) and
-    /// a link whose target is a volume GUID path are refused with
-    /// <see cref="FinalPath.UnsupportedRootMessage"/>, not resolved (T-01-41); this includes a
-    /// work tree or git directory that git reports in such a namespace.
+    /// directory junctions. On Windows a link is followed only when the target the runtime reports
+    /// for it is a drive-letter path, and every other reported target is refused with
+    /// <see cref="FinalPath.UnsupportedRootMessage"/>, not resolved (T-01-41). That covers a target
+    /// in an NT namespace (GLOBALROOT, bare device paths, UNC and volume GUID paths), a relative
+    /// target, a target written without a drive letter and a drive-relative target. The runtime
+    /// strips the NT prefix before it reports a target, so the test is on the reported text and not
+    /// on a prefix, and raw reparse data is not read. Paths in other Windows namespaces
+    /// (extended-length, device, UNC including loopback) are refused too, which includes a work
+    /// tree or git directory that git reports in such a namespace. Still unresolved: subst and
+    /// mapped drive letters, DOS 8.3 short names, and review finding IN-04 (case-insensitive file
+    /// systems other than Windows compared case-sensitively).
     /// The check runs before the pipeline for a fast failure and again immediately before the write.
     /// The second call mitigates T-01-40, a link swapped in between check and write: plan 01-12
     /// accepted that threat, plan 01-13 mitigates it and tracks it as T-01-43. The interval between

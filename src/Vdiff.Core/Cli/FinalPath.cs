@@ -14,8 +14,9 @@ public static class FinalPath
     public const string UnresolvableMessage = "a path could not be resolved to its final target";
 
     /// <summary>
-    /// The one message for a path in a Windows namespace other than the drive-letter one
-    /// (T-01-41). Fixed text: no path and no exception text (T-01-38).
+    /// The one message for a path, or a link target, in a Windows namespace other than the
+    /// drive-letter one (T-01-41), or for a link target that is not a drive-letter path at all
+    /// (relative, drive-relative). Fixed text: no path and no exception text (T-01-38).
     /// </summary>
     public const string UnsupportedRootMessage =
         "a path must begin with a drive letter on Windows; extended-length, device, UNC and volume paths are not accepted";
@@ -36,16 +37,21 @@ public static class FinalPath
     /// call fails with <see cref="UnsupportedRootMessage"/> (T-01-41). The accept-list is applied
     /// to the full path text, not to <see cref="Path.GetPathRoot"/>: the root reported for a
     /// volume GUID path or a device path differs between hosts, and a text rule does not. The
-    /// same rule applies to every link target, and a link whose raw target is a volume GUID path
-    /// is refused too, so the result does not depend on how a runtime reports such a target.
+    /// same accept-list applies to the target text the runtime reports for every link, before it
+    /// is combined with the link's parent, so the result does not depend on how a runtime reports
+    /// an NT-namespace target.
     /// </para>
     /// <para>
     /// Bound (T-01-39): the guard compares drive-letter paths after resolving symbolic links and
-    /// directory junctions. It does not resolve subst or mapped drive letters or DOS 8.3 short
-    /// names, and review findings IN-03 (link targets written without a drive letter) and IN-04
-    /// (case-insensitive file systems other than Windows compared case-sensitively) remain open.
-    /// A path in another Windows namespace (extended-length, device, UNC including loopback) and
-    /// a link whose target is a volume GUID path are refused, not resolved (T-01-41).
+    /// directory junctions. On Windows a link is followed only when the target the runtime reports
+    /// for it is a drive-letter path, and every other reported target is refused, not resolved
+    /// (T-01-41). That covers a target in an NT namespace (GLOBALROOT, bare device paths, UNC and
+    /// volume GUID paths), a relative target, a target written without a drive letter and a
+    /// drive-relative target. The runtime strips the NT prefix before it reports a target, so the
+    /// test is on the reported text and not on a prefix, and raw reparse data is not read. Paths in
+    /// other Windows namespaces (extended-length, device, UNC including loopback) are refused too.
+    /// Still unresolved: subst and mapped drive letters, DOS 8.3 short names, and review finding
+    /// IN-04 (case-insensitive file systems other than Windows compared case-sensitively).
     /// </para>
     /// </summary>
     public static string Resolve(string path)
