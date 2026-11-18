@@ -21,12 +21,16 @@ Usage (from the vdiff repository root):
 
   -Out and -LogPath must lie outside the analysed repository and outside the vdiff repository,
   judged after resolving symbolic links and directory junctions. Bound (T-01-39): the guard
-  compares drive-letter paths after resolving symbolic links and directory junctions. It does not
-  resolve subst or mapped drive letters or DOS 8.3 short names, and review findings IN-03 (link
-  targets written without a drive letter) and IN-04 (case-insensitive file systems other than
-  Windows compared case-sensitively) remain open. A path in another Windows namespace
-  (extended-length, device, UNC including loopback) and a link whose target is a volume GUID
-  path are refused, not resolved (T-01-41). A link that cannot be resolved (a loop, no access)
+  compares drive-letter paths after resolving symbolic links and directory junctions. On Windows
+  a link is followed only when the target the runtime reports for it is a drive-letter path, and
+  every other reported target is refused, not resolved (T-01-41). That covers a target in an NT
+  namespace (GLOBALROOT, bare device paths, UNC and volume GUID paths), a relative target, a
+  target written without a drive letter and a drive-relative target. The runtime strips the NT
+  prefix before it reports a target, so the test is on the reported text and not on a prefix, and
+  raw reparse data is not read. Paths in other Windows namespaces (extended-length, device, UNC
+  including loopback) are refused too. Still unresolved: subst and mapped drive letters, DOS 8.3
+  short names, and review finding IN-04 (case-insensitive file systems other than Windows compared
+  case-sensitively). A link that cannot be resolved (a loop, no access) or whose target is refused
   ends the run with reason script-error, never with a guess.
   Reason precedence: bad-arguments for blank, unbound, non-hex or missing-repository input, then
   out-not-outside for -Out (namespace, then containment), then bad-arguments for -LogPath.
@@ -180,11 +184,15 @@ $script:MaxLinks = 40
 # path, and the outer catch prints reason script-error. The mechanism is Get-Item with LinkType
 # and Target because ResolveLinkTarget does not exist in Windows PowerShell 5.1.
 # Bound (T-01-39): the guard compares drive-letter paths after resolving symbolic links and
-# directory junctions. It does not resolve subst or mapped drive letters or DOS 8.3 short names,
-# and review findings IN-03 (link targets written without a drive letter) and IN-04
-# (case-insensitive file systems other than Windows compared case-sensitively) remain open.
-# A path in another Windows namespace (extended-length, device, UNC including loopback) and a
-# link whose target is a volume GUID path are refused, not resolved (T-01-41).
+# directory junctions. On Windows a link is followed only when the target the runtime reports
+# for it is a drive-letter path, and every other reported target is refused, not resolved
+# (T-01-41). That covers a target in an NT namespace (GLOBALROOT, bare device paths, UNC and
+# volume GUID paths), a relative target, a target written without a drive letter and a
+# drive-relative target. The runtime strips the NT prefix before it reports a target, so the
+# test is on the reported text and not on a prefix, and raw reparse data is not read. Paths in
+# other Windows namespaces (extended-length, device, UNC including loopback) are refused too.
+# Still unresolved: subst and mapped drive letters, DOS 8.3 short names, and review finding
+# IN-04 (case-insensitive file systems other than Windows compared case-sensitively).
 function Resolve-FinalPath([string]$Path) {
     $script:LinkCount = 0
     return (Resolve-FinalPathStep $Path)
