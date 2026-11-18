@@ -213,9 +213,9 @@ function Resolve-FinalPathStep([string]$Path) {
             $target = [string]@($item.Target)[0]
             if ($target.StartsWith('\??\', [StringComparison]::Ordinal)) { $target = $target.Substring(4) }
             if ([string]::IsNullOrEmpty($target)) { throw 'unreadable link' }
-            # A volume GUID target is reported without its prefix; combined with the link's parent
-            # it would name a path that matches nothing, so it is refused (S-2, T-01-41).
-            if ($target.StartsWith('Volume{', [StringComparison]::OrdinalIgnoreCase)) { throw 'volume link target' }
+            # The runtime strips the NT prefix before it reports a target, so only a drive-letter
+            # path is followed; every other reported target is refused (R-1, R-2, T-01-44).
+            if (Test-NonDriveRoot $target) { throw 'unsupported link target' }
             if (-not [IO.Path]::IsPathRooted($target)) { $target = [IO.Path]::Combine($prefix, $target) }
             $prefix = Resolve-FinalPathStep (Get-FullPath $target)
         }
