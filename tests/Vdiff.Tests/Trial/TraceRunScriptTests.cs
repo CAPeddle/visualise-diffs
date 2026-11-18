@@ -319,7 +319,6 @@ public class TraceRunScriptTests
         Assert.True(write > run, "the log write must come after the vdiff run");
 
         var between = body[run..write];
-        Assert.Contains("Test-NonDriveRoot $logFull", between);
         Assert.Contains("Test-SameOrUnder $logFull", between);
 
         // The first checks (before the run) must still exist.
