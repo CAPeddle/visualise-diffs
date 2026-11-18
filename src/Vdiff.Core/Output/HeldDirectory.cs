@@ -179,11 +179,22 @@ internal sealed class HeldDirectory : IDisposable
         }
     }
 
-    /// <summary>The deepest existing directory at or above the path, and the missing names below it, outermost first.</summary>
+    /// <summary>
+    /// The deepest existing directory at or above the path, and the missing names below it, outermost first.
+    /// Trailing separators are trimmed, but never below the root of the path: a drive-relative <c>C:</c>
+    /// names the current directory on that drive, not the root, and the slash root would become the empty
+    /// string, so a root (with any number of trailing separators) is held as the root.
+    /// </summary>
     static (string Anchor, IReadOnlyList<string> Remainder) SplitAtDeepestExisting(string directory)
     {
         var remainder = new List<string>();
+        var root = System.IO.Path.GetPathRoot(directory) ?? string.Empty;
         var current = directory.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
+        if (current.Length < root.Length)
+        {
+            current = root;
+        }
+
         while (!Directory.Exists(current))
         {
             var parent = System.IO.Path.GetDirectoryName(current)
