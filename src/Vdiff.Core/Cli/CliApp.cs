@@ -7,6 +7,19 @@ using Vdiff.Core.Scope;
 namespace Vdiff.Core.Cli;
 
 /// <summary>
+/// Test seam for the interval between the checks and the write (H-5). Every member is null in
+/// production. A hook records what happened and never asserts: <see cref="CliApp"/> catches every
+/// exception and reports exit 1, so an assertion inside a hook would be swallowed.
+/// </summary>
+/// <param name="AfterPipeline">Runs after the pipeline, before the second containment check.</param>
+/// <param name="AfterSecondCheck">Runs immediately after the second containment check.</param>
+/// <param name="AfterHeld">Runs immediately before the first output file is written, with the directory path the files go to.</param>
+internal sealed record CliHooks(
+    Action? AfterPipeline = null,
+    Action? AfterSecondCheck = null,
+    Action<string>? AfterHeld = null);
+
+/// <summary>
 /// The whole tool behind <c>Main</c>: returns 0 on success and 1 on any failure (R27 contract)
 /// and prints <c>vdiff: message</c> to stderr on failure, never file content. Order of work:
 /// check the arguments, the repository and the git version, resolve both commits, refuse an
@@ -18,9 +31,12 @@ namespace Vdiff.Core.Cli;
 public static class CliApp
 {
     public static int Run(IReadOnlyList<string> args, TextWriter stdout, TextWriter stderr) =>
-        Run(args, stdout, stderr, null);
+        Run(args, stdout, stderr, (CliHooks?)null);
 
-    internal static int Run(IReadOnlyList<string> args, TextWriter stdout, TextWriter stderr, Action? afterPipeline)
+    internal static int Run(IReadOnlyList<string> args, TextWriter stdout, TextWriter stderr, Action? afterPipeline) =>
+        Run(args, stdout, stderr, new CliHooks(AfterPipeline: afterPipeline));
+
+    internal static int Run(IReadOnlyList<string> args, TextWriter stdout, TextWriter stderr, CliHooks? hooks)
     {
         try
         {
@@ -44,7 +60,7 @@ public static class CliApp
             var headId = reader.ResolveCommit(options.Head);
 
             var outPath = Path.GetFullPath(options.Out);
-            RefuseUnsafeOut(outPath, location);
+            _ = RefuseUnsafeOut(outPath, location);
 
             var command = CppSidecar.Locate();
             var result = TracerPipeline.Run(
@@ -54,10 +70,13 @@ public static class CliApp
             var html = HtmlWriter.Render(result.Diff, mermaid);
 
             // Test seam for the swap between the check and the write (WR-02); null in production.
-            afterPipeline?.Invoke();
+            hooks?.AfterPipeline?.Invoke();
 
             // Second containment check, immediately before the write (T-01-40, tracked as T-01-43).
-            RefuseUnsafeOut(outPath, location);
+            var resolvedOut = RefuseUnsafeOut(outPath, location);
+            hooks?.AfterSecondCheck?.Invoke();
+
+            hooks?.AfterHeld?.Invoke(outPath);
             OutputWriter.WriteAll(outPath, result.Base, result.Head, result.Diff, mermaid, html);
 
             stdout.Write($"vdiff: wrote 5 files to {outPath}\n");
@@ -106,7 +125,7 @@ public static class CliApp
     /// the second check and the first write is not closed, and a hostile concurrent process able to
     /// use it could edit the repository directly.
     /// </summary>
-    internal static void RefuseUnsafeOut(string outPath, RepoLocation location)
+    internal static string RefuseUnsafeOut(string outPath, RepoLocation location)
     {
         if (IsSameOrUnder(outPath, location.Root) || IsSameOrUnder(outPath, location.GitDir) || IsSameOrUnder(outPath, location.CommonDir))
         {
@@ -125,6 +144,8 @@ public static class CliApp
         {
             throw new VdiffException("--out exists and is a file");
         }
+
+        return resolvedOut;
     }
 
     /// <summary>

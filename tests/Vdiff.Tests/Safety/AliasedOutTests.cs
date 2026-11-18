@@ -363,6 +363,125 @@ public class AliasedOutTests
         Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
     }
 
+    /// <summary>
+    /// True when the operating system refused the attempt with a sharing violation or access denied.
+    /// A missing directory is not a refusal: it would mean the attempt never touched the target.
+    /// </summary>
+    static bool OsRefused(Action attempt)
+    {
+        try
+        {
+            attempt();
+            return false;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return e is not (DirectoryNotFoundException or FileNotFoundException);
+        }
+    }
+
+    static void RenameAndBack(string directory)
+    {
+        var moved = directory + "-moved";
+        Directory.Move(directory, moved);
+        Directory.Move(moved, directory); // the attempt succeeded: undo it so the run can continue
+    }
+
+    static void DeleteAndRecreate(string directory)
+    {
+        Directory.Delete(directory);
+        Directory.CreateDirectory(directory); // the attempt succeeded: undo it so the run can continue
+    }
+
+    [Fact]
+    public void A_held_directory_cannot_be_renamed_or_deleted_by_another_process_during_the_write()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var repo = new SyntheticRepo();
+        var (baseId, headId) = BuildSmallHistory(repo);
+        var inner = Path.Combine(repo.OutDir, "held", "inner");
+        Directory.CreateDirectory(inner);
+        var outPath = Path.Combine(inner, "run");
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+        var outcomes = new List<(string Attempt, bool Refused)>();
+        using var outWriter = new StringWriter();
+        using var errWriter = new StringWriter();
+
+        // The hook records and never asserts: Run turns every exception into exit 1 (H-5).
+        var hooks = new CliHooks(AfterHeld: path =>
+        {
+            var parent = Path.GetDirectoryName(path)!;
+            var grandparent = Path.GetDirectoryName(parent)!;
+            outcomes.Add(("rename the output directory", OsRefused(() => RenameAndBack(path))));
+            outcomes.Add(("rename its parent", OsRefused(() => RenameAndBack(parent))));
+            outcomes.Add(("rename its grandparent", OsRefused(() => RenameAndBack(grandparent))));
+            outcomes.Add(("delete the output directory", OsRefused(() => DeleteAndRecreate(path))));
+        });
+
+        var exit = CliApp.Run(Args(repo.RepoDir, baseId, headId, outPath), outWriter, errWriter, hooks);
+
+        Assert.True(exit == 0, errWriter.ToString());
+        Assert.Equal(4, outcomes.Count);
+        var allowed = outcomes.Where(o => !o.Refused).Select(o => o.Attempt).ToList();
+        Assert.True(allowed.Count == 0, "the operating system did not refuse to: " + string.Join("; ", allowed));
+
+        foreach (var name in FiveFiles)
+        {
+            Assert.True(File.Exists(Path.Combine(outPath, name)), name);
+        }
+
+        Assert.Empty(Directory.GetFileSystemEntries(repo.OutDir, "*-moved", SearchOption.AllDirectories));
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+    }
+
+    [Fact]
+    public void A_link_entry_retargeted_while_the_held_directory_is_open_does_not_redirect_the_write()
+    {
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (baseId, headId) = BuildSmallHistory(repo);
+        var real = Path.Combine(links.Root, "real");
+        Directory.CreateDirectory(Path.Combine(real, "include"));
+        var link = links.Link("jn", real);
+        var outPath = Path.Combine(link, "include");
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+        using var outWriter = new StringWriter();
+        using var errWriter = new StringWriter();
+
+        // Deleting and re-creating the link entry is allowed while the target is held (measured at
+        // planning time), so only a write by the held directory's own path stays out of the repository.
+        var hooks = new CliHooks(AfterHeld: _ =>
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                Directory.Delete(link); // not recursive: removes only the junction
+            }
+            else
+            {
+                File.Delete(link);
+            }
+
+            links.Link("jn", repo.RepoDir);
+        });
+
+        var exit = CliApp.Run(Args(repo.RepoDir, baseId, headId, outPath), outWriter, errWriter, hooks);
+
+        Assert.True(exit == 0, errWriter.ToString());
+        foreach (var name in FiveFiles)
+        {
+            Assert.True(File.Exists(Path.Combine(real, "include", name)), name);
+        }
+
+        Assert.Equal(["a.h"], Directory.GetFileSystemEntries(Path.Combine(repo.RepoDir, "include")).Select(Path.GetFileName));
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+        Assert.Empty(Directory.GetFileSystemEntries(real, "*.tmp-*", SearchOption.AllDirectories));
+        Assert.Empty(Directory.GetFileSystemEntries(repo.RepoDir, "*.tmp-*", SearchOption.AllDirectories));
+    }
+
     [Fact]
     public void A_protected_root_in_a_non_drive_namespace_is_refused_even_when_out_is_a_plain_path()
     {
