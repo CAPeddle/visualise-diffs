@@ -256,6 +256,81 @@ public class TraceRunScriptTests
         Assert.Empty(Directory.GetFiles(repo.OutDir));
     }
 
+    // Precedence (01-14): bad-arguments (blank, unbound, non-hex, missing repo), then out-not-outside, then a bad -LogPath.
+    [Theory]
+    [MemberData(nameof(CombinedCases))]
+    public void Several_bad_inputs_at_once_report_the_highest_precedence_reason(string host, string scenario, string expectedReason)
+    {
+        using var repo = new SyntheticRepo();
+        var (c1, c2, _) = BuildHistory(repo);
+        var outInside = Path.Combine(repo.RepoDir, "out-here");
+        var logInside = Path.Combine(repo.RepoDir, "log-here.txt");
+        var missingRepo = Path.Combine(repo.Root, "no-such-repository");
+
+        var arguments = scenario switch
+        {
+            "non-hex-base+out-inside" => CoreArguments(repo.RepoDir, "not-a-commit-id", c2, outInside),
+            "out-inside+log-inside" => [.. CoreArguments(repo.RepoDir, c1, c2, outInside), "-LogPath", logInside],
+            "non-hex-base+out-inside+log-inside" => [.. CoreArguments(repo.RepoDir, "not-a-commit-id", c2, outInside), "-LogPath", logInside],
+            "missing-repo+out-inside+log-inside" => [.. CoreArguments(missingRepo, c1, c2, outInside), "-LogPath", logInside],
+            _ => throw new InvalidOperationException(scenario),
+        };
+
+        var result = RunScript(host, arguments, skipMermaid: true, TimeSpan.FromMinutes(5));
+
+        var values = ParseSixLines(result.StdoutText);
+        Assert.Equal(1, result.ExitCode);
+        Assert.Equal("fail", values[0]);
+        Assert.Equal(expectedReason, values[1]);
+        AssertNothingLeaks(result, repo.RepoDir, repo.OutDir, outInside, logInside, missingRepo, c1, c2);
+        Assert.False(Directory.Exists(outInside), "the script wrote into the analysed repository");
+        Assert.False(File.Exists(logInside), "the script wrote a log into the analysed repository");
+    }
+
+    public static IEnumerable<object[]> CombinedCases()
+    {
+        foreach (var host in new[] { "pwsh", "powershell" })
+        {
+            if (host == "powershell" && !OperatingSystem.IsWindows())
+            {
+                continue;
+            }
+
+            yield return [host, "non-hex-base+out-inside", "bad-arguments"];
+            yield return [host, "out-inside+log-inside", "out-not-outside"];
+            yield return [host, "non-hex-base+out-inside+log-inside", "bad-arguments"];
+            yield return [host, "missing-repo+out-inside+log-inside", "bad-arguments"];
+        }
+    }
+
+    // T-01-46 backstop: a swap between the first check and the write cannot be provoked deterministically,
+    // so the order of the statements inside Invoke-Trace is what is pinned.
+    [Fact]
+    public void Log_write_is_preceded_by_a_second_containment_check_in_source_order()
+    {
+        var text = File.ReadAllText(Path.Combine(RepositoryRoot(), "scripts", "trace-run.ps1"));
+        var start = text.IndexOf("function Invoke-Trace", StringComparison.Ordinal);
+        Assert.True(start >= 0, "Invoke-Trace not found");
+        var body = text[start..];
+
+        var run = body.IndexOf("Invoke-Native 'dotnet'", StringComparison.Ordinal);
+        Assert.True(run >= 0, "the vdiff invocation was not found in Invoke-Trace");
+        var write = body.IndexOf("Write-LogFile $logFull", StringComparison.Ordinal);
+        Assert.True(write > run, "the log write must come after the vdiff run");
+
+        var between = body[run..write];
+        Assert.Contains("Test-NonDriveRoot $logFull", between);
+        Assert.Contains("Test-SameOrUnder $logFull", between);
+
+        // The first checks (before the run) must still exist.
+        var before = body[..run];
+        Assert.Contains("Test-NonDriveRoot $logFull", before);
+        Assert.Contains("Test-SameOrUnder $logFull", before);
+
+        // Nothing writes the log earlier than the second check.
+        Assert.Equal(write, body.LastIndexOf("Write-LogFile $logFull", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void An_unknown_commit_id_leaves_the_repository_unchanged_and_reports_it()
     {
