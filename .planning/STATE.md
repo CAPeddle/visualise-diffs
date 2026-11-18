@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Offline Tracer
-status: executing
-stopped_at: Completed 01-17-PLAN.md
-last_updated: "2026-11-18T20:19:40.179Z"
+status: verifying
+stopped_at: Completed 01-18-PLAN.md
+last_updated: "2026-11-18T21:21:03.757Z"
 last_activity: 2026-11-18
 last_activity_desc: Phase 01 execution started
-state_head: 90ba8ae62065800dc820e6b2bbe543fb26e07d5a
+state_head: ac78c546a8f1bde3c0aa77b306362be3a94d0174
 progress:
   total_phases: 9
   completed_phases: 0
   total_plans: 18
-  completed_plans: 17
+  completed_plans: 18
   percent: 0
 ---
 
@@ -27,9 +27,9 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 
 ## Current Position
 
-Phase: 01 (Offline Tracer) — READY TO EXECUTE
-Plan: 17 of 17
-Status: Ready to execute
+Phase: 01 (Offline Tracer) — EXECUTING
+Plan: 18 of 18
+Status: Phase complete — ready for verification
 Last activity: 2026-11-18 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
@@ -71,6 +71,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P15 | 45 min | 3 tasks | 9 files |
 | Phase 01 P16 | 30 min | 3 tasks | 7 files |
 | Phase 01 P17 | 46 min | 3 tasks | 8 files |
+| Phase 01 P18 | 70 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,7 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-15 R-4/R-5: junction fixture is a raw FSCTL_SET_REPARSE_POINT write (no privilege) with a drive-letter decoy print name; Windows symbolic link form is manual-only in 01-VALIDATION.md
 - [Phase 01]: 01-16: hold --out without delete sharing on Windows and write only by the handle's final path; Linux/macOS bounded by statement (H-1..H-8)
 - [Phase 01]: 01-17: log directory held without delete sharing and written by final path in trace-run.ps1 (Add-Type, Windows only); VDIFF_PROTECTED_DIRS carries the vdiff root to the CLI; Linux and macOS bounded by statement (L-1..L-7)
+- [Phase 01]: 01-18: a drive-root --out is written as typed (or exit 1 with the existing could-not-write line); never trim below the root (Path.GetPathRoot), not a bare length test; scripts/trace-run.ps1 unchanged and pinned by a two-host parity test
 
 ### Pending Todos
 
@@ -127,6 +129,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-18T18:27:14.160Z
-Stopped at: Completed 01-17-PLAN.md
+Last session: 2026-11-18T21:20:55.564Z
+Stopped at: Completed 01-18-PLAN.md
 Resume file: None
