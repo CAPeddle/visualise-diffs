@@ -1,3 +1,6 @@
+using System.Runtime.InteropServices;
+using System.Text;
+using Microsoft.Win32.SafeHandles;
 using Vdiff.Core.Process;
 
 namespace Vdiff.Tests.Support;
@@ -10,6 +13,8 @@ namespace Vdiff.Tests.Support;
 /// recursively and recursion enters junctions), and is removed first, as a link, never
 /// recursively. Only after every link is gone does <see cref="Dispose"/> delete <see cref="Root"/>
 /// with the real directories a test created as link targets.
+/// <see cref="RawJunction"/> needs no privilege either and is registered in the same list, so it
+/// too is removed first, as a link, before <see cref="Root"/>.
 /// File links and hard links (<see cref="HardLink"/>, <see cref="TryFileLink"/>) are plain entries
 /// and may live in a sandbox's output directory, never in the checkout; <see cref="Dispose"/>
 /// removes them by name with <c>File.Delete</c>, which never touches the file they point to.
@@ -54,6 +59,113 @@ public sealed class LinkScratch : IDisposable
         _links.Add(link);
         return link;
     }
+
+    /// <summary>
+    /// Windows only (elsewhere it throws <see cref="PlatformNotSupportedException"/>): creates
+    /// <c>Root/name</c> as a directory junction whose substitute name is exactly
+    /// <paramref name="substituteName"/>, written with <c>FSCTL_SET_REPARSE_POINT</c>. Needs no
+    /// privilege. <c>mklink /J</c> can only write the drive-letter spelling; this writes any
+    /// spelling (for example an NT namespace one) and an optional print name, which is empty for a
+    /// plain junction. The junction is registered before the control call, so a failed write still
+    /// removes the plain empty directory it left. Returns the link path.
+    /// </summary>
+    public string RawJunction(string name, string substituteName, string printName = "")
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            throw new PlatformNotSupportedException();
+        }
+
+        var link = Path.Combine(Root, name);
+        Directory.CreateDirectory(link);
+        _links.Add(link);
+
+        var substitute = Encoding.Unicode.GetBytes(substituteName);
+        var print = Encoding.Unicode.GetBytes(printName);
+        var dataLength = 8 + substitute.Length + 2 + print.Length + 2;
+        var buffer = new byte[8 + dataLength];
+        BitConverter.TryWriteBytes(buffer.AsSpan(0, 4), 0xA0000003u);
+        BitConverter.TryWriteBytes(buffer.AsSpan(4, 2), (ushort)dataLength);
+        BitConverter.TryWriteBytes(buffer.AsSpan(8, 2), (ushort)0);
+        BitConverter.TryWriteBytes(buffer.AsSpan(10, 2), (ushort)substitute.Length);
+        BitConverter.TryWriteBytes(buffer.AsSpan(12, 2), (ushort)(substitute.Length + 2));
+        BitConverter.TryWriteBytes(buffer.AsSpan(14, 2), (ushort)print.Length);
+        substitute.CopyTo(buffer, 16);
+        print.CopyTo(buffer, 16 + substitute.Length + 2);
+
+        const uint GenericWrite = 0x40000000;
+        const uint ShareAll = 7;
+        const uint OpenExisting = 3;
+        const uint BackupSemanticsAndOpenReparsePoint = 0x02000000 | 0x00200000;
+        const uint FsctlSetReparsePoint = 0x000900A4;
+
+        using var handle = CreateFileW(
+            link, GenericWrite, ShareAll, IntPtr.Zero, OpenExisting, BackupSemanticsAndOpenReparsePoint, IntPtr.Zero);
+        if (handle.IsInvalid)
+        {
+            throw new InvalidOperationException($"CreateFileW failed with Win32 error {Marshal.GetLastWin32Error()}");
+        }
+
+        if (!DeviceIoControl(handle, FsctlSetReparsePoint, buffer, buffer.Length, IntPtr.Zero, 0, out _, IntPtr.Zero))
+        {
+            throw new InvalidOperationException($"FSCTL_SET_REPARSE_POINT failed with Win32 error {Marshal.GetLastWin32Error()}");
+        }
+
+        return link;
+    }
+
+    /// <summary>
+    /// Windows only: the substitute name for a junction to <paramref name="absoluteDrivePath"/> in
+    /// one of four spellings. <c>globalroot</c>: the NT root alias, the device and the remainder.
+    /// <c>device-no-prefix</c>: the device and the remainder, without any NT prefix.
+    /// <c>unc</c>: the NT UNC prefix, localhost, the drive letter and a dollar sign, and the
+    /// remainder. <c>drive</c>: the NT prefix and the drive-letter path (what <c>mklink /J</c>
+    /// writes). The device name is asked of the operating system at run time, so no machine value
+    /// is committed. A drive that is not a real volume (a subst drive) is refused.
+    /// </summary>
+    public static string NtSubstituteName(string kind, string absoluteDrivePath)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            throw new PlatformNotSupportedException();
+        }
+
+        var full = Path.GetFullPath(absoluteDrivePath);
+        var letter = full[0];
+        var drive = full[..2];
+        var remainder = full[2..];
+
+        var buffer = new char[1024];
+        var length = QueryDosDeviceW(drive, buffer, (uint)buffer.Length);
+        var device = length == 0 ? "" : new string(buffer, 0, (int)length).Split('\0')[0];
+        if (!device.StartsWith(@"\Device\", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("the drive of the scratch directory does not map to a device name");
+        }
+
+        return kind switch
+        {
+            "globalroot" => @"\??\GLOBALROOT" + device + remainder,
+            "device-no-prefix" => device + remainder,
+            "unc" => @"\??\UNC\localhost\" + letter + "$" + remainder,
+            "drive" => @"\??\" + full,
+            _ => throw new ArgumentException("unknown substitute name kind", nameof(kind)),
+        };
+    }
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern SafeFileHandle CreateFileW(
+        string fileName, uint desiredAccess, uint shareMode, IntPtr securityAttributes,
+        uint creationDisposition, uint flagsAndAttributes, IntPtr templateFile);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    static extern bool DeviceIoControl(
+        SafeFileHandle device, uint controlCode, byte[] inBuffer, int inBufferSize,
+        IntPtr outBuffer, int outBufferSize, out int bytesReturned, IntPtr overlapped);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern uint QueryDosDeviceW(string deviceName, [Out] char[] targetPath, uint maxChars);
 
     /// <summary>
     /// Creates a hard link at <paramref name="linkPath"/> (any absolute path, for example in a

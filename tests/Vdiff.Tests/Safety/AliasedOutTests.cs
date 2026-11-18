@@ -216,6 +216,29 @@ public class AliasedOutTests
         AssertUnsupportedRootAndUntouched(repo, before, exit, stdout, stderr);
     }
 
+    [Theory]
+    [InlineData("globalroot")]
+    public void An_out_through_a_junction_with_an_nt_namespace_target_is_refused_with_the_fixed_message(string kind)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (baseId, headId) = BuildSmallHistory(repo);
+        // The print name is a drive-letter decoy: a reader that reported it instead of the
+        // substitute name would let the junction through, so this pins the premise too.
+        var alias = links.RawJunction("alias", LinkScratch.NtSubstituteName(kind, repo.RepoDir), links.Root);
+        Assert.True(File.Exists(Path.Combine(alias, "include", "a.h")), "the junction is not live");
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+
+        var exit = RunCli(Args(repo.RepoDir, baseId, headId, Path.Combine(alias, "aliased-out")), out var stdout, out var stderr);
+
+        AssertUnsupportedRootAndUntouched(repo, before, exit, stdout, stderr);
+    }
+
     [Fact]
     public void A_sibling_directory_whose_name_extends_the_repository_name_is_still_accepted()
     {
