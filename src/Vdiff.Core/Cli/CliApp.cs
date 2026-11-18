@@ -76,8 +76,9 @@ public static class CliApp
             var resolvedOut = RefuseUnsafeOut(outPath, location);
             hooks?.AfterSecondCheck?.Invoke();
 
-            hooks?.AfterHeld?.Invoke(outPath);
-            OutputWriter.WriteAll(outPath, result.Base, result.Head, result.Diff, mermaid, html);
+            using var held = HeldDirectory.Create(resolvedOut, p => FindRefusal(p, location));
+            hooks?.AfterHeld?.Invoke(held.Path);
+            OutputWriter.WriteAll(held, result.Base, result.Head, result.Diff, mermaid, html);
 
             stdout.Write($"vdiff: wrote 5 files to {outPath}\n");
             return 0;
@@ -133,11 +134,10 @@ public static class CliApp
         }
 
         var resolvedOut = FinalPath.Resolve(outPath);
-        if (IsSameOrUnder(resolvedOut, FinalPath.Resolve(location.Root))
-            || IsSameOrUnder(resolvedOut, FinalPath.Resolve(location.GitDir))
-            || IsSameOrUnder(resolvedOut, FinalPath.Resolve(location.CommonDir)))
+        var refusal = FindRefusal(resolvedOut, location);
+        if (refusal is not null)
         {
-            throw new VdiffException("--out must not lie inside the analysed repository");
+            throw new VdiffException(refusal);
         }
 
         if (File.Exists(outPath))
@@ -147,6 +147,19 @@ public static class CliApp
 
         return resolvedOut;
     }
+
+    /// <summary>
+    /// The refusal text when <paramref name="physicalPath"/> (already resolved) lies in the work tree,
+    /// the git directory or the common git directory, each taken through <see cref="FinalPath.Resolve"/>,
+    /// otherwise null. The pre-write check and the judgement of the held directory both use it, so
+    /// the two cannot drift.
+    /// </summary>
+    internal static string? FindRefusal(string physicalPath, RepoLocation location) =>
+        IsSameOrUnder(physicalPath, FinalPath.Resolve(location.Root))
+            || IsSameOrUnder(physicalPath, FinalPath.Resolve(location.GitDir))
+            || IsSameOrUnder(physicalPath, FinalPath.Resolve(location.CommonDir))
+            ? "--out must not lie inside the analysed repository"
+            : null;
 
     /// <summary>
     /// True when <paramref name="path"/> is <paramref name="directory"/> or below it, compared on

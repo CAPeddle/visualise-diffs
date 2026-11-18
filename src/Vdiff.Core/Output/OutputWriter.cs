@@ -36,19 +36,20 @@ public static class OutputWriter
     public static string Serialize<T>(T value) => JsonSerializer.Serialize(value, JsonOptions) + "\n";
 
     /// <summary>
-    /// Writes the five files into <paramref name="outDir"/> as UTF-8 without a byte-order mark
-    /// and with LF line ends. Callers build every model and the diff first, so a failure before
-    /// this call leaves the directory absent or untouched.
+    /// Writes the five files into <paramref name="held"/> as UTF-8 without a byte-order mark
+    /// and with LF line ends, every one by <see cref="HeldDirectory.Path"/> and never by the path
+    /// the operator typed. The directory is created and held by the caller, so this method creates
+    /// no directory. Callers build every model and the diff first, so a failure before the
+    /// directory is acquired leaves it absent or untouched.
     /// </summary>
-    public static void WriteAll(
-        string outDir, ModelFile baseModel, ModelFile headModel, DiffFile diff, string mermaid, string html)
+    internal static void WriteAll(
+        HeldDirectory held, ModelFile baseModel, ModelFile headModel, DiffFile diff, string mermaid, string html)
     {
-        Directory.CreateDirectory(outDir);
-        WriteText(outDir, BaseModelFile, Serialize(baseModel));
-        WriteText(outDir, HeadModelFile, Serialize(headModel));
-        WriteText(outDir, DiffJsonFile, Serialize(diff));
-        WriteText(outDir, MermaidFile, mermaid);
-        WriteText(outDir, HtmlFile, html);
+        WriteText(held.Path, BaseModelFile, Serialize(baseModel));
+        WriteText(held.Path, HeadModelFile, Serialize(headModel));
+        WriteText(held.Path, DiffJsonFile, Serialize(diff));
+        WriteText(held.Path, MermaidFile, mermaid);
+        WriteText(held.Path, HtmlFile, html);
     }
 
     /// <summary>
