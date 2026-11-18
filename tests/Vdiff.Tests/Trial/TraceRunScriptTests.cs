@@ -343,9 +343,10 @@ public class TraceRunScriptTests
         }
     }
 
-    // T-01-46 backstop: the order of the statements inside Invoke-Trace is pinned. The log is written through
-    // the held directory's final path (a hold taken before the run, T-01-43, T-01-46), and where no handle is
-    // held (Linux and macOS) the by-name containment re-check between the run and the write stays.
+    // T-01-46: the staged log_hold and protected_directories tests below are the runtime proof of the swap
+    // interval on Windows; the order of the statements inside Invoke-Trace is the backstop, pinned here and in
+    // the log_hold source-order test. Where no handle is held (Linux and macOS) the by-name containment
+    // re-check between the run and the write stays, and this test pins it.
     [Fact]
     public void Log_write_is_preceded_by_a_second_containment_check_in_source_order()
     {

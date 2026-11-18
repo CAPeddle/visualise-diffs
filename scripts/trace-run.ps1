@@ -32,6 +32,7 @@ Usage (from the vdiff repository root):
   short names, and review finding IN-04 (case-insensitive file systems other than Windows compared
   case-sensitively). A link that cannot be resolved (a loop, no access) or whose target is refused
   ends the run with reason script-error, never with a guess.
+  The check-to-write interval is a separate bound (T-01-43, T-01-46), described where the output is written.
   Reason precedence: bad-arguments for blank, unbound, non-hex or missing-repository input, then
   out-not-outside for -Out (namespace, then containment), then bad-arguments for -LogPath.
   -LogPath receives vdiff's own output for private diagnosis; without it that output is discarded.
@@ -193,6 +194,7 @@ $script:MaxLinks = 40
 # other Windows namespaces (extended-length, device, UNC including loopback) are refused too.
 # Still unresolved: subst and mapped drive letters, DOS 8.3 short names, and review finding
 # IN-04 (case-insensitive file systems other than Windows compared case-sensitively).
+# The check-to-write interval is a separate bound (T-01-43, T-01-46), described where the output is written.
 function Resolve-FinalPath([string]$Path) {
     $script:LinkCount = 0
     return (Resolve-FinalPathStep $Path)
@@ -549,6 +551,17 @@ function Invoke-Trace([hashtable]$F) {
     $dllFull = Get-FullPath $dll
     if (-not (Test-Path -LiteralPath $dllFull -PathType Leaf)) { $F.reason = 'tool-failed'; return }
 
+    # Check-to-write interval (T-01-43, T-01-46). On Windows the log's directory is opened without delete
+    # sharing before vdiff starts and held until the log is written, so the operating system refuses to
+    # rename or delete it or any of its ancestors; its final path is read from the open handle and judged
+    # against the vdiff root, the work tree, the git directory and the common git directory, and the log is
+    # created and moved by that final path, never by the typed path, because a link entry in that path can
+    # still be retargeted while the directory is held. -Out is protected against the vdiff root in the CLI
+    # through VDIFF_PROTECTED_DIRS for the same interval. On Linux and macOS no handle is held: the resolved
+    # path is judged before and after the directories are created and the post-run containment re-check
+    # stays, so the interval between that judgement and each write stays open for a process that is able to
+    # rename a directory.
+    #
     # The log's directory is opened and judged by its final path now, before anything runs, and held
     # until the log is written (L-3). A protected verdict ends the run as the first check does; any
     # other failure (the type cannot be compiled, a directory cannot be created) leaves no hold and
