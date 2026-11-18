@@ -343,8 +343,9 @@ public class TraceRunScriptTests
         }
     }
 
-    // T-01-46 backstop: a swap between the first check and the write cannot be provoked deterministically,
-    // so the order of the statements inside Invoke-Trace is what is pinned.
+    // T-01-46 backstop: the order of the statements inside Invoke-Trace is pinned. The log is written through
+    // the held directory's final path (a hold taken before the run, T-01-43, T-01-46), and where no handle is
+    // held (Linux and macOS) the by-name containment re-check between the run and the write stays.
     [Fact]
     public void Log_write_is_preceded_by_a_second_containment_check_in_source_order()
     {
@@ -355,7 +356,7 @@ public class TraceRunScriptTests
 
         var run = body.IndexOf("Invoke-Native 'dotnet'", StringComparison.Ordinal);
         Assert.True(run >= 0, "the vdiff invocation was not found in Invoke-Trace");
-        var write = body.IndexOf("Write-LogFile $logFull", StringComparison.Ordinal);
+        var write = body.IndexOf("Write-LogFile $logHold.Path", StringComparison.Ordinal);
         Assert.True(write > run, "the log write must come after the vdiff run");
 
         var between = body[run..write];
@@ -367,7 +368,187 @@ public class TraceRunScriptTests
         Assert.Contains("Test-SameOrUnder $logFull", before);
 
         // Nothing writes the log earlier than the second check.
-        Assert.Equal(write, body.LastIndexOf("Write-LogFile $logFull", StringComparison.Ordinal));
+        Assert.Equal(write, body.LastIndexOf("Write-LogFile $logHold.Path", StringComparison.Ordinal));
+    }
+
+    // ---- (c5) the log is written through a held directory (G-01-1; T-01-43, T-01-46, T-01-56) ----
+
+    /// <summary>
+    /// True when the operating system refused the attempt with a sharing violation or access denied. A
+    /// missing directory is not a refusal: it would mean the attempt never touched the target.
+    /// </summary>
+    static bool OsRefused(Action attempt)
+    {
+        try
+        {
+            attempt();
+            return false;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return e is not (DirectoryNotFoundException or FileNotFoundException);
+        }
+    }
+
+    static void RenameAndBack(string directory)
+    {
+        var moved = directory + "-moved";
+        Directory.Move(directory, moved);
+        Directory.Move(moved, directory); // the attempt succeeded: undo it so the run can continue
+    }
+
+    /// <summary>Removes a link entry as a link: non-recursive on Windows, so what it points at is never touched.</summary>
+    static void RemoveLinkEntry(string link)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            Directory.Delete(link);
+        }
+        else
+        {
+            File.Delete(link);
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(Hosts))]
+    public async Task The_log_hold_blocks_a_rename_and_a_retargeted_link_entry_receives_no_log(string host)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (c1, c2, _) = BuildHistory(repo);
+        var parent = Path.Combine(links.Root, "lp");
+        var real = Path.Combine(parent, "L");
+        Directory.CreateDirectory(real);
+        var link = links.Link("jl", real);
+        var logPath = Path.Combine(link, "vdiff.log");
+        var outRun = Path.Combine(repo.OutDir, "run");
+        var pidFile = NewPidFile();
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+
+        var arguments = CoreArguments(repo.RepoDir, c1, c2, outRun);
+        arguments.AddRange(["-LogPath", logPath]);
+
+        // The attacker's attempts are recorded in locals: an exception thrown here would hide the run's result.
+        var renameLeafRefused = false;
+        var renameParentRefused = false;
+        Exception? attackFailure = null;
+        ProcessResult result;
+        bool sidecarAppeared;
+        try
+        {
+            using var environment = StagedRunEnvironment(pidFile, 5000);
+            var (run, appeared) = StartScriptAndWaitForSidecar(host, arguments, pidFile);
+            sidecarAppeared = appeared;
+            try
+            {
+                renameLeafRefused = OsRefused(() => RenameAndBack(real));
+                renameParentRefused = OsRefused(() => RenameAndBack(parent));
+                RemoveLinkEntry(link);
+                links.Link("jl", repo.RepoDir);
+            }
+            catch (Exception e)
+            {
+                attackFailure = e;
+            }
+
+            result = await run;
+        }
+        finally
+        {
+            File.Delete(pidFile);
+        }
+
+        Assert.True(attackFailure is null, "the staged attack itself failed: " + attackFailure);
+        Assert.True(sidecarAppeared, "the run never reached the fake sidecar, so nothing was staged");
+        var values = ParseSixLines(result.StdoutText);
+        AssertPassed(result, values);
+        AssertNothingLeaks(result, repo.RepoDir, repo.OutDir, links.Root, logPath, c1, c2);
+
+        var logFile = Path.Combine(real, "vdiff.log");
+        var failures = new List<string>();
+        if (!renameLeafRefused)
+        {
+            failures.Add("the operating system did not refuse to rename the log directory");
+        }
+
+        if (!renameParentRefused)
+        {
+            failures.Add("the operating system did not refuse to rename the parent of the log directory");
+        }
+
+        if (!File.Exists(logFile))
+        {
+            failures.Add("the log did not appear at the requested name in the held directory");
+        }
+        else if (!File.ReadAllText(logFile).Contains("wrote 5 files", StringComparison.Ordinal))
+        {
+            failures.Add("the log does not hold vdiff's output");
+        }
+
+        if (Directory.GetFileSystemEntries(real, "*.tmp-*").Length != 0)
+        {
+            failures.Add("a temporary file remains in the held directory");
+        }
+
+        Assert.True(failures.Count == 0, string.Join("; ", failures));
+        Assert.False(File.Exists(Path.Combine(repo.RepoDir, "vdiff.log")), "the script wrote its log into the analysed repository");
+        Assert.Empty(Directory.GetFileSystemEntries(repo.RepoDir, "*.tmp-*", SearchOption.AllDirectories));
+        Assert.Equal(FiveFiles, OutputFiles(outRun));
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+    }
+
+    [Theory]
+    [MemberData(nameof(Hosts))]
+    public void A_log_path_below_missing_directories_is_created_under_the_log_hold_and_leaves_no_temp_file(string host)
+    {
+        using var repo = new SyntheticRepo();
+        var (c1, c2, _) = BuildHistory(repo);
+        var logDirectory = Path.Combine(repo.OutDir, "logs", "deep");
+        var logPath = Path.Combine(logDirectory, "vdiff.log");
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+
+        var arguments = CoreArguments(repo.RepoDir, c1, c2, repo.OutDir);
+        arguments.AddRange(["-LogPath", logPath]);
+        var result = RunScript(host, arguments, skipMermaid: true, TimeSpan.FromMinutes(5));
+
+        var values = ParseSixLines(result.StdoutText);
+        AssertPassed(result, values);
+        AssertNothingLeaks(result, repo.RepoDir, repo.OutDir, logPath, c1, c2);
+        Assert.True(Directory.Exists(Path.Combine(repo.OutDir, "logs")));
+        Assert.True(Directory.Exists(logDirectory));
+        Assert.Contains("wrote 5 files", File.ReadAllText(logPath), StringComparison.Ordinal);
+        Assert.Empty(Directory.GetFileSystemEntries(repo.OutDir, "*.tmp-*", SearchOption.AllDirectories));
+        Assert.Equal(FiveFiles, OutputFiles(repo.OutDir));
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+    }
+
+    [Fact]
+    public void The_log_is_written_through_the_log_hold_in_source_order()
+    {
+        var text = File.ReadAllText(Path.Combine(RepositoryRoot(), "scripts", "trace-run.ps1"));
+        var start = text.IndexOf("function Invoke-Trace", StringComparison.Ordinal);
+        Assert.True(start >= 0, "Invoke-Trace not found");
+        var body = text[start..];
+
+        var run = body.IndexOf("Invoke-Native 'dotnet'", StringComparison.Ordinal);
+        Assert.True(run >= 0, "the vdiff invocation was not found in Invoke-Trace");
+        var open = body.IndexOf("Open-HeldDirectory", StringComparison.Ordinal);
+        Assert.True(open >= 0 && open < run, "the log directory must be opened and held before the vdiff run");
+        var write = body.IndexOf("Write-LogFile $logHold.Path", StringComparison.Ordinal);
+        Assert.True(write > run, "the log must be written through the held directory after the vdiff run");
+        Assert.Equal(write, body.LastIndexOf("Write-LogFile $logHold.Path", StringComparison.Ordinal));
+
+        Assert.Matches(new Regex(@"finally\s*\{\s*Close-HeldDirectory \$logHold"), body);
+
+        // No call writes the log by the typed path: comment lines are not code.
+        var code = string.Join('\n', text.Split('\n').Where(l => !l.TrimStart().StartsWith('#')));
+        Assert.DoesNotContain("Write-LogFile $logFull", code, StringComparison.Ordinal);
     }
 
     [Fact]
