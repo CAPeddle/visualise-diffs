@@ -61,12 +61,12 @@ public class TraceRunScriptTests
     static string VdiffDll() => Path.Combine(AppContext.BaseDirectory, "vdiff.dll");
 
     /// <summary>The fixed argument list: everything but -Repo, -Base, -Head, -Out, which the case adds.</summary>
-    static ProcessResult RunScript(string host, IEnumerable<string> scriptArguments, bool skipMermaid, TimeSpan timeout)
+    static ProcessResult RunScript(string host, IEnumerable<string> scriptArguments, bool skipMermaid, TimeSpan timeout, string? scriptPath = null)
     {
         var args = new List<string>
         {
             "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
-            "-File", Path.Combine(RepositoryRoot(), "scripts", "trace-run.ps1"),
+            "-File", scriptPath ?? Path.Combine(RepositoryRoot(), "scripts", "trace-run.ps1"),
         };
         args.AddRange(scriptArguments);
         args.AddRange(["-VdiffDll", VdiffDll()]);
@@ -80,6 +80,46 @@ public class TraceRunScriptTests
 
     static List<string> CoreArguments(string repoPath, string baseId, string headId, string outPath) =>
         ["-Repo", repoPath, "-Base", baseId, "-Head", headId, "-Out", outPath];
+
+    static readonly string FakeSidecarPath = Path.Combine(
+        AppContext.BaseDirectory, "Vdiff.FakeSidecar" + (OperatingSystem.IsWindows() ? ".exe" : ""));
+
+    /// <summary>
+    /// The environment of a staged run: the fake sidecar sleeps (mode ok-empty-after-delay) and writes its
+    /// pid file once vdiff has started it, which is after the script's holds. A real vdiff run is therefore
+    /// busy for <paramref name="delayMs"/> milliseconds and a test can act while it is.
+    /// </summary>
+    static EnvironmentScope StagedRunEnvironment(string pidFile, int delayMs) => new(new Dictionary<string, string?>
+    {
+        ["FAKE_SIDECAR_MODE"] = "ok-empty-after-delay",
+        ["FAKE_SIDECAR_DELAY_MS"] = delayMs.ToString(System.Globalization.CultureInfo.InvariantCulture),
+        ["FAKE_SIDECAR_PID_FILE"] = pidFile,
+        ["VDIFF_CPP_TS"] = FakeSidecarPath,
+        ["VDIFF_SIDECAR_TIMEOUT_SECONDS"] = null,
+        ["VDIFF_PARSE_BUDGET_MS"] = null,
+    });
+
+    static string NewPidFile() => Path.Combine(Path.GetTempPath(), "vdiff-fake-pid-" + Guid.NewGuid().ToString("N"));
+
+    /// <summary>
+    /// Starts a script run on a background task and returns once the pid file exists (the run is then inside
+    /// vdiff), the run has ended, or 60 seconds have passed. The task is still running when the pid file
+    /// appeared; the caller acts and then awaits it. <c>SidecarAppeared</c> tells the caller whether the staged
+    /// moment was reached, which it asserts after awaiting, so a run that never got there cannot pass as a result.
+    /// </summary>
+    static (Task<ProcessResult> Run, bool SidecarAppeared) StartScriptAndWaitForSidecar(
+        string host, IEnumerable<string> scriptArguments, string pidFile, string? scriptPath = null)
+    {
+        var arguments = scriptArguments.ToList();
+        var run = Task.Run(() => RunScript(host, arguments, skipMermaid: true, TimeSpan.FromMinutes(5), scriptPath));
+        var deadline = DateTime.UtcNow.AddSeconds(60);
+        while (!File.Exists(pidFile) && !run.IsCompleted && DateTime.UtcNow < deadline)
+        {
+            Thread.Sleep(50);
+        }
+
+        return (run, File.Exists(pidFile));
+    }
 
     /// <summary>Exactly six lines, in order, in the fixed vocabulary; returns the value after each "name: ".</summary>
     static string[] ParseSixLines(string stdout)
