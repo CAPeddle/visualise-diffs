@@ -201,6 +201,6 @@ Residuals recorded inside mitigated threats (not separate acceptances): T-01-42 
 
 | Metric | Count |
 |---|---|
-| Threats found | 4 |
-| Closed | 4 |
+| Threats found | 80 |
+| Closed | 80 |
 | Open | 0 |
