@@ -571,7 +571,7 @@ public class TraceRunScriptTests
         Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
     }
 
-    static readonly string[] NtJunctionKinds = ["globalroot"];
+    static readonly string[] NtJunctionKinds = ["globalroot", "device-no-prefix"];
 
     [Theory]
     [MemberData(nameof(Hosts))]
@@ -608,6 +608,47 @@ public class TraceRunScriptTests
             Assert.Equal("skipped", values[5]);
             AssertNothingLeaks(result, [repo.RepoDir, repo.OutDir, c1, c2, .. junctions.Select(j => j.Path)]);
             Assert.Empty(Directory.EnumerateDirectories(repo.RepoDir, "out-here", SearchOption.AllDirectories));
+            Assert.Empty(Directory.GetFileSystemEntries(repo.OutDir));
+        }
+
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+    }
+
+    [Theory]
+    [MemberData(nameof(Hosts))]
+    public void Aliased_log_path_through_a_junction_with_an_nt_namespace_target_fails_closed_with_script_error(string host)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (c1, c2, _) = BuildHistory(repo);
+        var junctions = NtJunctionKinds
+            .Select(k => (Kind: k, Path: links.RawJunction("alias-" + k, LinkScratch.NtSubstituteName(k, repo.RepoDir), links.Root)))
+            .ToArray();
+        foreach (var (kind, junction) in junctions)
+        {
+            Assert.True(File.Exists(Path.Combine(junction, "README.md")), $"the {kind} junction is not live");
+        }
+
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+
+        foreach (var (kind, junction) in junctions)
+        {
+            var arguments = CoreArguments(repo.RepoDir, c1, c2, repo.OutDir);
+            arguments.AddRange(["-LogPath", Path.Combine(junction, "vdiff.log")]);
+            var result = RunScript(host, arguments, skipMermaid: true, TimeSpan.FromMinutes(5));
+
+            var values = ParseSixLines(result.StdoutText);
+            Assert.Equal(1, result.ExitCode);
+            Assert.Equal("fail", values[0]);
+            Assert.True(values[1] == "script-error", $"{kind}: expected script-error but the reason was {values[1]}");
+            AssertNothingLeaks(result, [repo.RepoDir, repo.OutDir, c1, c2, .. junctions.Select(j => j.Path)]);
+            // The sandbox .gitignore ignores *.log, so the snapshot cannot see a log: check it by name.
+            Assert.False(File.Exists(Path.Combine(repo.RepoDir, "vdiff.log")), $"{kind}: the script wrote its log into the analysed repository");
             Assert.Empty(Directory.GetFileSystemEntries(repo.OutDir));
         }
 

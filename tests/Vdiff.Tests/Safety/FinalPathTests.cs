@@ -164,6 +164,81 @@ public class FinalPathTests
         Assert.Equal(FinalPath.UnsupportedRootMessage, e.Message);
     }
 
+    [Theory]
+    [InlineData("globalroot")]
+    [InlineData("device-no-prefix")]
+    [InlineData("unc")]
+    public void A_junction_with_an_nt_namespace_target_is_refused_on_windows(string kind)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var links = new LinkScratch();
+        var real = MakeReal(links, "real");
+        File.WriteAllText(Path.Combine(real, "marker.txt"), "marker");
+        // The print name is a drive-letter decoy: the reported target must still be the substitute name.
+        var alias = links.RawJunction("alias", LinkScratch.NtSubstituteName(kind, real), links.Root);
+
+        var reported = new DirectoryInfo(alias).LinkTarget;
+        Assert.NotNull(reported);
+        Assert.False(FinalPath.StartsWithDriveLetter(reported), "the reported target is a drive-letter path, so the premise failed");
+        if (kind != "unc")
+        {
+            Assert.True(File.Exists(Path.Combine(alias, "marker.txt")), "the junction is not live");
+        }
+
+        var e = Assert.Throws<VdiffException>(() => FinalPath.Resolve(Path.Combine(alias, "x")));
+
+        Assert.Equal(FinalPath.UnsupportedRootMessage, e.Message);
+        Assert.DoesNotContain(links.Root, e.Message, Comparison);
+    }
+
+    [Fact]
+    public void A_raw_junction_with_a_drive_letter_target_is_followed_like_a_plain_junction()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var links = new LinkScratch();
+        var real = MakeReal(links, "real");
+        File.WriteAllText(Path.Combine(real, "marker.txt"), "marker");
+        var alias = links.RawJunction("alias", LinkScratch.NtSubstituteName("drive", real));
+
+        var reported = new DirectoryInfo(alias).LinkTarget;
+        Assert.NotNull(reported);
+        Assert.True(FinalPath.StartsWithDriveLetter(reported), "the reported target is not a drive-letter path");
+        Assert.True(File.Exists(Path.Combine(alias, "marker.txt")), "the junction is not live");
+        AssertSamePath(Path.Combine(FinalPath.Resolve(real), "x"), FinalPath.Resolve(Path.Combine(alias, "x")));
+    }
+
+    [Theory]
+    [InlineData(@"C:\work\out", true)]
+    [InlineData(@"z:\x", true)]
+    [InlineData(@"C:\", true)]
+    [InlineData(@"GLOBALROOT\Device\HarddiskVolumeN\work", false)]
+    [InlineData(@"\Device\HarddiskVolumeN\work", false)]
+    [InlineData(@"ice\HarddiskVolumeN\work", false)]
+    [InlineData(@"UNC\localhost\C$\work", false)]
+    [InlineData(@"\\localhost\C$\work", false)]
+    [InlineData(@"\\?\C:\work", false)]
+    [InlineData(@"\\.\C:\work", false)]
+    [InlineData(@"Volume{00000000-0000-0000-0000-000000000000}\work", false)]
+    [InlineData(@"..\work", false)]
+    [InlineData("work", false)]
+    [InlineData(@"\work", false)]
+    [InlineData("C:work", false)]
+    [InlineData("C:", false)]
+    [InlineData("", false)]
+    [InlineData("\u212A:\\work", false)]
+    public void A_reported_link_target_is_accepted_only_when_it_is_a_drive_letter_path(string reported, bool expected)
+    {
+        Assert.Equal(expected, FinalPath.StartsWithDriveLetter(reported));
+    }
+
     [Fact]
     public void A_drive_letter_path_with_a_lower_case_drive_and_forward_slashes_is_still_accepted()
     {
