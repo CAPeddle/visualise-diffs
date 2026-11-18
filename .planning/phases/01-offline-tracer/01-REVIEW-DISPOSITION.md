@@ -6,27 +6,27 @@ findings:
   - id: CR-01
     severity: critical
     disposition: open
-    title: "`--out` written as `\\\\?\\C:\\...` or `\\\\localhost\\C$\\...` bypasses the containment guard and writes inside the analysed repository"
+    title: "A directory junction with a non-`Volume{` NT-namespace target bypasses both containment guards; vdiff and trace-run.ps1 write inside the analysed repository"
   - id: WR-01
     severity: warning
     disposition: open
-    title: "A pre-existing file link in `--out` redirects a write into the repository"
+    title: "The file-symbolic-link half of the output-name test passes vacuously on a host without the privilege"
   - id: WR-02
     severity: warning
     disposition: open
-    title: "Containment is checked once, minutes before the write"
+    title: "Necessity: a second `Test-NonDriveRoot $logFull` after the vdiff run re-checks a string that cannot have changed"
   - id: IN-01
     severity: info
     disposition: open
-    title: "The `IOException` branch still prints .NET exception text with full paths"
+    title: "Stale handoff committed to a public repository"
   - id: IN-02
     severity: info
     disposition: open
-    title: "Relative link targets are never exercised on Windows"
+    title: "Source-text pin and silent non-Windows passes in the script tests"
   - id: IN-03
     severity: info
     disposition: open
-    title: "Rooted-without-drive and drive-relative link targets resolve against the wrong drive"
+    title: "`TooManyLinksException` is thrown for unrelated conditions"
   - id: IN-04
     severity: info
     disposition: open
@@ -49,7 +49,7 @@ findings:
     title: "Output writing is not atomic, and every `IOException` is reported as an output failure"
 open: 11
 total: 11
-recorded: 2026-11-17T13:52:22.788Z
+recorded: 2026-11-18T07:38:09.354Z
 ---
 
 # Phase 01: Code Review Disposition
@@ -62,7 +62,7 @@ recorded: 2026-11-17T13:52:22.788Z
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
-| IN-04 | info | open | - |
+| IN-04 | info | open | - (not in the current review) |
 | WR-03 | warning | open | - (not in the current review) |
 | WR-04 | warning | open | - (not in the current review) |
 | IN-05 | info | open | - (not in the current review) |
