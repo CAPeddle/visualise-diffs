@@ -196,3 +196,11 @@ Residuals recorded inside mitigated threats (not separate acceptances): T-01-42 
 | Threats found | 76 |
 | Closed | 76 |
 | Open | 0 |
+
+## Security Audit 2026-11-18
+
+| Metric | Count |
+|---|---|
+| Threats found | 4 |
+| Closed | 4 |
+| Open | 0 |
