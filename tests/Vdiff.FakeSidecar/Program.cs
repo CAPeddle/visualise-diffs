@@ -6,6 +6,8 @@ using System.Text;
 // through VDIFF_CPP_TS, which can only name an executable. The process id is written to the
 // file named by FAKE_SIDECAR_PID_FILE (when set) so a test can confirm the child was killed.
 // No mode reads stdin: a child that ignores its input is part of what is being proven.
+// Mode ok-empty-after-delay sleeps for FAKE_SIDECAR_DELAY_MS before it replies like ok-empty,
+// so a test can act while a real vdiff run is still busy (plan 01-17).
 
 var mode = Environment.GetEnvironmentVariable("FAKE_SIDECAR_MODE") ?? "";
 var pidFile = Environment.GetEnvironmentVariable("FAKE_SIDECAR_PID_FILE");
@@ -87,6 +89,17 @@ switch (mode)
         return 0;
 
     case "ok-empty":
+        Reply("[]");
+        return 0;
+
+    case "ok-empty-after-delay":
+        // Keeps a real vdiff run busy for FAKE_SIDECAR_DELAY_MS (5000 when unset or not a
+        // non-negative integer), then succeeds with an empty file list, as ok-empty does.
+        var delayText = Environment.GetEnvironmentVariable("FAKE_SIDECAR_DELAY_MS");
+        var delayMs = int.TryParse(delayText, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var parsedDelay)
+            ? parsedDelay
+            : 5000;
+        Thread.Sleep(delayMs);
         Reply("[]");
         return 0;
 
