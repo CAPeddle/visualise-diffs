@@ -3,85 +3,90 @@ phase: 01
 review: 01-REVIEW.md
 titles: json
 findings:
+  - id: CR-01
+    severity: critical
+    disposition: open
+    title: "`--out` at a drive root writes into the current directory and reports the root"
+  - id: WR-01
+    severity: warning
+    disposition: open
+    title: "The held handle is opened without the extended-length prefix, so a long output path can now fail"
+  - id: WR-02
+    severity: warning
+    disposition: open
+    title: "A link target now reaches stderr through I/O exception text"
+  - id: WR-03
+    severity: warning
+    disposition: open
+    title: "The script's judgement by handle, its protected verdict and its final-path rule are not tested"
+  - id: WR-04
+    severity: warning
+    disposition: open
+    title: "A path separator inside the vdiff root breaks the `VDIFF_PROTECTED_DIRS` handoff"
   - id: WR-05
     severity: warning
     disposition: open
-    title: "Every non-drive-letter link target is now refused on Windows, with a message that names the wrong problem"
+    title: "(carried forward from WR-05) A relative or drive-less link target is refused with a message that names the wrong problem"
+  - id: WR-06
+    severity: warning
+    disposition: open
+    title: "(carried forward from WR-01) The file-symbolic-link test passes vacuously without the privilege"
+  - id: IN-01
+    severity: info
+    disposition: open
+    title: "The non-Windows creation path differs from the Windows one in two small ways"
+  - id: IN-02
+    severity: info
+    disposition: open
+    title: "The limit of 8 is written three times and its boundary is untested"
+  - id: IN-03
+    severity: info
+    disposition: open
+    title: "The staged tests race a fixed five-second window, and `EnvironmentScope` leaks on a partial construction"
+  - id: IN-04
+    severity: info
+    disposition: open
+    title: "(carried forward from IN-08) The swap-interval paragraph is now copied into six comment blocks and the class summary of `HeldDirectory` contains two overlapping paragraphs"
+  - id: IN-05
+    severity: info
+    disposition: open
+    title: "(carried forward from IN-02) More tests report as passed on hosts where they do nothing"
+  - id: IN-06
+    severity: info
+    disposition: open
+    title: "(carried forward from IN-03 and IN-04) `TooManyLinksException` is thrown for unrelated conditions; case-insensitive non-Windows file systems are compared case-sensitively"
   - id: IN-07
     severity: info
     disposition: open
-    title: "The new tests do not exercise the symbolic-link spelling of the escape, and the CLI and script tests omit the UNC kind"
+    title: "(carried forward from IN-07) The new tests still omit the symbolic-link and UNC spellings of the namespace escape"
   - id: IN-08
     severity: info
     disposition: open
     title: "The same ten-line \"Bound (T-01-39 / T-01-41)\" paragraph now exists in four places"
-  - id: CR-01
-    severity: critical
-    disposition: open
-    title: "A directory junction with a non-`Volume{` NT-namespace target bypasses both containment guards; vdiff and trace-run.ps1 write inside the analysed repository"
-  - id: WR-01
-    severity: warning
-    disposition: open
-    title: "The file-symbolic-link half of the output-name test passes vacuously on a host without the privilege"
-  - id: WR-02
-    severity: warning
-    disposition: open
-    title: "Necessity: a second `Test-NonDriveRoot $logFull` after the vdiff run re-checks a string that cannot have changed"
-  - id: IN-01
-    severity: info
-    disposition: open
-    title: "Stale handoff committed to a public repository"
-  - id: IN-02
-    severity: info
-    disposition: open
-    title: "Source-text pin and silent non-Windows passes in the script tests"
-  - id: IN-03
-    severity: info
-    disposition: open
-    title: "`TooManyLinksException` is thrown for unrelated conditions"
-  - id: IN-04
-    severity: info
-    disposition: open
-    title: "Case-insensitive file systems outside Windows compare case-sensitively"
-  - id: WR-03
-    severity: warning
-    disposition: open
-    title: "The trial wrapper's \"repo_unchanged: yes\" ignores the object database, config, hooks and `.git` file set"
-  - id: WR-04
-    severity: warning
-    disposition: open
-    title: "`check.mjs` reports a browser launch failure as a Mermaid syntax failure"
-  - id: IN-05
-    severity: info
-    disposition: open
-    title: "The report page has no Content-Security-Policy"
-  - id: IN-06
-    severity: info
-    disposition: open
-    title: "Output writing is not atomic, and every `IOException` is reported as an output failure"
-open: 14
-total: 14
-recorded: 2026-11-18T12:11:56.374Z
+open: 15
+total: 15
+recorded: 2026-11-18T19:17:58.355Z
 ---
 
 # Phase 01: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
+| CR-01 | critical | open | - |
+| WR-01 | warning | open | - |
+| WR-02 | warning | open | - |
+| WR-03 | warning | open | - |
+| WR-04 | warning | open | - |
 | WR-05 | warning | open | - |
+| WR-06 | warning | open | - |
+| IN-01 | info | open | - |
+| IN-02 | info | open | - |
+| IN-03 | info | open | - |
+| IN-04 | info | open | - |
+| IN-05 | info | open | - |
+| IN-06 | info | open | - |
 | IN-07 | info | open | - |
-| IN-08 | info | open | - |
-| CR-01 | critical | open | - (not in the current review) |
-| WR-01 | warning | open | - (not in the current review) |
-| WR-02 | warning | open | - (not in the current review) |
-| IN-01 | info | open | - (not in the current review) |
-| IN-02 | info | open | - (not in the current review) |
-| IN-03 | info | open | - (not in the current review) |
-| IN-04 | info | open | - (not in the current review) |
-| WR-03 | warning | open | - (not in the current review) |
-| WR-04 | warning | open | - (not in the current review) |
-| IN-05 | info | open | - (not in the current review) |
-| IN-06 | info | open | - (not in the current review) |
+| IN-08 | info | open | - (not in the current review) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
