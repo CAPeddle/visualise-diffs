@@ -1,8 +1,8 @@
 ---
 phase: 01-offline-tracer
-verified: 2026-11-18T14:10:00Z
-status: human_needed
-score: 25/28 must-haves verified
+verified: 2026-11-18T19:40:00Z
+status: gaps_found
+score: 43/47 must-haves verified
 covered_files:
   - ".gitattributes"
   - ".gitignore"
@@ -36,6 +36,10 @@ covered_files:
   - ".planning/phases/01-offline-tracer/01-14-SUMMARY.md"
   - ".planning/phases/01-offline-tracer/01-15-PLAN.md"
   - ".planning/phases/01-offline-tracer/01-15-SUMMARY.md"
+  - ".planning/phases/01-offline-tracer/01-16-PLAN.md"
+  - ".planning/phases/01-offline-tracer/01-16-SUMMARY.md"
+  - ".planning/phases/01-offline-tracer/01-17-PLAN.md"
+  - ".planning/phases/01-offline-tracer/01-17-SUMMARY.md"
   - "docs/decisions/ADR-001-cpp-tree-sitter-packaging.md"
   - "docs/trials/phase-1-offline-tracer.md"
   - "extractors/cpp-ts/Cargo.lock"
@@ -55,6 +59,7 @@ covered_files:
   - "src/Vdiff.Core/Git/GitObjectReader.cs"
   - "src/Vdiff.Core/Model/ModelBuilder.cs"
   - "src/Vdiff.Core/Model/ModelTypes.cs"
+  - "src/Vdiff.Core/Output/HeldDirectory.cs"
   - "src/Vdiff.Core/Output/HtmlWriter.cs"
   - "src/Vdiff.Core/Output/MermaidWriter.cs"
   - "src/Vdiff.Core/Output/OutputWriter.cs"
@@ -68,6 +73,8 @@ covered_files:
   - "tests/Vdiff.Tests/Output/MermaidWriterTests.cs"
   - "tests/Vdiff.Tests/Safety/AliasedOutTests.cs"
   - "tests/Vdiff.Tests/Safety/FinalPathTests.cs"
+  - "tests/Vdiff.Tests/Safety/HeldDirectoryTests.cs"
+  - "tests/Vdiff.Tests/Support/EnvironmentScope.cs"
   - "tests/Vdiff.Tests/Support/LinkScratch.cs"
   - "tests/Vdiff.Tests/Support/PathSpellings.cs"
   - "tests/Vdiff.Tests/Trial/TraceRunScriptTests.cs"
@@ -75,185 +82,228 @@ covered_files:
   - "tools/mermaid-check/package-lock.json"
   - "tools/mermaid-check/package.json"
   - "vdiff.sln"
-covered_digest: "v4:sha256:2168249b4dc2b80047240b567cdbfd50472354859d084cdb9d0754d5cdbdfd7b"
+covered_digest: "v4:sha256:cacc7b382cd43b1b48bc7053ee80006e2ced929fc0d76b4d40e9b2623910a759"
 behavior_unverified: 3
 overrides_applied: 0
 re_verification:
-  previous_status: gaps_found
-  previous_score: 13/18
+  previous_status: human_needed
+  previous_score: 25/28
   gaps_closed:
-    - "Gap 1 (truths 2 and 7): a junction whose substitute name is the GLOBALROOT form of the repository, or the bare device form, no longer carries --out, -Out or -LogPath into the repository. Reproduced independently in this verification: CLI exit 1 with the fixed line, script script-error on pwsh and Windows PowerShell 5.1, repository snapshot equal, nothing written inside it. Plain drive-letter junctions are still followed (no over-refusal)."
-    - "Gap 2 (truth 16): the bound in the doc comments of CliApp.RefuseUnsafeOut, FinalPath.Resolve, the trace-run.ps1 header and the comment above Resolve-FinalPath now matches behavior (every non-drive reported link target refused; subst, mapped drives, 8.3 names and IN-04 named as unresolved)."
-    - "Re-review WR-02 (necessity) and IN-01 (stale handoff): the redundant namespace re-test is gone; the handoff is no longer tracked."
-  gaps_remaining: []
-  regressions: []
+    - "G-01-1 (01-UAT.md test 1), within the product owner's scope of 2026-11-18 (the check-to-write swap window only): the --out directory is held without delete sharing and every file is written by the held handle's final path (plan 01-16); the -LogPath directory is held through the vdiff run and the log is written by temp name plus move through the final path (plan 01-17); the vdiff root protects -Out through VDIFF_PROTECTED_DIRS. Observed here: the staged swap tests pass on both PowerShell hosts and a direct probe of Open-HeldDirectory shows the lock, the verdict and the cleanup."
+    - "Previous behavior-unverified truths 10 and 24 (symbolic-link forms) and 15 (backstop swap during a script run): resolved by the human results in 01-UAT.md tests 2, 4 and 3 (all result: pass, 2026-11-18); truth 15's mechanism was replaced by plan 01-17 and is now proven by a deterministic staged test."
+  gaps_remaining:
+    - "SC2 literal clause 'everything the run writes lands in the given output directory' for --out given as a drive root (new in this round: review finding CR-01, introduced by plan 01-16, reproduced independently here)"
+  regressions:
+    - "Truth 2 (SC2) moved from VERIFIED to FAILED (partial): HeldDirectory.SplitAtDeepestExisting turns 'C:\\' into 'C:' (the current directory on drive C). Before plan 01-16 the same input wrote to the drive root or failed with access denied."
+gaps:
+  - truth: "SC2: a run never changes the repository it reads, and everything the run writes lands in the given output directory and nowhere else"
+    status: partial
+    reason: "BLOCKER (a must-have truth, a roadmap success criterion, is falsified for one input). CR-01 reproduced in this verification. With --out C:\\ (a drive root) HeldDirectory trims the trailing separator, 'C:' means the process's current directory on that drive, and the five files land in the current directory while stdout says 'vdiff: wrote 5 files to C:\\' and exit is 0. The first half of SC2 holds: with the current directory inside the analysed repository the same command is refused by the held directory's final-path judgement (exit 1, repository status clean), and nothing was written to C:\\. The defect is output in a directory the operator did not name plus a success line that names another, for one input class. It is a regression of plan 01-16 and it also touches TRC-02's wording (outputs written in the output directory)."
+    artifacts:
+      - path: "src/Vdiff.Core/Output/HeldDirectory.cs"
+        issue: "SplitAtDeepestExisting (line 186) calls TrimEnd on the separators before testing the path, so a root becomes its drive-relative form"
+    missing:
+      - "Do not trim a root: trim only when the path is longer than Path.GetPathRoot(directory), as the review's suggested fix shows"
+      - "A HeldDirectoryTests case for a root input and a CliApp.Run case for --out given as the drive root with a scratch current directory (assert the files are not written to the current directory)"
+      - "Mirror check in scripts/trace-run.ps1 Open-HeldDirectory (it does not trim, so the two implementations currently differ here)"
 behavior_unverified_items:
-  - truth: "A file symbolic link planted at an output name is replaced by a regular file and its target keeps its bytes (01-13 truth 2, second half; T-01-42)"
-    test: "On a host that can create file symbolic links (Linux or macOS, or Windows with Developer Mode or an elevated shell) run: dotnet test tests/Vdiff.Tests/Vdiff.Tests.csproj --filter FullyQualifiedName~A_file_symbolic_link_planted"
-    expected: "The test creates the link (does not return early), the run exits 0, the victim file is unchanged and new FileInfo(output).LinkTarget is null afterwards"
-    why_human: "Symlink creation is refused on the development host (confirmed again here: 'Administrator privilege required'), so the test returns early and xunit reports it as passed. The hard-link half passes and exercises the same File.Move replace path, so the behavior is very likely right, but it is not shown for the symlink form."
-  - truth: "trace-run.ps1 re-checks the -LogPath containment after the vdiff run and before the log write, so a link swapped in during the run is not written through (01-14 truth 5, verification: backstop, T-01-46). Abstained: insufficient_spec"
-    test: "Run trace-run.ps1 with -LogPath in a real directory and a -VdiffDll that sleeps about 20 seconds (a small shim assembly); during the sleep replace the log's parent directory by a junction into the analysed repository; let the run finish"
-    expected: "No log file appears in the repository, the six output lines keep their shape, and the repository snapshot is unchanged"
-    why_human: "The only evidence is a source-order text test, which shows the call is written before the write, not that it runs or stops a swapped link. The plan states no deterministic swap exists. Under the backstop rule presence and wiring never qualify. Lines 395-408 of the script read correctly."
-  - truth: "A Windows symbolic link (not a junction) whose target is relative or NT-absolute is refused by the same rule (01-15, verification: backstop; T-01-47). Abstained: insufficient_spec"
-    test: "On a capable host run mklink (no /J) with a relative target, and again with an NT-absolute target, into a sandbox repository, then run vdiff --out below the link and trace-run.ps1 -Out / -LogPath below it"
-    expected: "CLI exit 1 with the fixed unsupported-root line and nothing created; script script-error with six fixed lines; repository snapshot unchanged"
-    why_human: "Creating such a link needs a privilege the dev host lacks (re-confirmed). The rule is a text test on the reported target, pinned at text level by the 18-row table and shown end to end for junctions; the symlink spelling itself has not been run. Review finding IN-07 makes the same point."
-advisory:
-  - finding: "WR-05 (re-review of 01-15): the new rule also refuses harmless Windows links (a relative symbolic link, a mounted-folder volume reported as Volume{...}\\) and prints the unsupported-root text, which says the path must begin with a drive letter when it does."
-    category: other
-    reason: "Fail-closed is the documented design (R-2, T-01-47, AR-13); the defect is the misleading message and an unexercised refused-but-harmless case. Not a goal blocker. Suggested fix is a separate fixed message for a link target."
-    evidence_status: "code reading of FinalPath.cs lines 95-101 and the 18-row table; the relative-symlink case not run (no privilege)"
-  - finding: "IN-07: no test builds a symbolic link, or a unc kind, through the CLI or the script; IN-08: the same ten-line T-01-39/T-01-41 paragraph exists in four places and can drift"
-    category: other
-    reason: "Coverage is stated, not wrong; the four copies currently agree (read in this verification)."
-    evidence_status: "grep and reading of the four comment sites"
-  - finding: "Carried, unchanged and out of this plan's scope: WR-01 (symlink half of the output-name test passes vacuously, same item as behavior-unverified truth 10), IN-02, IN-03 (TooManyLinksException name), IN-04, WR-03, WR-04, IN-05, IN-06"
-    category: other
-    reason: "Recorded in 01-REVIEW-DISPOSITION.md; none blocks the phase goal."
-    evidence_status: "01-REVIEW-DISPOSITION.md"
-  - finding: "SC4 trial record (docs/trials/phase-1-offline-tracer.md, run date 2026-11-17) predates plans 01-13, 01-14 and 01-15, which changed trace-run.ps1 and the CLI guards"
-    category: other
-    reason: "The script's normal path is covered by the 36+ script tests on both hosts and by a fresh normal CLI run here, so the trial stays valid in substance, but it was not re-run with the hardened wrapper."
-    evidence_status: "git log of scripts/trace-run.ps1 versus the trial record date"
+  - truth: "01-17: a protected verdict by handle ends the run with reason bad-arguments before vdiff starts; any other hold failure skips the log silently (truth 40)"
+    test: "Extract Open-HeldDirectory and its helpers with the PowerShell parser into a child host (or add the test of review finding WR-03) and call it with a protected list that names the log directory; separately make the type fail to compile and run the script with -LogPath"
+    expected: "The first ends the script run with bad-arguments and six fixed lines before vdiff starts; the second runs vdiff normally, writes no log and reports pass"
+    why_human: "No repository test reaches Get-JudgedFinalPath, the held-directory-protected verdict or the Invoke-Trace branch that maps it (grep of tests finds only a source-order pin). I observed the verdict function itself with a private probe on both hosts (see Behavioral Spot-Checks), but not the end-to-end bad-arguments result nor the skip-on-failure path."
+  - truth: "01-16 (verification: backstop): on Linux and macOS no handle is held, the resolved path is judged before and after the directories are created, the bound is stated, and the swap-before-the-hold test runs there too (truth 34)"
+    test: "Run dotnet test tests/Vdiff.Tests/Vdiff.Tests.csproj --filter \"FullyQualifiedName~held_directory|FullyQualifiedName~HeldDirectoryTests\" on a Linux and on a macOS host (CI leg or local)"
+    expected: "All pass; A_swap_before_the_held_directory_is_opened_is_refused_by_its_final_path and the retarget test execute (do not return early)"
+    why_human: "The development host is Windows. CreateNarrowed was read and does what the truth states, and the bound paragraph is present at three CLI sites; the behavior on those hosts is not observed here."
+  - truth: "01-17 (verification: backstop): on Linux and macOS no handle is held and no type is compiled, the log directory is resolved and judged before and after it is created, the post-run containment re-check stays, and the bound is stated in the script, the register and the validation map (truth 45)"
+    test: "Run dotnet test tests/Vdiff.Tests/Vdiff.Tests.csproj --filter \"FullyQualifiedName~TraceRunScriptTests\" on a Linux and on a macOS host (pwsh only)"
+    expected: "All pass; A_log_path_below_missing_directories_is_created_under_the_log_hold_and_leaves_no_temp_file runs on that host; the staged log_hold test returns early by design"
+    why_human: "Windows-only development host. The off-Windows branch (script lines 424-433 and 609-613) was read, not run; the staged hold test is Windows-only, so the interval is open there by the stated bound."
 human_verification:
-  - test: "File symbolic link planted at an output name is replaced (privileged host)"
-    expected: "See behavior_unverified_items[0]"
-    why_human: "No symlink privilege on the dev host"
-  - test: "Staged link swap during a trace-run.ps1 run"
-    expected: "See behavior_unverified_items[1]"
-    why_human: "Backstop truth; no deterministic automated swap exists"
-  - test: "Windows symbolic link (not junction) with a relative or NT-absolute target, CLI and script"
-    expected: "See behavior_unverified_items[2]"
-    why_human: "No symlink privilege on the dev host"
-  - test: "Re-run the trial wrapper once on the private local clone with the hardened scripts/trace-run.ps1 (recommended, not required)"
-    expected: "Six-line block: result pass, reason none, under budget, repo_unchanged yes, outputs_present yes, mermaid_syntax ok; only that block recorded"
-    why_human: "Private target content must not enter this repository or CI; the existing record predates plans 01-13 to 01-15"
-  - test: "Product-owner sign-off on the accepted residuals: T-01-39 (subst and mapped drive letters, DOS 8.3 short names, IN-04) and T-01-47 / AR-13 (every non-drive-letter Windows link target is refused, including a relative symbolic link)"
-    expected: "Explicit acceptance recorded against AR-04 and AR-13, which carry plan-level acceptance only; the comment wording being accepted is now accurate (truth 16)"
-    why_human: "An acceptance of risk is the owner's decision, not a verifiable fact"
-  - test: "Seven judgment-tier prohibitions (plans 01-13, 01-14, 01-15), listed in the Prohibitions section, flagged unverified-prohibition"
-    expected: "Reviewer confirms or overrules each non-authoritative verdict (all seven read as honoured)"
-    why_human: "Judgment tier: an LLM-judge verdict is non-authoritative"
+  - test: "Decide the disposition of CR-01 (--out at a drive root)"
+    expected: "Either a small gap-closure plan (do not trim a root; two tests; script mirror check) or an explicit product-owner acceptance recorded as an override against SC2"
+    why_human: "The fix is small and the exposure narrow, but whether a reproduced misdirected-output defect ships in Phase 1 is a product-owner call. Not suggested as an override: it is a defect, not an intentional deviation."
+  - test: "Re-verify 01-UAT.md test 1 (G-01-1) and optionally test 3 against plans 01-16 and 01-17"
+    expected: "Product owner confirms the swap-window scope is closed on Windows as described in 01-17-SUMMARY.md (held directory, final-path writes, VDIFF_PROTECTED_DIRS) and that the stated Linux and macOS bound is acceptable; test 3 (staged swap during a script run) is now automated by the log_hold tests and may be repeated by hand"
+    why_human: "Closure of a gap the product owner raised and scoped is the owner's decision"
+  - test: "Re-confirm the AR-04 sign-off (UAT test 6) on its actual basis"
+    expected: "Recorded acknowledgement that AR-04 no longer rests on 'a 5.1 script cannot call a final-path function without compiling code' (plan 01-17 compiles two declarations with Add-Type for the swap window) and that subst, mapped drive letters, DOS 8.3 names and IN-04 are still accepted on the owner's sign-off alone"
+    why_human: "Acceptance of risk is the owner's decision; the 01-17 executor flagged the stale rationale and left the row unedited"
+  - test: "Run the suite on a Linux host and a macOS host"
+    expected: "See behavior_unverified_items[1] and [2]"
+    why_human: "Windows-only development host"
+  - test: "Protected verdict by handle, end to end, and skip-on-failure of the hold"
+    expected: "See behavior_unverified_items[0]; or accept the gap and take WR-03 as a follow-up"
+    why_human: "No repository test exercises it"
+  - test: "Re-run the trial wrapper once on the private clone with the current scripts/trace-run.ps1 (recommended)"
+    expected: "Six-line block: pass, none, under budget, repo_unchanged yes, outputs_present yes, mermaid_syntax ok; only that block recorded"
+    why_human: "UAT test 5 (pass) and the trial record predate plans 01-16 and 01-17, which rewrote the script's log path and added the hold; private target content must not enter this repository"
+  - test: "Eight new judgment-tier prohibitions (plans 01-16 and 01-17) flagged unverified-prohibition"
+    expected: "Reviewer confirms or overrules each non-authoritative verdict in the Prohibitions section (all read as honoured; note WR-02 under the 01-16 message prohibition)"
+    why_human: "Judgment tier: an LLM-judge verdict is non-authoritative. The seven earlier prohibitions were confirmed in UAT test 7."
+advisory:
+  - finding: "WR-01 (review): the held handle is opened without the extended-length prefix (HeldDirectory.Open and the script's Open-DirectoryHandle), so an --out or -LogPath directory longer than the legacy limit can fail with the fixed unresolvable message on a host with LongPathsEnabled=0; reviewer reproduced the script side under pwsh (log skipped silently)"
+    category: other
+    reason: "Fail closed, not a bypass; not reproduced for the CLI here (long paths are enabled on this host). Pre-01-16 behavior for such a path was to write."
+    evidence_status: "review text; code reading of HeldDirectory.cs line 216 and trace-run.ps1 line 324"
+  - finding: "WR-02 (review): an IOException or UnauthorizedAccessException during the write now carries the held directory's physical path (a link's target) in the stderr text 'could not write the output: ...'"
+    category: other
+    reason: "Letter of the 01-16 message prohibition is kept (no new refusal prints a path), but the path-hygiene intent of T-01-38 is weakened for this one branch; CliApp.cs lines 117-120"
+    evidence_status: "code reading; not reproduced"
+  - finding: "WR-03 (review): the script's judgement by handle, its protected verdict and ConvertFrom-FinalPathForm have no test; WR-04: a path separator inside the vdiff root breaks the VDIFF_PROTECTED_DIRS handoff (fail closed, wrong cause, tool-failed); WR-05 (carried): relative or drive-less link targets refused with a message naming the wrong problem; WR-06 (carried): the file-symlink test returns early without the privilege"
+    category: other
+    reason: "Each fails closed or is a coverage gap; none changes a verdict above except WR-03, which is behavior_unverified_items[0]"
+    evidence_status: "01-REVIEW.md; WR-03 confirmed by grep of tests"
+  - finding: "IN-01 to IN-07 of 01-REVIEW.md (non-Windows creation differences, the limit of 8 written three times, a fixed five-second staging window and EnvironmentScope partial-construction leak, six copies of the swap paragraph, silent early returns, TooManyLinksException reuse, missing symlink and UNC spellings); the disposition file additionally keeps a stale IN-08 row"
+    category: other
+    reason: "Info level; all 15 rows of 01-REVIEW-DISPOSITION.md remain 'open' (the review reports 14 findings: 1 critical, 6 warning, 7 info)"
+    evidence_status: "01-REVIEW.md, 01-REVIEW-DISPOSITION.md"
+  - finding: "Artifact pattern miss (info): plan 01-17 lists the pattern 'held across' for 01-SECURITY.md and verify.artifacts reports it missing (6/7 pass); the T-01-43 and T-01-46 rows state the same guarantee in other words (held directory, without delete sharing, across the five writes / across the run)"
+    category: other
+    reason: "A wording pattern in the plan, not missing content; rows read and compared with the code"
+    evidence_status: "verify.artifacts output and reading of 01-SECURITY.md lines 89 and 92"
+  - finding: "SC4 trial record (docs/trials/phase-1-offline-tracer.md) predates plans 01-13 to 01-17"
+    category: other
+    reason: "Normal path re-run here on both PowerShell hosts with the current script (pass, repo unchanged, five outputs, log written under a created directory chain, no temp leftovers); human re-run recommended"
+    evidence_status: "fresh runs in this verification"
 ---
 
 # Phase 1: Offline Tracer Verification Report
 
 **Phase Goal:** A user can run `vdiff --repo <path> --base <sha> --head <sha> --out <dir>` offline against a local git repository and get a C++ type- and member-level diff in the output directory, with no Azure DevOps contact and no change to the repository that was read.
-**Verified:** 2026-11-18 (HEAD `41a8efd`)
-**Status:** human_needed
-**Re-verification:** Yes, after gap-closure plan 01-15 (commits `8d6e84a`..`204030c`). The previous report (`gaps_found`, 13/18) stays in git history.
+**Verified:** 2026-11-18 (HEAD `2fdb3f5`)
+**Status:** gaps_found
+**Re-verification:** Yes, after gap-closure plans 01-16 and 01-17 (UAT gap G-01-1). The previous report (`human_needed`, 25/28) stays in git history. Truths 1 to 28 are carried from that report and re-checked for regression (full test run plus the spot-checks below); I did not re-derive them from plans and summaries 01-01 to 01-15.
 
 ## Summary of the verdict
 
-The three failed truths of the previous report (2, 7 and 16, one root cause) are closed, and I confirmed it by running the exploit again, not by reading the SUMMARY. Using a private script outside the project, I built three junctions with a raw reparse-point write (no privilege): substitute name `\??\GLOBALROOT\Device\HarddiskVolumeN\<repo>`, the bare device form `\Device\HarddiskVolumeN\<repo>`, and a drive-letter control `\??\X:\<repo>`. All three were live (a tracked file was visible through each), and the first two reported a non-drive-letter target. The junctions carried a drive-letter decoy print name.
+The phase goal is achieved for every normal use and for the whole swap-window gap the product owner scoped. One reproduced defect keeps the status at `gaps_found`: review finding CR-01. It is a BLOCKER by the classification rules (a roadmap success criterion is falsified for one input), narrow in scope, and it leaves the repository-unchanged guarantee intact.
 
-| Case | Before (previous report) | Now |
-|------|--------------------------|-----|
-| CLI `--out <globalroot junction>\outx` | exit 0, five files written into the repository | exit 1, fixed unsupported-root line, nothing created, snapshot equal |
-| CLI via the bare-device junction | not tested then | exit 1, same line, nothing created |
-| CLI via the drive-letter control junction | exit 1, containment line | exit 1, containment line (unchanged) |
-| `trace-run.ps1 -Out` via GLOBALROOT and bare, pwsh and Windows PowerShell 5.1 | `repo-changed`, `?? out2/` in the repository | `fail`, `script-error`, `unknown`, `no`, `skipped`, exactly six lines, no `out2` in the repository |
-| `trace-run.ps1 -LogPath` via GLOBALROOT and bare, both hosts | `repo-changed`, log inside the repository | `script-error`, no log in the repository |
-| Same two script calls via the control junction | `out-not-outside` / `bad-arguments` | unchanged |
+**CR-01, judged.** I ran the existing Debug build of HEAD (built after the last source commit) against a scratch repository in the session scratchpad, outside the project. `--out C:\` with a scratch current directory: stdout `vdiff: wrote 5 files to C:\`, exit 0, the five files in the scratch current directory, nothing in `C:\`. Cause confirmed in `HeldDirectory.cs` line 186 (`TrimEnd` turns `C:\` into `C:`, the drive-relative path). Repository safety holds: with the current directory inside the analysed repository the same command exits 1 with `--out must not lie inside the analysed repository` (the held directory's final path is judged), the repository status is clean and nothing reached `C:\`. So the goal's "no change to the repository that was read" is not defeated. The literal SC2 clause "everything the run writes lands in the given output directory and nowhere else" is false for this input, TRC-02's "in the output directory" is likewise not met for it, and the success line names a directory the files are not in. Plan 01-16 introduced it: before, the same input wrote to the root or failed. It needs either the small fix (do not trim a root, two tests) or an explicit owner acceptance.
 
-No regression: a normal two-commit run exits 0 and writes the five files, with `summary.mmd` showing `A` modified (`+int y [added]`) and `B` added; a `mklink /J` junction to a directory outside the repository is still followed (exit 0, five files in the target); the repository's status, HEAD and refs are identical before and after. All scratch junctions were removed as links, no `vdiff-links-*` directory remains in the temp area, and `git status` shows only the pre-existing `.planning/config.json` modification.
+**G-01-1 closure, observed.** The swap window is closed on Windows for the CLI's output directory, for the script's log directory, and for `-Out` against the vdiff root:
 
-What keeps the status from `passed` is not a code gap. Three truths are present and wired but cannot be behaviorally proven on this host (two need a symlink privilege, one is a backstop race), and Step 8 produced human items (owner sign-off on accepted residuals, flagged prohibitions, an optional trial re-run). Nothing blocks the phase goal.
+- 91 of the relevant tests pass in one filtered run (`AliasedOutTests`, `FinalPathTests`, `HeldDirectoryTests`, `log_hold`, `protected_directories`), including the staged tests that attack from outside while a sleeping fake sidecar keeps a real run busy, on both PowerShell hosts. The single full run then passed 555 of 555.
+- A private probe (scratchpad) that loads the script's own functions: `Open-HeldDirectory` with a protected anchor throws `held-directory-protected` and creates nothing; with a protected leaf it throws the same and removes the directories it created; on success it returns a path without the extended prefix, and while held a rename of the leaf and of its parent are both refused by the operating system and allowed again after close. Identical on PowerShell 7 and Windows PowerShell 5.1.
+- A normal run through `trace-run.ps1` on both hosts with a nested `-Out` and a nested `-LogPath` chain that does not exist: `pass`, `none`, repository unchanged, five outputs, the log written with the vdiff output, no `*.tmp-*` leftovers; `summary.mmd` shows `A` modified (`+int y [added]`) and `B` added.
+- `-LogPath` spelled with the repository's 8.3 short path (`-Out` was an ordinary path) on both hosts: `bad-arguments`, no directory created in the repository. Which layer caught it, the first text check or the handle judgement, was not separated; nothing is claimed about AR-04.
+- Not attempted successfully: `subst` (the command refused its parameter on this host). AR-04 is out of scope by the owner's decision.
+
+**Claims in the brief, checked.** `dotnet test --list-tests` enumerates 555 tests; the full run passed 555, failed 0, skipped 0 (12 m 26 s). The build is part of that run (0 errors; `dotnet test` built the solution's test project and its dependencies). The security claim (76 threats, 76 closed, `threats_open: 0`, `status: verified`) matches the register: 76 `T-01-` rows, 76 with disposition `closed`; I did not audit the controls behind each row (the register states grep depth, ASVS L1). The Nyquist claim matches `01-VALIDATION.md` (`status: validated`, `nyquist_compliant: true`, sign-off 555 passed); the validation audit itself was not repeated.
 
 ## Goal Achievement
 
 ### Observable Truths
 
+Roadmap success criteria first (the contract), then the carried plan truths of plans 01-01 to 01-15 (truths 6 to 28, carried and regression-checked), then the truths of plans 01-16 and 01-17.
+
 | #  | Truth | Status | Evidence |
 |----|-------|--------|----------|
-| 1  | SC1: a synthetic two-commit C++ repository run through `vdiff --repo --base --head --out` writes model JSON, diff JSON, a Mermaid summary and an HTML page with the expected added and modified types and members | VERIFIED | Fresh run here: exit 0, `base.model.json, diff.json, head.model.json, report.html, summary.mmd`; `summary.mmd` shows `A` modified with `+int y [added]` and `B` added. `TracerEndToEndTests` in the 134-test run pass. |
-| 2  | SC2: a run never changes the repository it reads, and everything written lands in `--out` | VERIFIED | Status, HEAD and refs equal before and after every run in this verification, including the three junction cases that previously failed. `RepoUnchangedMatrixTests` pass in the 134. Previously failed; now closed. |
-| 3  | SC3: Mermaid `classDiagram` with `classDef` per state and member tags passes a syntax check; the HTML page is one self-contained file | VERIFIED | `summary.mmd` seen above (classDef added/removed/modified, trailing `[added]` tags); `MermaidCliSyntaxTests`, `MermaidWriterTests` pass in the 134; writers and extraction/diff sources unchanged since the previous verification (`git diff daae5d0..HEAD` over `src`, `extractors`, `tools` lists only the gap-closure files). |
-| 4  | SC4: a run on a small real C++ PR on a private clone finishes within the R26 budget, output outside this repository, recorded only as pass or fail | VERIFIED (orchestrator-attested) | `docs/trials/phase-1-offline-tracer.md` carries the six-line block (pass, none, under-1-min, yes, yes, ok). Not re-run (private clone). The trial predates plans 01-13 to 01-15; see advisory and the human item. |
-| 5  | SC5: ADR-001 records the packaging choice and the tracer extracts through the chosen sidecar | VERIFIED | ADR status line reads `Accepted (PO, 2026-11-16)`; the sidecar ran in every manual run here (`extractors/cpp-ts/target/release/vdiff-cpp-ts.exe`). |
-| 6  | Repository text cannot make the Mermaid text unparseable through a class id (plan 01-11) | VERIFIED | `MermaidWriter` unchanged; keyword-id tests in the passing run. |
-| 7  | Links and junctions: an `--out`, `-Out` or `-LogPath` reached through a symbolic link or directory junction into the repository is refused, nothing written, repository unchanged (01-12, 01-13 K-6/T-01-41, 01-14 T-01-44, 01-15) | VERIFIED | Ordinary, volume-GUID, GLOBALROOT, bare-device and UNC junctions and chains: refused (live repro for the first, GLOBALROOT, bare and control; `AliasedOutTests`, `FinalPathTests`, `TraceRunScriptTests` pass). Previously failed; now closed. |
-| 8  | 01-13: `--out` in the extended, device, loopback UNC or extended UNC namespace is refused by the CLI with the fixed line, nothing created; protected roots in such a namespace refused; no over-refusal | VERIFIED | `FinalPath.Step` lines 74-77; the namespace theory and mirror/sibling facts pass in the 134-test run. |
-| 9  | 01-13: a hard link planted at any of the five output names is replaced by a regular file; the pointed-to file keeps its bytes | VERIFIED | `OutputWriter.WriteText` temp name plus `File.Move` (no `WriteAllBytes` outside comments); the hard-link test passes. |
-| 10 | 01-13: a file symbolic link planted at an output name is replaced and its target is unchanged | PRESENT_BEHAVIOR_UNVERIFIED | Same replace path as truth 9, but the test returns early where the link cannot be created, as on this host. See `behavior_unverified_items`. |
-| 11 | 01-13: a link swapped in for `--out` after the first check and before the write is caught by a second check immediately before `WriteAll` | VERIFIED | `CliApp.Run` lines 56-61 (seam, second `RefuseUnsafeOut`, `WriteAll`); the swap test passes in the 134-test run. |
-| 12 | 01-13: refusal text for real containment byte-identical; bytes written unchanged; `--out` holds exactly the five names after success; no temp file after a failed write | VERIFIED | `RefuseUnsafeOut` text at lines 113 and 121 unchanged; `DeterminismTests`, `TracerEndToEndTests` and the failed-write test pass; fresh run listed exactly five files. |
-| 13 | 01-14: `trace-run.ps1` refuses a non-drive-namespace `-Out` (out-not-outside) and `-LogPath` (bad-arguments), still passes a sibling directory, prints exactly six fixed lines, reason vocabulary unchanged, both hosts | VERIFIED | Script lines 361-373; `TraceRunScriptTests` pass on both hosts in the 134-test run; the reason vocabulary header line (line 9) is unchanged; six lines observed in every script run here; 0 non-ASCII characters. |
-| 14 | 01-14: a hard link planted at the `-LogPath` entry is replaced by a regular file; the repository file keeps its bytes | VERIFIED | `Write-LogFile` lines 300-316 (attributes read without following, entry deleted, `CreateNew`); the log hard-link test passes on both hosts. |
-| 15 | 01-14: the log write is preceded, after the vdiff run, by a second containment check (verification: backstop, T-01-46) | PRESENT_BEHAVIOR_UNVERIFIED (abstained: insufficient_spec) | Script lines 395-408 put the containment loop before `Write-LogFile` inside the swallow-all try/catch. Evidence is source order only. See `behavior_unverified_items`. |
-| 16 | Failed truth 16 of the previous report (01-13 truth 9 / 01-14 truth 7 / 01-15): the doc comments name exactly what is refused and what remains unresolved | VERIFIED | Read in all four places: `FinalPath.cs` lines 44-55, `CliApp.cs` lines 91-102, `trace-run.ps1` lines 22-34 and 186-195. Each states that on Windows a link is followed only when its reported target is a drive-letter path, names GLOBALROOT, bare device, UNC, volume GUID, relative, no-drive and drive-relative targets as refused, and leaves exactly subst and mapped drives, 8.3 names and IN-04 unresolved, citing T-01-39 and T-01-41. This matches the behavior reproduced above. The old IN-03 sense is no longer cited as open. Previously failed; now closed. |
-| 17 | SPK-02 is evidenced: ADR-001 Accepted and the tracer built on it | VERIFIED | Truth 5. The `[x]`/Complete mark in `REQUIREMENTS.md` was reverted deliberately by `2eaf361` and is orchestrator-owned bookkeeping (plan 01-15 R-6); see Required actions. |
-| 18 | No Azure DevOps contact and no network use anywhere in the tool | VERIFIED | No network types in the sources read; all runs here used local scratch directories only. |
-| 19 | 01-15: an `--out` below a junction whose substitute name is the GLOBALROOT or bare-device form of the repository is refused: exit 1, `vdiff: ` plus the fixed message, stdout empty, nothing created, snapshot unchanged | VERIFIED | Live repro above (both forms); `AliasedOutTests.An_out_through_a_junction_with_an_nt_namespace_target_...(globalroot, device-no-prefix)` pass. |
-| 20 | 01-15: `trace-run.ps1` given `-Out` or `-LogPath` below such a junction reports fail, script-error, six lines, nothing written into the repository, on pwsh and Windows PowerShell 5.1 | VERIFIED | Live repro above on both hosts for both parameters and both forms (`repo_unchanged: unknown`, `outputs_present: no`, `mermaid_syntax: skipped`, no `out2`, no `vdiff.log` in the repository); the four script theories pass. |
-| 21 | 01-15: every one of those tests first proves the junction is live; the junction is a raw reparse-point write needing no privilege | VERIFIED | `AliasedOutTests.cs` lines 219-241 assert `File.Exists(...include/a.h)` through the alias before the run; `LinkScratch.RawJunction` writes `FSCTL_SET_REPARSE_POINT` with no privilege (my own equivalent also worked unprivileged and was live). |
-| 22 | 01-15: `FinalPath.Resolve` refuses on Windows every link whose reported target is not a drive-letter path; a drive-letter junction written by the raw helper is followed like a mklink junction | VERIFIED | `FinalPath.Step` lines 98-101 (`StartsWithDriveLetter(info.LinkTarget)` before `ResolveLinkTarget`); my control junction was refused only by containment (correct), a `mklink /J` junction to an outside directory was followed, and the 28 filtered tests (globalroot, device-no-prefix, unc, raw drive control, 18-row table) pass. |
-| 23 | 01-15: the premise that the runtime reports the substitute name, not the print name, is asserted; NT tests use a drive-letter decoy print name | VERIFIED | Tests read (`AliasedOutTests.cs` lines 229-232 pass `links.Root` as the print name); my repro used the same decoy and the reported target was non-drive in both cases. |
-| 24 | 01-15 (verification: backstop): a Windows symbolic link (not a junction) whose target is relative or NT-absolute is refused by the same rule | PRESENT_BEHAVIOR_UNVERIFIED (abstained: insufficient_spec) | The same text rule applies to both link types (`FinalPath.cs` line 98; `trace-run.ps1` line 226) and is pinned at text level by the reported-target table; no symbolic link could be created here. See `behavior_unverified_items`. |
-| 25 | 01-15: the log-path re-check after the vdiff run no longer repeats the pure-text namespace test (WR-02); the file-system containment re-check stays before the log write | VERIFIED | `trace-run.ps1` lines 395-408 repeat only `Test-SameOrUnder`; `Test-NonDriveRoot $logFull` appears once outside comments (line 369). |
-| 26 | 01-15: the script's reason vocabulary and six-line grammar are unchanged | VERIFIED | Header line 9 unchanged; six lines in the fixed order in every script run here. |
-| 27 | 01-15: behavior on Linux and macOS is unchanged (the rule is Windows-only) | VERIFIED (code reading) | `FinalPath.Step` guards the new condition with `OperatingSystem.IsWindows()`; `Test-NonDriveRoot` returns `$false` unless `$script:IsWin`. Not run on a non-Windows host. |
-| 28 | 01-15: the stale handoff is no longer tracked (IN-01); `01-VALIDATION.md` lists the new tests and the manual-only symbolic-link check | VERIFIED | `git ls-files docs/handoffs` empty; `01-VALIDATION.md` lines 95-97 and the `nt_namespace_target` rows. |
+| 1  | SC1: a synthetic two-commit C++ repository run through `vdiff --repo --base --head --out` writes model JSON, diff JSON, a Mermaid summary and an HTML page with the expected added and modified types and members | VERIFIED | Fresh runs here (CLI and both script hosts): exit 0, `base.model.json, diff.json, head.model.json, report.html, summary.mmd`; `summary.mmd` has `A` modified, `+int y [added]`, `B` added. |
+| 2  | SC2: a run never changes the repository it reads, and everything written lands in `--out` | FAILED (partial, BLOCKER) | Repository half holds (repository status clean after every run here, including the CR-01 repros). The second sentence fails for `--out` given as a drive root: files land in the current directory, success line names `C:\` (reproduced). See gaps. |
+| 3  | SC3: Mermaid `classDiagram` with `classDef` per state and member tags passes a syntax check; the HTML page is one self-contained file | VERIFIED | `summary.mmd` seen above; writers and extraction/diff sources unchanged by plans 01-16 and 01-17; Mermaid and writer tests are in the passing full run. |
+| 4  | SC4: a run on a small real C++ PR on a private clone finishes within the R26 budget, output outside this repository, recorded only as pass or fail | VERIFIED (orchestrator-attested) | `docs/trials/phase-1-offline-tracer.md`; UAT test 5 (pass, recorded before plans 01-16/01-17). Not re-run (private clone). Human re-run recommended. |
+| 5  | SC5: ADR-001 records the packaging choice and the tracer extracts through the chosen sidecar | VERIFIED | ADR-001 unchanged (`Accepted (PO, 2026-11-16)`); the sidecar executable ran in every run here. |
+| 6  | Repository text cannot make the Mermaid text unparseable through a class id (01-11) | VERIFIED | `MermaidWriter` unchanged; its tests are in the passing full run. |
+| 7  | Links and junctions into the repository are refused for `--out`, `-Out`, `-LogPath` (01-12 to 01-15) | VERIFIED | `FinalPathTests`, `AliasedOutTests` and `TraceRunScriptTests` (live junction tests) pass in the full run; `FinalPath.cs` changed only by a comment since the previous verification. |
+| 8  | 01-13: `--out` in the extended, device, loopback UNC or extended UNC namespace is refused with the fixed line, nothing created | VERIFIED | Namespace theories pass in the 91-test run. |
+| 9  | 01-13: a hard link planted at an output name is replaced; the pointed-to file keeps its bytes | VERIFIED | `OutputWriter.WriteText` is temp name plus `File.Move` (read); hard-link test passes. |
+| 10 | 01-13: a file symbolic link planted at an output name is replaced and its target is unchanged | VERIFIED (human UAT) | UAT test 2, result pass, on a privileged host. Not reproducible here (no privilege); same replace path as truth 9. |
+| 11 | 01-13: a link swapped in for `--out` after the first check is caught before the write | VERIFIED | `CliApp.Run` lines 103-106 (second check, seam, hold judged by final path); swap tests pass. |
+| 12 | 01-13: refusal text byte-identical; bytes written unchanged; `--out` holds exactly the five names; no temp file after a failed write | VERIFIED | `RepositoryRefusal` text unchanged; `DeterminismTests`, `TracerEndToEndTests` and the failed-write test pass in the full run; fresh runs list exactly five files, no `*.tmp-*`. |
+| 13 | 01-14: script refuses non-drive-namespace `-Out` and `-LogPath`, six fixed lines, reason vocabulary unchanged, both hosts | VERIFIED | Vocabulary line (line 9) present once and unchanged; six lines in every script run here; 0 non-ASCII characters; `TraceRunScriptTests` pass in the full run. |
+| 14 | 01-14: a hard link planted at the `-LogPath` entry is replaced by a regular file | VERIFIED | `Write-LogFile` lines 462-488 (delete entry, create new, move); log hard-link test passes in the full run. |
+| 15 | 01-14: the log write is preceded after the run by a second containment check (backstop, T-01-46) | VERIFIED (superseded) | Replaced on purpose by plan 01-17 (L-3): on Windows the directory is held and judged before the run, the re-check remains only where no handle is held (script lines 606-613). The intent (no log through a swapped link) is proven by the staged `log_hold` test, which passes on both hosts. UAT test 3 earlier: pass. |
+| 16 | The doc comments name exactly what is refused and what remains unresolved | VERIFIED | `FinalPath.cs`, `CliApp.cs`, `trace-run.ps1` still state "Still unresolved: subst and mapped drive letters, DOS 8.3 short names, and IN-04"; each gained one pointer sentence only. |
+| 17 | SPK-02 is evidenced: ADR-001 Accepted and the tracer built on it | VERIFIED | Truth 5. |
+| 18 | No Azure DevOps contact and no network use anywhere in the tool | VERIFIED | No network types in the new files (`HeldDirectory.cs`, `OutputWriter.cs`, `CliApp.cs`, script): only kernel32 P/Invoke; all runs here were local. |
+| 19 | 01-15: `--out` below a junction whose reported target is GLOBALROOT or bare-device is refused | VERIFIED | `AliasedOutTests` NT-namespace theories pass; `FinalPath.Step` unchanged. |
+| 20 | 01-15: `trace-run.ps1` with such a junction reports fail, script-error, six lines, nothing written | VERIFIED | Script theories pass on both hosts in the full run. |
+| 21 | 01-15: each such test first proves the junction is live | VERIFIED | Unchanged test code, passing. |
+| 22 | 01-15: `FinalPath.Resolve` refuses every Windows link whose reported target is not a drive-letter path | VERIFIED | 37 `FinalPathTests` pass. |
+| 23 | 01-15: the runtime reports the substitute name, not the print name (premise asserted) | VERIFIED | `FinalPathTests` premise assertion passes. |
+| 24 | 01-15 (backstop): a Windows symbolic link whose target is relative or NT-absolute is refused | VERIFIED (human UAT) | UAT test 4, result pass, on a capable host. Not reproducible here. |
+| 25 | 01-15: the post-run log re-check no longer repeats the pure-text namespace test | VERIFIED (superseded) | Superseded by 01-17 (see truth 15); the namespace test is still once, pre-run (script line 541). |
+| 26 | 01-15: reason vocabulary and six-line grammar unchanged | VERIFIED | Line 9 present once; six lines in every run. |
+| 27 | 01-15: behavior on Linux and macOS unchanged (rule is Windows-only) | VERIFIED (code reading) | `FinalPath.Step` guarded by `OperatingSystem.IsWindows()`; not run off Windows (see truths 34 and 45). |
+| 28 | 01-15: stale handoff not tracked; `01-VALIDATION.md` lists the new tests | VERIFIED | Unchanged; `01-VALIDATION.md` carries the 01-16 and 01-17 rows (grep `held_directory`, `log_hold`). |
+| 29 | 01-16: on Windows the output directory is opened without delete sharing before the first file is created and held until the fifth is in place; rename and delete of it and its ancestors are refused, proven from inside the write | VERIFIED | `HeldDirectory.cs` lines 28-31 (share mode 3, no delete share), `CreateHeld`; `A_held_directory_cannot_be_renamed_or_deleted_by_another_process_during_the_write` passes (behavioral: attacks inside the write via the `AfterHeld` seam). Summary's mutation (c) cited, not repeated. |
+| 30 | 01-16: every temp file and move uses the handle's final path; a link entry re-created after the hold receives nothing | VERIFIED | `OutputWriter.WriteAll` passes `held.Path` to every `WriteText` (read, lines 56-60); `A_link_entry_retargeted_while_the_held_directory_is_open_does_not_redirect_the_write` passes. |
+| 31 | 01-16: the held directory's final path is judged before the first byte; a swap between the second check and the hold is refused (exit 1, fixed text, nothing written, created directories removed) | VERIFIED | `JudgedFinalPath` and `RemoveCreated` (read); `A_swap_before_the_held_directory_is_opened_is_refused_by_its_final_path` and the `HeldDirectoryTests` order tests pass. Also observed live: cwd inside the repository with `--out C:\` is refused by this judgement. |
+| 32 | 01-16: acquisition happens after the pipeline and after the text check, so a failure before the write leaves `--out` absent or untouched | VERIFIED | `CliApp.Run` order (lines 89-106 read); nested `--out` created only under the hold in the runs here. |
+| 33 | 01-16: the final path is accepted in two forms only (drive letter judged, UNC accepted unjudged); every other form refused with the fixed text; an eight-row table pins it | VERIFIED | `HeldDirectory.Normalize` lines 73-91 (read); the 8-row theory passes. |
+| 34 | 01-16 (backstop): on Linux and macOS no handle is held; the resolved path is judged before and after directory creation; the bound is stated; the swap-before-hold test runs there too | PRESENT_BEHAVIOR_UNVERIFIED (abstained: insufficient_spec) | `CreateNarrowed` (lines 137-160) does what the truth states and the paragraph is present at three CLI sites (`grep` count 3); the non-Windows run is not observed on this Windows host. See `behavior_unverified_items`. |
+| 35 | 01-16: a run with no swap is unchanged (five files, same bytes, no `*.tmp-*`, the success line names the typed path) | VERIFIED | Normal runs here; `CliApp.Run` line 110 prints `outPath`, the typed full path. (This is also why CR-01 misreports.) |
+| 36 | 01-16: one identical swap-interval paragraph at `RefuseUnsafeOut`, `HeldDirectory`, `OutputWriter.WriteAll`; one pointer sentence in `CliApp` and `FinalPath`; T-01-39 wording intact | VERIFIED | `grep -c 'Check-to-write interval (T-01-43, T-01-46)'` over the three files: 3; `grep -c 'separate bound (T-01-43, T-01-46)'` over CliApp and FinalPath: 2; "Still unresolved" sentence intact. |
+| 37 | 01-16: no test, comment or truth claims subst, mapped drives or 8.3 names are refused; AR-04 not edited | VERIFIED | `grep -ci subst` on `HeldDirectory.cs` and `HeldDirectoryTests.cs`: 0 and 0; the AR-04 row is identical from plan 01-17's base (`5a1a4e2`) to HEAD (diff of `^[-+]\| AR-04` is empty). |
+| 38 | 01-17: on Windows, both hosts, a `-LogPath` run opens the log's directory without delete sharing before vdiff starts, holds it until the log is written, judges its final path against the vdiff root, work tree and git directories; rename of it and its parent is refused during the run, proven by a staged test | VERIFIED | `Open-HeldDirectory` (script lines 387-444, read), hold taken before the snapshot (line 571) and closed in `finally` (line 660); `The_log_hold_blocks_a_rename_and_a_retargeted_link_entry_receives_no_log` passes on pwsh and powershell; my own probe shows the lock on both hosts. |
+| 39 | 01-17: the log is written by temp name plus move through the held directory's final path; a retargeted link entry receives nothing; a missing chain is created under the judged anchor | VERIFIED | `Write-LogFile` (lines 462-488, read) called only as `Write-LogFile $logHold.Path` (grep `Write-LogFile $logFull` outside comments: 0); the staged test and `A_log_path_below_missing_directories...` pass on both hosts; my normal run created `logs\deep` and wrote the log. |
+| 40 | 01-17: a protected verdict by handle ends the run with bad-arguments before vdiff starts; any other hold failure skips the log silently | PRESENT_BEHAVIOR_UNVERIFIED | Verdict function observed by my probe (both hosts); mapping at line 574 read. No repository test reaches it (review WR-03, confirmed by grep). See `behavior_unverified_items`. |
+| 41 | 01-17: native calls are compiled with `Add-Type` lazily, only with `-LogPath` on Windows, from a fixed single-quoted two-declaration text | VERIFIED | `Initialize-HoldType` lines 305-316 (fixed single-quoted here-string, two `DllImport` members); called only inside the Windows branch of `Open-HeldDirectory`, which is called only when `$logFull` is set; `Add-Type` appears once outside comments. |
+| 42 | 01-17: the CLI refuses an `--out` inside any `VDIFF_PROTECTED_DIRS` entry at both checks and in the held directory; a malformed value is refused with one fixed message naming no value | VERIFIED | `CliApp` lines 74-75, 172-175, 208-212, 223-239 (read); the eight CLI `protected_directories` cases pass (below, itself, through-link, relative, empty entry, nine entries, post-check swap, control). |
+| 43 | 01-17: a staged script test swaps `-Out` for a link into a stand-in vdiff root during the run; the CLI refuses, nothing is written, six fixed lines | VERIFIED | `An_out_retargeted_into_the_vdiff_root_during_the_run_receives_nothing_protected_directories` passes on both hosts; the script passes the root only through the environment (`$protectedForChild`, lines 591 and 594; `$vdiffArgs` lines naming `VdiffRoot`: 0). The summary's mutation check is cited, not repeated. |
+| 44 | 01-17: no command-line argument added or changed (D-03) | VERIFIED | `git diff --stat 65261d3 HEAD -- src/Vdiff.Core/Cli/CliOptions.cs` is empty; `grep -ci protect CliOptions.cs`: 0. |
+| 45 | 01-17 (backstop): on Linux and macOS no handle is held and no type is compiled; the post-run re-check stays; the bound is stated in the script, the register and the validation map | PRESENT_BEHAVIOR_UNVERIFIED (abstained: insufficient_spec) | Off-Windows branch read (script lines 424-433, 609-613); statement present (script paragraph count 1; register rows). Not run off Windows. See `behavior_unverified_items`. |
+| 46 | 01-17: the T-01-43 and T-01-46 rows and the residual line describe the new guarantee and its bound, the millisecond claim is gone, AR-04 unedited, the script carries the same paragraph and pointer sentences | VERIFIED | Rows at `01-SECURITY.md` lines 89 and 92 read; `grep -ci millisecond`: 0; `grep -c 'is not closed'`: 0; script paragraph 1, pointer 2. The plan's literal pattern "held across" is not in the file (advisory; wording only). |
+| 47 | 01-17: no test, comment or truth claims subst, mapped drives or 5.1 8.3 names are now refused; AR-04's changed rationale is recorded, not edited | VERIFIED | Not-edited gates for 01-16 (`65261d3` to `a817266`) and 01-17 (`5a1a4e2` to `f4f1a05`) are empty for the files the plans forbid; the AR-04 row is unchanged through HEAD; the stale rationale is in `01-17-SUMMARY.md` "Flagged to the orchestrator" and in the human items above. |
 
-**Score:** 25/28 truths verified; 3 present, behavior-unverified (truths 10, 15, 24); 0 failed.
-
-The plan's mutation (non-vacuity) record (rows and hosts that fail under a weakened rule) is cited from `01-15-SUMMARY.md`; I could not repeat it without editing source. The red commit `8d6e84a` touches only three test files (`git show --stat`).
+**Score:** 43/47 truths verified; 3 present, behavior-unverified (34, 40, 45); 1 failed, partial (2).
 
 ### Deferred Items
 
-None. No later roadmap phase covers the `--out` guard.
+None. No later roadmap phase covers the drive-root `--out` defect or the guard.
 
 ### Advisory (New Scope, Unevidenced)
 
-| # | Finding | Category | Why Advisory |
-|---|---------|----------|--------------|
-| 1 | WR-05: harmless Windows links (relative symlink, mounted volume folder) are refused with a message that names the wrong problem | other | Fail-closed by design (R-2, T-01-47, AR-13); a message and coverage defect, not a goal defect |
-| 2 | IN-07, IN-08, and the carried WR-01, IN-02, IN-03, IN-04, WR-03, WR-04, IN-05, IN-06 | other | Recorded in the review and disposition; none affects a must-have |
-| 3 | SC4 trial record predates the hardening plans | other | Normal path covered by tests and a fresh run; re-run recommended as a human item |
+See `advisory` in the frontmatter: WR-01 (long-path regression, unreproduced for the CLI), WR-02 (physical path in an I/O exception text), WR-03 to WR-06, IN-01 to IN-07 (plus the stale IN-08 row), the "held across" pattern miss, and the age of the SC4 trial record.
 
 ### Required Artifacts
 
+`verify.artifacts` and `verify.key-links` were run for plans 01-16 and 01-17.
+
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `src/Vdiff.Core/Cli/FinalPath.cs` | allow-list on the reported link target; volume GUID helper removed | VERIFIED | `verify.artifacts` 7/7 for plan 01-15; `IsVolumeGuidTarget` count 0; line 98 |
-| `scripts/trace-run.ps1` | `Test-NonDriveRoot $target`; redundant re-test removed | VERIFIED | line 226; `Volume{` absent; 0 non-ASCII characters |
-| `tests/Vdiff.Tests/Support/LinkScratch.cs` | `RawJunction`, `NtSubstituteName`, cleanup as links | VERIFIED | `Dispose` removes links first with non-recursive `Directory.Delete`, then `Root`; registered before the control call |
-| `AliasedOutTests.cs`, `FinalPathTests.cs`, `TraceRunScriptTests.cs` | NT-namespace regression nets | VERIFIED | 28 filtered tests pass |
-| `01-VALIDATION.md` | map rows, manual-only symlink row | VERIFIED | |
-| Artifacts of plans 01-01 to 01-14 | as before | VERIFIED | `verify.artifacts` and `verify.key-links` pass for every plan 01-01 to 01-14 (all counts equal totals) |
+| Plan 01-16 artifacts | 6 files | VERIFIED | `verify.artifacts` 6/6; `verify.key-links` 4/4 |
+| `src/Vdiff.Core/Output/HeldDirectory.cs` | `Create`, `Normalize`, `GetFinalPathNameByHandleW`, acquisition order, non-Windows narrowing | VERIFIED (with gap) | 254 lines, two `DllImport`, handle share mode 3; the CR-01 defect is in `SplitAtDeepestExisting` |
+| `src/Vdiff.Core/Output/OutputWriter.cs` | `WriteAll` writes only through a `HeldDirectory` path, creates no directory | VERIFIED | `Directory.CreateDirectory` outside comments: 0 |
+| Plan 01-17 artifacts | 7 files | VERIFIED (6/7 by pattern) | `verify.artifacts` 6/7; the miss is the pattern "held across" in `01-SECURITY.md` (content present in other words, see advisory); `verify.key-links` 3/3 |
+| `scripts/trace-run.ps1` | `Initialize-HoldType`, `Open-HeldDirectory`, `Close-HeldDirectory`, rewritten `Write-LogFile`, hold in `Invoke-Trace`, env pass-through | VERIFIED | read lines 295-488 and 530-662; ASCII only |
+| Artifacts of plans 01-01 to 01-15 | as before | VERIFIED (carried) | sources unchanged apart from the files named; full run |
 
 ### Key Link Verification
 
 | From | To | Status | Details |
 |------|----|--------|---------|
-| `AliasedOutTests` / `TraceRunScriptTests` | `LinkScratch.RawJunction` | WIRED | `verify.key-links` 5/5 for plan 01-15 |
-| `CliApp.RefuseUnsafeOut` | `FinalPath.Resolve` | WIRED | lines 116-119; the only link-reading site in `src/` is `FinalPath.Step` |
-| `trace-run.ps1` | `FinalPath.cs` rule | WIRED | same predicate before the combine in both |
-| `CliApp.Run` | `RefuseUnsafeOut` before `WriteAll` | WIRED | lines 59-61 |
+| `CliApp.Run` | `HeldDirectory.Create` | WIRED | line 106, with `FindRefusal` as the judgement |
+| `HeldDirectory` | `FinalPath` | WIRED | `StartsWithDriveLetter`, `UnsupportedRootMessage`, `UnresolvableMessage`, `Resolve` (via `FindRefusal`) |
+| `OutputWriter.WriteAll` | `HeldDirectory` | WIRED | line 108 passes `held`; every `WriteText` uses `held.Path` |
+| `trace-run.ps1` | `CliApp` (`VDIFF_PROTECTED_DIRS`) | WIRED | script line 594 sets it, `CliApp` line 75 reads it |
+| `trace-run.ps1` `Open-HeldDirectory` | `HeldDirectory.Create` | WIRED (same rule, two implementations) | same order, same forms; one difference remains (CR-01: the script does not trim a root) |
+| tests | fake sidecar delay mode | WIRED | staged tests wait on the pid file |
 
 ### Data-Flow Trace (Level 4)
 
 | Artifact | Data Variable | Source | Produces Real Data | Status |
 |----------|---------------|--------|--------------------|--------|
-| `diff.json`, `summary.mmd`, `report.html` | `DiffFile` | git object reads, sidecar extraction, `ModelDiffer` | Yes: the fresh run's output names modified `A` and added `B` | FLOWING |
+| `diff.json`, `summary.mmd`, `report.html` | `DiffFile` | git object reads, sidecar extraction, `ModelDiffer` | Yes: runs here name modified `A` and added `B` | FLOWING |
+| `vdiff.log` | `run.Stdout`/`run.Stderr` | the vdiff child process | Yes: file contains `vdiff: wrote 5 files to ...` | FLOWING |
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| Normal run, two-commit scratch repository | `dotnet vdiff.dll --repo --base --head --out <outside>` | exit 0, five files, correct classDiagram | PASS |
-| GLOBALROOT junction, CLI | `--out <junction>\outx` | exit 1, fixed line, repository unchanged | PASS |
-| Bare-device junction, CLI | same | exit 1, fixed line | PASS |
-| GLOBALROOT and bare junctions, `trace-run.ps1 -Out` and `-LogPath`, pwsh and 5.1 | six-line output | `fail`, `script-error`, nothing written | PASS (8 of 8 combinations) |
-| Control drive-letter junction into the repository | CLI and script | refused by containment (exit 1; `out-not-outside`, `bad-arguments`) | PASS |
-| `mklink /J` junction to an outside directory | `--out <junction>\viajn` | exit 0, five files in the target | PASS (no over-refusal) |
-| Filtered, new tests: `nt_namespace_target`, `raw_junction`, `reported_link_target` | `dotnet test --filter` | 28 passed, 0 failed (30 s) | PASS |
-| Filtered regression: `AliasedOutTests`, `FinalPathTests`, `TraceRunScriptTests`, `RepoUnchangedMatrixTests`, `TracerEndToEndTests`, `MermaidCliSyntaxTests`, `DeterminismTests` | `dotnet test --no-build --filter` | 134 passed, 0 failed, 0 skipped (7 m 14 s) | PASS |
-| Leftover links | `ls $TEMP | grep -c '^vdiff-links-'` | 0 | PASS |
+| CR-01 drive-root `--out` | `dotnet vdiff.dll ... --out C:\` with a scratch current directory | exit 0, "wrote 5 files to C:\", five files in the current directory, none in `C:\` | FAIL (defect reproduced) |
+| CR-01 with current directory inside the repository | same | exit 1, `--out must not lie inside the analysed repository`; repository status clean | PASS (guard holds) |
+| Relevant tests | `dotnet test --filter "held_directory\|HeldDirectoryTests\|protected_directories\|log_hold\|AliasedOutTests\|FinalPathTests"` | 91 passed, 0 failed, 0 skipped (2 m 55 s) | PASS |
+| Test count | `dotnet test --list-tests --no-build` | 555 | PASS (matches the claim) |
+| Full suite, run once | `dotnet test tests/Vdiff.Tests/Vdiff.Tests.csproj --no-build` | 555 passed, 0 failed, 0 skipped (12 m 26 s) | PASS |
+| Script hold functions, both hosts (private probe of `Open-HeldDirectory`) | protected anchor, protected leaf, success | verdict thrown, nothing left behind, prefix stripped, rename of leaf and parent refused while held and allowed after close | PASS |
+| Normal script run, nested `-Out` and `-LogPath` chains, both hosts | `trace-run.ps1 ... -LogPath <missing chain>` | pass, none, repo unchanged, five outputs, log present, no `*.tmp-*` | PASS |
+| 8.3 short-path `-LogPath` into the repository, both hosts | `trace-run.ps1 -LogPath <short repo path>\include\shortlog\vdiff.log` | `bad-arguments`, no directory created in the repository | PASS (layer not separated) |
+| Plan acceptance greps | see truths 36, 37, 41, 44, 46 | all as planned | PASS |
+| Leftovers | `ls $TEMP \| grep -c '^vdiff-links-'`; `git status --short` | 0; only `.planning/config.json` (pre-existing) and this report | PASS |
 
-The full xunit suite (last recorded 524 passed, 0 failed, 9 m 57 s, in `01-15-SUMMARY.md` and `01-VALIDATION.md`) was not repeated. The sources changed since the previous verification are confined to the gap-closure files, all of which sit inside the filtered runs. Scratch scripts used for the repro live in the session scratchpad outside the project and are not committed.
+The scratch repository, scratch outputs and probe scripts live in the session scratchpad outside the project and are not committed. The CR-01 reproduction does not change any tracked file.
 
 ### Probe Execution
 
@@ -261,97 +311,104 @@ Step 7c: SKIPPED. No `probe-*.sh` is declared by the plans or present under `scr
 
 ### Requirements Coverage
 
-Requirement IDs from plan frontmatter across all 15 plans: SPK-02 (01-01, 01-03, 01-06, 01-10, 01-14, 01-15), TRC-01 (01-02 to 01-05, 01-12, 01-13, 01-15), TRC-02 (01-01 to 01-03, 01-05 to 01-09, 01-11, 01-15), TRC-03 (01-10, 01-12, 01-14, 01-15). All four appear in `REQUIREMENTS.md` and in the roadmap's Phase 1 line; no orphaned Phase 1 requirement.
+Requirement IDs declared in plan frontmatter, plans 01-01 to 01-17: SPK-02, TRC-01, TRC-02, TRC-03 (01-16 declares TRC-01; 01-17 declares TRC-01 and TRC-03). All four appear in `REQUIREMENTS.md` and in the roadmap's Phase 1 line. No orphaned Phase 1 requirement.
 
 | Requirement | Source plans | Description | Status | Evidence |
 |-------------|--------------|-------------|--------|----------|
-| TRC-01 | 01-02 to 01-05, 01-12, 01-13, 01-15 | Offline run with explicit commits; reads git objects; repository unchanged | SATISFIED | Truths 1, 2, 7, 8, 9, 11, 12, 19, 22. Open only as human checks: the symlink forms (10, 24). |
-| TRC-02 | 01-01 to 01-03, 01-05 to 01-09, 01-11, 01-15 | C++ type and member diff as model JSON, diff JSON, Mermaid classDiagram, HTML | SATISFIED | Truths 1, 3, 6, 12 |
-| TRC-03 | 01-10, 01-12, 01-14, 01-15 | Run on a real private PR, outputs outside this repository, no identifiers recorded | SATISFIED (orchestrator-attested) | Truth 4, truths 13, 14, 20; trial re-run is a recommended human item |
-| SPK-02 | 01-01, 01-03, 01-06, 01-10, 01-14, 01-15 | ADR-001 recorded, tracer built on it | SATISFIED | Truths 5, 17 |
+| TRC-01 | 01-02 to 01-05, 01-12, 01-13, 01-15, 01-16, 01-17 | Offline run with explicit commits; reads git objects; repository unchanged | SATISFIED | Truths 1, 7 to 9, 11, 29 to 33, 42; repository status clean after every run here. CR-01 concerns where output lands, not this text. |
+| TRC-02 | 01-01 to 01-03, 01-05 to 01-09, 01-11, 01-15 | C++ type and member diff as model JSON, diff JSON, Mermaid classDiagram, HTML, in the output directory | PARTIAL (one input) | Truths 1, 3, 6, 12 hold for every ordinary `--out`; CR-01 means the outputs are not written in the output directory for `--out` given as a drive root (gap on truth 2) |
+| TRC-03 | 01-10, 01-12, 01-14, 01-15, 01-17 | Real private PR, outputs outside this repository, no identifiers recorded | SATISFIED (orchestrator-attested) | Truths 4, 13, 14, 38 to 43; UAT 5 pass; trial re-run recommended |
+| SPK-02 | 01-01, 01-03, 01-06, 01-10, 01-14, 01-15 | ADR-001 recorded, tracer built on it | SATISFIED | Truths 5 and 17 |
+
+**REQUIREMENTS.md mismatch (bookkeeping, not a code gap).** At HEAD `REQUIREMENTS.md` shows TRC-01 and TRC-03 as `[x]` and `Complete` (set by the 01-17 closing commit `f16ea0b`), while TRC-02 and SPK-02 still read `[ ]` and `Gaps Found`. Plan 01-14 task 3 expects `[x] **SPK-02**` and a `| SPK-02 | Phase 1 | Complete |` row; commit `cc570a1` made that edit and `2eaf361` reverted it on purpose (premature Complete while gaps were open), so that plan's verify cannot pass at HEAD. Against the evidence above: SPK-02 is satisfied and may be checked now; TRC-01 and TRC-03 are supported; TRC-02 should stay unchecked until CR-01 is fixed or accepted. The project's own convention (`2eaf361`, `b60fd72`) is to hold `Complete` marks while the phase verification is `gaps_found`, so the 01-17 executor's early marks of TRC-01 and TRC-03 are at odds with it; this is the orchestrator's call, I make no edit.
 
 ### Test Quality Audit
 
 | Test file | Linked req | Active | Skipped | Circular | Assertion level | Verdict |
 |-----------|-----------|--------|---------|----------|-----------------|---------|
-| `Safety/AliasedOutTests.cs` | TRC-01 | 23 | 0 (silent early returns: non-Windows guards and the no-privilege symlink fact) | none | behavioral (exit, stderr text, snapshot equality, liveness) | Adequate; the symlink fact is vacuous on this host (truth 10) |
-| `Safety/FinalPathTests.cs` | TRC-01 | 37 (15 earlier plus 22 new, 18 of them table rows) | 0 | none | value and behavioral | Adequate; includes the premise assertion |
-| `Trial/TraceRunScriptTests.cs` | TRC-03 | 49 on Windows | 0 | none | behavioral | Adequate; one source-text pin (truth 15) |
+| `Safety/HeldDirectoryTests.cs` | TRC-01 | 12 (4 facts, 8 rows) | 0 (one Windows-only early return) | none | behavioral for create, cleanup and dispose; value-level for the table | Adequate; no root-input case (CR-01) |
+| `Safety/AliasedOutTests.cs` | TRC-01 | 34 | 0 (silent early returns off Windows and without the symlink privilege) | none | behavioral (exit, stderr text, snapshot, attacks from inside the run via hooks) | Adequate; gap for the drive-root input |
+| `Trial/TraceRunScriptTests.cs` | TRC-03 | 57 on Windows | 0 | none | behavioral (staged runs wait on the pid file); source-order pins | Adequate; no test of the handle verdict (WR-03) |
 
-Disabled tests on requirements: 0. Circular patterns: 0. The silent early returns are advisory (review IN-02).
+Disabled tests on requirements: 0. Circular patterns: 0.
 
 ### Decision Coverage
 
-All trackable `01-CONTEXT.md` decisions D-01 to D-11 are honored by shipped artifacts; the 01-15 plan covers D-02, D-03 and D-09 and its source audit lists the rest as unaffected. Not blocking.
+Decisions D-02, D-03 and D-09 of `01-CONTEXT.md` are honored by plans 01-16 and 01-17: no argument added (truth 44), repository read-only, synthetic fixtures; no machine value found by the debt and privacy greps. Others unaffected. Not blocking.
 
 ### Prohibitions (judgment tier; LLM-judge verdicts are non-authoritative)
 
+Plans 01-16 and 01-17 add eight; the seven of plans 01-13 to 01-15 were confirmed in UAT test 7 and are not repeated.
+
 | Prohibition | Plan | Verdict | Flag |
 |-------------|------|---------|------|
-| MUST NOT modify any file other than the five output files, whether the repository or another file is reached through an alternate namespace, a link, a planted hard link or a swap | 01-13 | Honoured. Previously violated for the GLOBALROOT junction; now refused (repro). Swap interval after the second check is a stated residual (T-01-43). | unverified-prohibition: human review recommended |
-| MUST NOT print a path, commit id or .NET exception text in any refusal the plan adds | 01-13 | Honoured: `UnsupportedRootMessage` and `UnresolvableMessage` are constant text; observed stderr in the repro carries no path. | unverified-prohibition: human review recommended |
-| MUST NOT print or record any path, commit id, user or machine name in the six lines for any refusal the plan adds | 01-14 | Honoured: six fixed lines observed in every script run here. | unverified-prohibition: human review recommended |
-| MUST NOT write the log to any file other than the `-LogPath` entry, whether another namespace, a link, a hard link or a swap | 01-14 | Honoured. Previously violated for the GLOBALROOT junction; now no log in the repository on both hosts (repro). | unverified-prohibition: human review recommended |
-| MUST NOT write into the repository, or anywhere other than the five output names and the `-LogPath` entry, through a junction or symbolic link whose reported target is not a drive-letter path | 01-15 | Honoured for junctions (repro, GLOBALROOT, bare device, UNC row at resolver level); the symlink spelling is behavior-unverified (truth 24). | unverified-prohibition: human review recommended |
-| MUST NOT print or record a path, commit id, device number, user name or machine name in any refusal this plan adds, in the six script lines, or in a committed file | 01-15 | Honoured: grep for `HarddiskVolume` followed by a digit across `*.cs`, `*.ps1`, `*.md` finds nothing; the test table uses the letter N; device name is read at run time. | unverified-prohibition: human review recommended |
-| MUST NOT leave a junction in the system temp area, and no test cleanup may follow a junction into a real directory | 01-15 | Honoured: `LinkScratch.Dispose` deletes links non-recursively before `Root`; `vdiff-links-*` count 0 after both test runs; my own scratch cleanup used the same order. | unverified-prohibition: human review recommended |
+| MUST NOT write into or replace a file in the repository through a link or directory swap after the last check | 01-16 | Honoured on Windows (staged and unit tests pass; the held directory's judgement refuses even the CR-01 case when the current directory is the repository). Off Windows bounded by statement. | unverified-prohibition: human review recommended |
+| MUST NOT add an argument, change the five names, the exit-code contract or the success line | 01-16 | Honoured: `CliOptions.cs` unchanged, names are constants, success line text unchanged. CR-01 shows the success line can name a place the files are not in. | unverified-prohibition: human review recommended |
+| MUST NOT print or record a path, commit id, device name, user or machine name in any refusal this plan adds | 01-16 | Honoured for the refusals it adds (fixed texts). WR-02: the pre-existing I/O error branch now prints the held directory's physical path. | unverified-prohibition: human review recommended |
+| MUST NOT leave a junction or link in the temp area; cleanup must not follow a link | 01-16 | Honoured: 0 `vdiff-links-*` entries after my runs. | unverified-prohibition: human review recommended |
+| MUST NOT write the log or any file into the analysed or vdiff repository through a link or swap during the run | 01-17 | Honoured on Windows (staged test, my probe, normal runs). | unverified-prohibition: human review recommended |
+| MUST NOT print or record a path, commit id, device name, user or machine name in the six lines, a refusal, a fixture or a committed file | 01-17 | Honoured: six fixed lines in every run here. | unverified-prohibition: human review recommended |
+| MUST NOT add an argument to vdiff or a new reason to the script | 01-17 | Honoured: vocabulary line present once, unchanged; `CliOptions.cs` unchanged. | unverified-prohibition: human review recommended |
+| MUST NOT leave a junction in the temp area; no cleanup may follow a link | 01-17 | Honoured: 0 leftovers. | unverified-prohibition: human review recommended |
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
-| `FinalPath.cs`, `trace-run.ps1`, `CliApp.cs` | 95-101, 224-227 | New refusal also refuses harmless relative links with a generic message | Warning | Advisory WR-05; fail-closed by design |
-| Four comment blocks | - | Same ten-line paragraph copied | Info | Advisory IN-08 |
-| files modified by the phase | - | TBD, FIXME, XXX | none found | Debt-marker gate clear (grep over `src`, `scripts`, `tests/Vdiff.Tests`, `extractors/cpp-ts/src`, `tools/mermaid-check/check.mjs`) |
+| `src/Vdiff.Core/Output/HeldDirectory.cs` | 186 | `TrimEnd` of separators before the existence test turns a root into its drive-relative form | Blocker (SC2 second clause; the gap) | CR-01 |
+| `src/Vdiff.Core/Cli/CliApp.cs` | 117-120 | prints `e.Message` of I/O exceptions, now carrying the held physical path | Warning | advisory WR-02 |
+| `HeldDirectory.cs`, `trace-run.ps1` | 216, 324 | handle opened without the extended-length prefix | Warning | advisory WR-01 |
+| files modified by the phase | - | TBD, FIXME, XXX | none found | Debt-marker gate clear (grep over the nine files changed by plans 01-16 and 01-17) |
 
 ### Human Verification Required
 
-#### 1. File symbolic link replaced at an output name
+#### 1. CR-01 disposition
 
-**Test:** On a host that can create file symlinks, run `dotnet test tests/Vdiff.Tests/Vdiff.Tests.csproj --filter FullyQualifiedName~A_file_symbolic_link_planted` and confirm the test asserted rather than returned early.
-**Expected:** exit 0, victim file unchanged, output no longer a link.
-**Why human:** no symlink privilege on the dev host.
+**Test:** Decide whether to close the gap (do not trim a root in `HeldDirectory.SplitAtDeepestExisting`; add a root-input unit test and a `CliApp.Run` test with a scratch current directory; check the script's `Open-HeldDirectory` for the same input) or to accept it.
+**Expected:** A gap-closure plan, or an explicit owner acceptance recorded as an override against SC2.
+**Why human:** The fix is small and the exposure narrow; shipping a reproduced misdirected-output defect is the owner's call. An override is not suggested: this is a defect, not an intentional deviation.
 
-#### 2. Staged swap during a script run (backstop)
+#### 2. UAT test 1 (G-01-1) re-verification, and optionally test 3
 
-**Test:** Run `trace-run.ps1` with a slow `-VdiffDll` and swap the log's parent for a junction into the repository during the run.
-**Expected:** no log in the repository; six lines unchanged; snapshot unchanged.
-**Why human:** no deterministic automated swap exists.
+**Test:** Review `01-17-SUMMARY.md` and this report against UAT test 1; optionally repeat test 3 (staged swap during a script run) by hand.
+**Expected:** The owner confirms the swap-window scope (held directory, final-path writes, `VDIFF_PROTECTED_DIRS`) is closed on Windows and that the stated Linux and macOS bound is acceptable.
+**Why human:** Closure of an owner-raised, owner-scoped gap.
 
-#### 3. Windows symbolic link (not junction), relative or NT-absolute target
+#### 3. AR-04 sign-off on its actual basis
 
-**Test:** On a capable host, `mklink` (no `/J`) into a sandbox repository, then `vdiff --out` and `trace-run.ps1 -Out` / `-LogPath` below it.
-**Expected:** CLI exit 1 with the fixed line; script `script-error`; nothing written.
-**Why human:** no symlink privilege on the dev host.
+**Test:** Re-read AR-04 in `01-SECURITY.md` against `01-17-SUMMARY.md` "Flagged to the orchestrator".
+**Expected:** Recorded acknowledgement that the row no longer rests on "a 5.1 script cannot call a final-path function without compiling code" and that subst, mapped drive letters, DOS 8.3 names and IN-04 stay accepted on the owner's sign-off alone.
+**Why human:** Acceptance of risk is the owner's decision.
 
-#### 4. Trial wrapper re-run on the private clone (recommended)
+#### 4. Linux and macOS runs (truths 34 and 45)
 
-**Test:** Run `scripts/trace-run.ps1` once against the private clone with the hardened script; record only the six-line block.
+**Test:** Run the suite, or the filters in `behavior_unverified_items[1]` and `[2]`, on a Linux and on a macOS host.
+**Expected:** All pass; the non-Windows tests execute rather than return early.
+**Why human:** Windows-only development host.
+
+#### 5. Protected verdict by handle, end to end (truth 40)
+
+**Test:** See `behavior_unverified_items[0]`.
+**Expected:** `bad-arguments` with six fixed lines before vdiff starts; a type that cannot compile skips the log and the run passes.
+**Why human:** No repository test reaches it; accept as follow-up (review WR-03) or add the test.
+
+#### 6. Trial wrapper re-run on the private clone (recommended)
+
+**Test:** Run `scripts/trace-run.ps1` once against the private clone with the current script; record only the six-line block.
 **Expected:** pass, none, under budget, repo_unchanged yes, outputs_present yes, mermaid_syntax ok.
-**Why human:** private target content stays out of this repository; the existing record predates plans 01-13 to 01-15.
+**Why human:** The existing record and UAT test 5 predate plans 01-16 and 01-17; private target content stays out of this repository.
 
-#### 5. Owner sign-off on accepted residuals
-
-**Test:** Review AR-04 (T-01-39: subst and mapped drive letters, DOS 8.3 names, IN-04) and AR-13 (T-01-47: every non-drive-letter Windows link target refused, including a relative symbolic link) in `01-SECURITY.md`.
-**Expected:** explicit acceptance recorded; the comment wording is now accurate.
-**Why human:** risk acceptance is the owner's decision.
-
-#### 6. Seven flagged judgment-tier prohibitions
+#### 7. Eight new flagged prohibitions
 
 **Test:** Confirm or overrule the verdicts in the Prohibitions section.
-**Expected:** all seven honoured.
-**Why human:** LLM-judge verdicts are non-authoritative.
-
-### Required actions for the orchestrator (bookkeeping, not gaps)
-
-- `REQUIREMENTS.md`: the TRC-01, TRC-02, TRC-03 and SPK-02 checkboxes are unchecked and the traceability rows read `Gaps Found` (reverted on purpose by `2eaf361`). Set them to checked and `Complete` once the human items above are accepted.
-- `01-REVIEW-DISPOSITION.md` still lists every finding as `open`. CR-01 (fixed and verified here), WR-02 (necessity) and IN-01 (fixed) can be marked `fixed`; WR-01 and the symlink-related IN-07 can be marked `deferred` to a privileged or Linux run; WR-05 is advisory.
-- `01-SECURITY.md`: line 121 still says `01-VERIFICATION.md (status human_needed)` about an older report; update the wording after this report lands. T-01-41 and T-01-44 are re-closed there with the 01-15 mitigation, and this verification now supports that at behavior depth, not only grep depth.
-- `01-UAT.md` (not modified here): the copy in the working tree still shows test 1 as `[pending]` with `status: testing`. If it carries recorded human results elsewhere, merge the human items above into it.
+**Expected:** All read as honoured; note WR-02 under the 01-16 message prohibition.
+**Why human:** Judgment tier: LLM-judge verdicts are non-authoritative.
 
 ### Gaps Summary
 
-No gaps. The one root cause behind the previous three failed truths (a one-entry denylist on a raw link target) is replaced by one allow-list on the reported target in both implementations, and the escape no longer reproduces on the CLI or on either PowerShell host. The phase goal, including its last clause (no change to the repository that was read), holds for every form I could build and run on this host. The remaining items are behavior-unverified truths that need a symlink-capable host or a race, plus owner decisions and a recommended trial re-run.
+One gap, one root cause: `HeldDirectory.SplitAtDeepestExisting` trims the trailing separator of a root path, so `--out C:\` is acted on as `C:`, the current directory on that drive. The five outputs then land in the current directory while the success line names the drive root. This is the review's CR-01, reproduced here, introduced by plan 01-16, and fixed by testing the path length against `Path.GetPathRoot` before trimming, with a root-input unit test and a CLI test; the script's `Open-HeldDirectory` does not trim and so already differs. The repository-unchanged guarantee is not affected: the held directory's final-path judgement refused the same input when the current directory was inside the repository. TRC-02's wording is partly affected for that input; TRC-01's is not.
+
+Everything else the product owner scoped for G-01-1 is achieved and observed on Windows, including the Windows-only swap tests on both PowerShell hosts and a full run of 555 tests with no failure. What remains outside the gap list is a Linux and macOS observation, one script path with no test (the handle verdict), owner decisions on the sign-offs, and a recommended trial re-run. The other 13 findings of the review (6 warnings, 7 info) fail closed or are coverage and wording gaps; `01-REVIEW-DISPOSITION.md` lists 15 rows (it keeps a stale IN-08) and all are still `open`.
 
 ---
 
