@@ -384,15 +384,15 @@ function Invoke-Trace([hashtable]$F) {
     $seconds = $clock.Elapsed.TotalSeconds
     $F.wall = Get-WallClock $seconds
 
-    # The log is diagnostic: it is checked again here, after the long vdiff run and just before the
-    # write (T-01-46), and an unsafe or unresolvable path skips it silently. No reason changes.
+    # The log is diagnostic: its containment is checked again here, after the long vdiff run and just
+    # before the write (T-01-46), and an unsafe or unresolvable path skips it silently. No reason
+    # changes. Only the containment test is repeated: the namespace test is a pure text test on a
+    # string that cannot have changed since the first check, while containment reads the file system.
     if ($logFull) {
         try {
-            $logSafe = -not (Test-NonDriveRoot $logFull)
-            if ($logSafe) {
-                foreach ($dir in $protected) {
-                    if (Test-SameOrUnder $logFull $dir) { $logSafe = $false; break }
-                }
+            $logSafe = $true
+            foreach ($dir in $protected) {
+                if (Test-SameOrUnder $logFull $dir) { $logSafe = $false; break }
             }
             if ($logSafe) { Write-LogFile $logFull ([string]$run.Stdout + "`n" + [string]$run.Stderr) }
         }
