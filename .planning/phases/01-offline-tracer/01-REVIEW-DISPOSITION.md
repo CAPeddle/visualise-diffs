@@ -3,6 +3,18 @@ phase: 01
 review: 01-REVIEW.md
 titles: json
 findings:
+  - id: IN-01
+    severity: info
+    disposition: open
+    title: "`SplitAtDeepestExisting` still accepts a non-fully-qualified path; the drive-relative case is defended only upstream"
+  - id: IN-02
+    severity: info
+    disposition: open
+    title: "The keep-the-root trim is written four times"
+  - id: IN-03
+    severity: info
+    disposition: open
+    title: "The root tests fail, not skip, when the host runs from a drive root"
   - id: CR-01
     severity: critical
     disposition: open
@@ -31,18 +43,6 @@ findings:
     severity: warning
     disposition: open
     title: "(carried forward from WR-01) The file-symbolic-link test passes vacuously without the privilege"
-  - id: IN-01
-    severity: info
-    disposition: open
-    title: "The non-Windows creation path differs from the Windows one in two small ways"
-  - id: IN-02
-    severity: info
-    disposition: open
-    title: "The limit of 8 is written three times and its boundary is untested"
-  - id: IN-03
-    severity: info
-    disposition: open
-    title: "The staged tests race a fixed five-second window, and `EnvironmentScope` leaks on a partial construction"
   - id: IN-04
     severity: info
     disposition: open
@@ -65,27 +65,27 @@ findings:
     title: "The same ten-line \"Bound (T-01-39 / T-01-41)\" paragraph now exists in four places"
 open: 15
 total: 15
-recorded: 2026-11-18T19:17:58.355Z
+recorded: 2026-11-18T21:27:57.883Z
 ---
 
 # Phase 01: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| CR-01 | critical | open | - |
-| WR-01 | warning | open | - |
-| WR-02 | warning | open | - |
-| WR-03 | warning | open | - |
-| WR-04 | warning | open | - |
-| WR-05 | warning | open | - |
-| WR-06 | warning | open | - |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
-| IN-04 | info | open | - |
-| IN-05 | info | open | - |
-| IN-06 | info | open | - |
-| IN-07 | info | open | - |
+| CR-01 | critical | open | - (not in the current review) |
+| WR-01 | warning | open | - (not in the current review) |
+| WR-02 | warning | open | - (not in the current review) |
+| WR-03 | warning | open | - (not in the current review) |
+| WR-04 | warning | open | - (not in the current review) |
+| WR-05 | warning | open | - (not in the current review) |
+| WR-06 | warning | open | - (not in the current review) |
+| IN-04 | info | open | - (not in the current review) |
+| IN-05 | info | open | - (not in the current review) |
+| IN-06 | info | open | - (not in the current review) |
+| IN-07 | info | open | - (not in the current review) |
 | IN-08 | info | open | - (not in the current review) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
