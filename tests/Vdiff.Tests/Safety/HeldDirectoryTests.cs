@@ -107,4 +107,106 @@ public class HeldDirectoryTests
         Assert.Equal(expectedPath, result.Path);
         Assert.Equal(judged, result.Judged);
     }
+
+    // ---- A drive root is held as the root (CR-01, T-01-60) ----
+    // The root is taken from the process's own current directory, never a literal drive letter: the
+    // drive-relative form "C:" names the current directory on that drive, so only this choice makes
+    // the rows discriminate. No test here changes the current directory or writes into the root; the
+    // existing root is opened read-only and nothing is created (the remainder is empty).
+
+    static readonly StringComparison PathComparison =
+        OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+
+    /// <summary>
+    /// Removes trailing directory and alternate separators but never shortens the text below the
+    /// root of the path, so "/", "///" and "C:\" become the bare root and ".../a/b/" becomes ".../a/b".
+    /// Test code only: on Linux and macOS the held path is the typed spelling.
+    /// </summary>
+    static string TrimTrailingSeparatorsKeepingRoot(string path)
+    {
+        var root = Path.GetPathRoot(path) ?? string.Empty;
+        var trimmed = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return trimmed.Length < root.Length ? root : trimmed;
+    }
+
+    static bool SamePath(string left, string right) =>
+        string.Equals(TrimTrailingSeparatorsKeepingRoot(left), TrimTrailingSeparatorsKeepingRoot(right), PathComparison);
+
+    static string CurrentDriveRoot(out string currentDirectory)
+    {
+        currentDirectory = Directory.GetCurrentDirectory();
+        var root = Path.GetPathRoot(currentDirectory)!;
+        Assert.False(SamePath(currentDirectory, root), "the test host runs from the drive root, so the rows cannot discriminate");
+        return root;
+    }
+
+    [Theory]
+    [InlineData("root")]
+    [InlineData("root-with-alternate-separator")]
+    [InlineData("root-with-two-trailing-separators")]
+    public void A_drive_root_is_held_as_the_root_and_never_as_the_current_directory(string spelling)
+    {
+        var root = CurrentDriveRoot(out var currentDirectory);
+        var typed = spelling switch
+        {
+            "root" => root,
+            "root-with-alternate-separator" => root.Replace(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+            "root-with-two-trailing-separators" => root + Path.DirectorySeparatorChar + Path.AltDirectorySeparatorChar,
+            _ => throw new ArgumentOutOfRangeException(nameof(spelling)),
+        };
+
+        using var held = HeldDirectory.Create(typed, _ => null);
+
+        Assert.False(
+            SamePath(held.Path, currentDirectory),
+            "the held directory is the process's current directory, not the typed root");
+        Assert.True(SamePath(held.Path, root), "the held directory is not the typed root");
+    }
+
+    [Theory]
+    [InlineData("none")]
+    [InlineData("separator")]
+    [InlineData("alternate-separator")]
+    public void A_directory_below_a_drive_root_is_held_without_its_trailing_separator_and_not_widened_to_the_root(string suffix)
+    {
+        var root = CurrentDriveRoot(out _);
+        using var scratch = new LinkScratch();
+        var below = Path.Combine(scratch.Root, "a", "b");
+        var typed = suffix switch
+        {
+            "none" => below,
+            "separator" => below + Path.DirectorySeparatorChar,
+            "alternate-separator" => below + Path.AltDirectorySeparatorChar,
+            _ => throw new ArgumentOutOfRangeException(nameof(suffix)),
+        };
+
+        using var held = HeldDirectory.Create(typed, _ => null);
+
+        var path = TrimTrailingSeparatorsKeepingRoot(held.Path);
+        Assert.EndsWith(Path.Combine("a", "b"), path, PathComparison);
+        Assert.False(SamePath(path, root), "the directory was widened to the root");
+        Assert.False(SamePath(path, scratch.Root), "the directory was narrowed to its parent");
+        Assert.True(Directory.Exists(below));
+    }
+
+    [Fact]
+    public void A_drive_root_is_judged_as_the_root_by_the_final_path_function_and_a_refusal_creates_nothing()
+    {
+        var root = CurrentDriveRoot(out var currentDirectory);
+        var seen = new List<string>();
+
+        var e = Assert.Throws<VdiffException>(() =>
+        {
+            using var held = HeldDirectory.Create(root, p =>
+            {
+                seen.Add(p);
+                return SamePath(p, root) ? Refused : null;
+            });
+        });
+
+        Assert.Equal(Refused, e.Message);
+        Assert.Contains(seen, p => SamePath(p, root));
+        Assert.DoesNotContain(seen, p => SamePath(p, currentDirectory));
+        Assert.True(Directory.Exists(root));
+    }
 }

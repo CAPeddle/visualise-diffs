@@ -656,4 +656,64 @@ public class AliasedOutTests
 
         Assert.Empty(Directory.GetFileSystemEntries(vroot));
     }
+
+    // ---- --out given as a drive root (CR-01, T-01-60, T-01-62) ----
+
+    /// <summary>Thrown from the AfterHeld seam so the run stops before the first byte is written.</summary>
+    sealed class StopBeforeFirstWrite : Exception;
+
+    /// <summary>Trailing separators removed, never below the root of the path (test-local; the product trim is under test).</summary>
+    static string TrimKeepingRoot(string path)
+    {
+        var root = Path.GetPathRoot(path) ?? string.Empty;
+        var trimmed = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return trimmed.Length < root.Length ? root : trimmed;
+    }
+
+    [Fact]
+    public void An_out_given_as_a_drive_root_reaches_the_held_directory_as_that_root_and_not_the_current_directory()
+    {
+        // Safe on a development machine by construction: the hook records the directory every file would
+        // go to and throws before OutputWriter.WriteAll, so nothing is written into a real drive root, and
+        // the process's current directory (process-wide state shared with parallel tests) is not changed.
+        var currentDirectory = Directory.GetCurrentDirectory();
+        var root = Path.GetPathRoot(currentDirectory)!;
+        Assert.NotEqual(
+            root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+            currentDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+            StringComparer.OrdinalIgnoreCase);
+
+        using var repo = new SyntheticRepo();
+        var (baseId, headId) = BuildSmallHistory(repo);
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+        string? recorded = null;
+        using var outWriter = new StringWriter();
+        using var errWriter = new StringWriter();
+
+        var hooks = WithProtected(null, new CliHooks(AfterHeld: path =>
+        {
+            recorded = path;
+            throw new StopBeforeFirstWrite();
+        }));
+
+        var exit = CliApp.Run(Args(repo.RepoDir, baseId, headId, root), outWriter, errWriter, hooks);
+
+        Assert.True(recorded is not null, "the run did not reach the held directory: " + errWriter);
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        Assert.False(
+            string.Equals(TrimKeepingRoot(recorded!), TrimKeepingRoot(currentDirectory), comparison),
+            "the held directory is the process's current directory, not the typed root");
+        Assert.True(
+            string.Equals(TrimKeepingRoot(recorded!), TrimKeepingRoot(root), comparison),
+            "the held directory is not the typed root");
+        Assert.Equal(1, exit);
+        Assert.Equal("vdiff: unexpected failure (StopBeforeFirstWrite)\n", errWriter.ToString());
+        Assert.Empty(outWriter.ToString());
+        Assert.Empty(Directory.GetFileSystemEntries(repo.OutDir));
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+        foreach (var name in FiveFiles)
+        {
+            Assert.False(File.Exists(Path.Combine(currentDirectory, name)), name);
+        }
+    }
 }
