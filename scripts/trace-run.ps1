@@ -292,27 +292,197 @@ function Get-WallClock([double]$Seconds) {
     return 'over-20-min'
 }
 
-# Writes the diagnostic log without following a link planted at its name (T-01-45, WR-01).
-# A directory, symbolic link or junction at the name means no log (a create-new open would
-# follow a dangling link and create its target); a plain file or a hard link is removed by name,
-# which removes only the directory entry and never the file it points to; the log is then
-# created new. Attributes are read, not followed, so a dangling link is seen too.
-function Write-LogFile([string]$Path, [string]$Text) {
-    $dirName = Split-Path -Parent $Path
-    if ($dirName -and -not (Test-Path -LiteralPath $dirName)) { [void](New-Item -ItemType Directory -Path $dirName) }
+# ---- the held log directory (G-01-1; T-01-43, T-01-46) ------------------------------------------
+
+$script:HoldTypeReady = $false
+
+# Compiles the two native declarations once per process. Called only on Windows and only when
+# -LogPath is given (L-2). The text is fixed and single-quoted: no argument and no repository
+# content reaches it. A host that forbids compiling (Constrained Language Mode) makes this throw,
+# the caller then holds nothing, and the log is skipped silently, never written unprotected.
+function Initialize-HoldType {
+    if ($script:HoldTypeReady) { return }
+    $members = @'
+[System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, SetLastError = true)]
+public static extern Microsoft.Win32.SafeHandles.SafeFileHandle CreateFileW(string fileName, uint desiredAccess, uint shareMode, System.IntPtr securityAttributes, uint creationDisposition, uint flagsAndAttributes, System.IntPtr templateFile);
+
+[System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, SetLastError = true)]
+public static extern uint GetFinalPathNameByHandleW(Microsoft.Win32.SafeHandles.SafeFileHandle handle, System.Text.StringBuilder filePath, uint filePathLength, uint flags);
+'@
+    Add-Type -MemberDefinition $members -Name 'HoldNative' -Namespace 'VdiffTrace'
+    $script:HoldTypeReady = $true
+}
+
+# GENERIC_READ 2147483648 (a hex literal above 0x7FFFFFFF is a negative integer in PowerShell),
+# FILE_SHARE_READ + FILE_SHARE_WRITE 3 (no delete sharing), OPEN_EXISTING 3, and
+# FILE_FLAG_BACKUP_SEMANTICS 33554432 (0x02000000, needed to open a directory). The flag that
+# opens a link itself instead of following it is deliberately not set, so a link at the last
+# component is followed and the place the log would really land is what is judged.
+function Open-DirectoryHandle([string]$Directory) {
+    $handle = [VdiffTrace.HoldNative]::CreateFileW($Directory, [uint32]2147483648, [uint32]3, [IntPtr]::Zero, [uint32]3, [uint32]33554432, [IntPtr]::Zero)
+    if ($handle.IsInvalid) {
+        $handle.Dispose()
+        throw 'cannot open directory'
+    }
+    return $handle
+}
+
+function Get-HandleFinalPath($Handle) {
+    $builder = New-Object System.Text.StringBuilder -ArgumentList 1024
+    $length = [VdiffTrace.HoldNative]::GetFinalPathNameByHandleW($Handle, $builder, [uint32]$builder.Capacity, [uint32]0)
+    if ($length -ge $builder.Capacity) {
+        # Too small: the call returned the size it needs, including the terminator.
+        $builder = New-Object System.Text.StringBuilder -ArgumentList ([int]$length + 1)
+        $length = [VdiffTrace.HoldNative]::GetFinalPathNameByHandleW($Handle, $builder, [uint32]$builder.Capacity, [uint32]0)
+    }
+    if ($length -eq 0 -or $length -ge $builder.Capacity) { throw 'unresolvable final path' }
+    return $builder.ToString()
+}
+
+# The final-path forms Windows reports, reduced to a path files can be written to (the same rule
+# as HeldDirectory.Normalize in the C# tool). A drive-letter path loses its extended-length prefix
+# and is judged. A UNC path becomes \\server\share\... and is accepted without being judged: the
+# guard has never judged those spellings and this function makes no claim about them. Every other
+# shape throws.
+function ConvertFrom-FinalPathForm([string]$FinalPath) {
+    $unc = '\\?\UNC\'
+    $extended = '\\?\'
+    if ($FinalPath.StartsWith($unc, [StringComparison]::OrdinalIgnoreCase) -and $FinalPath.Length -gt $unc.Length) {
+        return (New-Object PSObject -Property @{ Path = ('\\' + $FinalPath.Substring($unc.Length)); Judged = $false })
+    }
+    if ($FinalPath.StartsWith($extended, [StringComparison]::Ordinal)) {
+        $rest = $FinalPath.Substring($extended.Length)
+        if ($rest -cmatch '^[A-Za-z]:\x5C') {
+            return (New-Object PSObject -Property @{ Path = $rest; Judged = $true })
+        }
+    }
+    throw 'unsupported final path'
+}
+
+function Test-UnderAny([string]$Path, [string[]]$Dirs) {
+    foreach ($dir in $Dirs) {
+        if (Test-LexicallySameOrUnder $Path $dir) { return $true }
+    }
+    return $false
+}
+
+function Get-JudgedFinalPath($Handle, [string[]]$ResolvedProtected) {
+    $form = ConvertFrom-FinalPathForm (Get-HandleFinalPath $Handle)
+    if ($form.Judged -and (Test-UnderAny $form.Path $ResolvedProtected)) { throw 'held-directory-protected' }
+    return $form.Path
+}
+
+# Opens the directory, creating the missing chain under it, judges its final path against the
+# protected directories and returns an object with Path (the only path the log may be written
+# through) and Handle. The same rule as HeldDirectory.Create in the C# tool, in the same order:
+# the deepest existing ancestor (the anchor) is opened and judged before anything is created, the
+# missing directories are created under the anchor's final path, the leaf is opened and judged,
+# and only then is the anchor released. A refusal or a failure after a directory was created
+# removes the directories this call created, bottom-up and non-recursively. A protected verdict
+# throws the fixed text held-directory-protected; any other failure throws something else and
+# the caller skips the log. Off Windows no handle is held (Handle is null): the resolved anchor
+# is judged before and the resolved leaf after the directories are created.
+function Open-HeldDirectory([string]$Path, [string[]]$Protected) {
+    $full = Get-FullPath $Path
+    $resolvedProtected = @()
+    foreach ($dir in $Protected) { $resolvedProtected += (Resolve-FinalPath $dir) }
+
+    $remainder = New-Object 'System.Collections.Generic.List[string]'
+    $anchor = $full
+    while (-not [IO.Directory]::Exists($anchor)) {
+        $parent = [IO.Path]::GetDirectoryName($anchor)
+        if ([string]::IsNullOrEmpty($parent)) { throw 'unresolvable path' }
+        $remainder.Insert(0, [IO.Path]::GetFileName($anchor))
+        $anchor = $parent
+    }
+
+    $created = New-Object 'System.Collections.Generic.List[string]'
+    $anchorHandle = $null
+    $leafHandle = $null
+    try {
+        if ($script:IsWin) {
+            Initialize-HoldType
+            $anchorHandle = Open-DirectoryHandle $anchor
+            $leafDirectory = Get-JudgedFinalPath $anchorHandle $resolvedProtected
+            foreach ($segment in $remainder) {
+                $leafDirectory = [IO.Path]::Combine($leafDirectory, $segment)
+                if (-not [IO.Directory]::Exists($leafDirectory)) {
+                    [void][IO.Directory]::CreateDirectory($leafDirectory)
+                    $created.Add($leafDirectory)
+                }
+            }
+            $leafHandle = Open-DirectoryHandle $leafDirectory
+            $leafPath = Get-JudgedFinalPath $leafHandle $resolvedProtected
+            $anchorHandle.Dispose()
+            $anchorHandle = $null
+            $held = New-Object PSObject -Property @{ Path = $leafPath; Handle = $leafHandle }
+            $leafHandle = $null
+            return $held
+        }
+        if (Test-UnderAny (Resolve-FinalPath $anchor) $resolvedProtected) { throw 'held-directory-protected' }
+        $current = $anchor
+        foreach ($segment in $remainder) {
+            $current = [IO.Path]::Combine($current, $segment)
+            [void][IO.Directory]::CreateDirectory($current)
+            $created.Add($current)
+        }
+        $resolvedLeaf = Resolve-FinalPath $full
+        if (Test-UnderAny $resolvedLeaf $resolvedProtected) { throw 'held-directory-protected' }
+        return (New-Object PSObject -Property @{ Path = $resolvedLeaf; Handle = $null })
+    }
+    catch {
+        $failure = $_
+        if ($null -ne $leafHandle) { $leafHandle.Dispose() }
+        if ($null -ne $anchorHandle) { $anchorHandle.Dispose() }
+        for ($i = $created.Count - 1; $i -ge 0; $i--) {
+            try { [IO.Directory]::Delete($created[$i]) } catch { $null = $_ }
+        }
+        throw $failure
+    }
+}
+
+function Close-HeldDirectory($Hold) {
+    if ($null -eq $Hold) { return }
+    if ($null -ne $Hold.Handle) {
+        try { $Hold.Handle.Dispose() } catch { $null = $_ }
+    }
+}
+
+# Writes the diagnostic log through the final path of the held directory, never through the typed
+# -LogPath: a link entry in the typed path can be retargeted while the directory is held (T-01-45,
+# T-01-46, WR-01). A directory, symbolic link or junction at the final name means no log; a plain
+# file or a hard link is removed by name, which removes only the directory entry and never the
+# file it points to. The text goes to a temporary name made of the leaf, .tmp- and a new GUID
+# (created new, no sharing) and is then moved to the final name with a plain move: the final name
+# was just freed, and a link planted there in the meantime makes the move fail instead of being
+# followed. Attributes are read, not followed, so a dangling link is seen too. On any failure the
+# temporary file is deleted and the error propagates.
+function Write-LogFile([string]$HeldPath, [string]$LeafName, [string]$Text) {
+    $final = [IO.Path]::Combine($HeldPath, $LeafName)
     $attributes = $null
-    try { $attributes = [IO.File]::GetAttributes($Path) }
+    try { $attributes = [IO.File]::GetAttributes($final) }
     catch [System.IO.FileNotFoundException] { $attributes = $null }
     catch [System.IO.DirectoryNotFoundException] { $attributes = $null }
     if ($null -ne $attributes) {
         if (($attributes -band [IO.FileAttributes]::Directory) -ne 0) { return }
         if (($attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { return }
-        [IO.File]::Delete($Path)
+        [IO.File]::Delete($final)
     }
+    $temporary = [IO.Path]::Combine($HeldPath, $LeafName + '.tmp-' + [Guid]::NewGuid().ToString('N'))
     $bytes = (New-Object System.Text.UTF8Encoding($false)).GetBytes($Text)
-    $stream = [IO.File]::Open($Path, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
-    try { $stream.Write($bytes, 0, $bytes.Length) }
-    finally { $stream.Dispose() }
+    $moved = $false
+    try {
+        $stream = [IO.File]::Open($temporary, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+        try { $stream.Write($bytes, 0, $bytes.Length) }
+        finally { $stream.Dispose() }
+        [IO.File]::Move($temporary, $final)
+        $moved = $true
+    }
+    finally {
+        if (-not $moved) {
+            try { [IO.File]::Delete($temporary) } catch { $null = $_ }
+        }
+    }
 }
 
 # ---- the run ----------------------------------------------------------------------------
@@ -379,73 +549,97 @@ function Invoke-Trace([hashtable]$F) {
     $dllFull = Get-FullPath $dll
     if (-not (Test-Path -LiteralPath $dllFull -PathType Leaf)) { $F.reason = 'tool-failed'; return }
 
-    # Before the run: from here on the fields describe a real run.
-    $before = Get-RepoSnapshot $repoFull
-
-    $vdiffArgs = @($dllFull, '--repo', $repoFull, '--base', $Base, '--head', $Head, '--out', $outFull)
-    foreach ($name in $blankNames) { $vdiffArgs += @('--blank', $name) }
-    foreach ($glob in $includeGlobs) { $vdiffArgs += @('--include', $glob) }
-
-    $clock = [Diagnostics.Stopwatch]::StartNew()
-    $run = Invoke-Native 'dotnet' $vdiffArgs $script:VdiffTimeoutMs @() $null
-    $clock.Stop()
-    $seconds = $clock.Elapsed.TotalSeconds
-    $F.wall = Get-WallClock $seconds
-
-    # The log is diagnostic: its containment is checked again here, after the long vdiff run and just
-    # before the write (T-01-46), and an unsafe or unresolvable path skips it silently. No reason
-    # changes. Only the containment test is repeated: the namespace test is a pure text test on a
-    # string that cannot have changed since the first check, while containment reads the file system.
+    # The log's directory is opened and judged by its final path now, before anything runs, and held
+    # until the log is written (L-3). A protected verdict ends the run as the first check does; any
+    # other failure (the type cannot be compiled, a directory cannot be created) leaves no hold and
+    # no log, and the run goes on (L-2).
+    $logHold = $null
     if ($logFull) {
-        try {
-            $logSafe = $true
-            foreach ($dir in $protected) {
-                if (Test-SameOrUnder $logFull $dir) { $logSafe = $false; break }
+        try { $logHold = Open-HeldDirectory ([IO.Path]::GetDirectoryName($logFull)) $protected }
+        catch {
+            $holdFailure = $_
+            if ($holdFailure.Exception.Message -eq 'held-directory-protected') { $F.reason = 'bad-arguments'; return }
+            $logHold = $null
+        }
+    }
+
+    try {
+        # Before the run: from here on the fields describe a real run.
+        $before = Get-RepoSnapshot $repoFull
+
+        $vdiffArgs = @($dllFull, '--repo', $repoFull, '--base', $Base, '--head', $Head, '--out', $outFull)
+        foreach ($name in $blankNames) { $vdiffArgs += @('--blank', $name) }
+        foreach ($glob in $includeGlobs) { $vdiffArgs += @('--include', $glob) }
+
+        $clock = [Diagnostics.Stopwatch]::StartNew()
+        $run = Invoke-Native 'dotnet' $vdiffArgs $script:VdiffTimeoutMs @() $null
+        $clock.Stop()
+        $seconds = $clock.Elapsed.TotalSeconds
+        $F.wall = Get-WallClock $seconds
+
+        # The log is diagnostic and is written through the final path of the held directory. Where no
+        # handle is held (Linux and macOS) its containment is checked again here, after the long vdiff
+        # run and just before the write (T-01-46), and an unsafe or unresolvable path skips it silently;
+        # with a handle the final path judged before the run is the decisive fact and a by-name re-check
+        # after a retarget would suppress a log that is safely written. No reason changes. Only the
+        # containment test is repeated: the namespace test is a pure text test on a string that cannot
+        # have changed since the first check, while containment reads the file system.
+        if ($logHold) {
+            try {
+                $logSafe = $true
+                if ($null -eq $logHold.Handle) {
+                    foreach ($dir in $protected) {
+                        if (Test-SameOrUnder $logFull $dir) { $logSafe = $false; break }
+                    }
+                }
+                if ($logSafe) { Write-LogFile $logHold.Path ([IO.Path]::GetFileName($logFull)) ([string]$run.Stdout + "`n" + [string]$run.Stderr) }
             }
-            if ($logSafe) { Write-LogFile $logFull ([string]$run.Stdout + "`n" + [string]$run.Stderr) }
+            catch { $null = $_ }
         }
-        catch { $null = $_ }
-    }
 
-    $snapshotFailed = $false
-    $after = $null
-    try { $after = Get-RepoSnapshot $repoFull } catch { $snapshotFailed = $true }
-    if ($snapshotFailed) { $F.unchanged = 'unknown' }
-    elseif ($after -eq $before) { $F.unchanged = 'yes' }
-    else { $F.unchanged = 'no' }
+        $snapshotFailed = $false
+        $after = $null
+        try { $after = Get-RepoSnapshot $repoFull } catch { $snapshotFailed = $true }
+        if ($snapshotFailed) { $F.unchanged = 'unknown' }
+        elseif ($after -eq $before) { $F.unchanged = 'yes' }
+        else { $F.unchanged = 'no' }
 
-    $expected = @('base.model.json', 'head.model.json', 'diff.json', 'summary.mmd', 'report.html')
-    $present = $true
-    foreach ($file in $expected) {
-        if (-not (Test-Path -LiteralPath (Join-Path $outFull $file) -PathType Leaf)) { $present = $false }
-    }
-    if ($present) { $F.outputs = 'yes' } else { $F.outputs = 'no' }
-
-    $vdiffOk = (-not $run.TimedOut) -and ($run.ExitCode -eq 0)
-
-    # Informational only: never changes the result (D-02). The fixed check of plan 01-09
-    # raises the text-size limit; mermaid-cli is never called directly from here.
-    $checkScript = Join-Path $script:VdiffRoot 'tools/mermaid-check/check.mjs'
-    $packages = Join-Path $script:VdiffRoot 'tools/mermaid-check/node_modules'
-    $summary = Join-Path $outFull 'summary.mmd'
-    if ((-not $SkipMermaid) -and $vdiffOk -and (Test-Path -LiteralPath $summary -PathType Leaf) -and
-        (Test-Path -LiteralPath $checkScript -PathType Leaf) -and (Test-Path -LiteralPath $packages -PathType Container)) {
-        try {
-            $check = Invoke-Native 'node' @($checkScript, $summary) $script:MermaidTimeoutMs @() $null
-            if ($check.TimedOut) { $F.mermaid = 'fail' }
-            elseif ($check.ExitCode -eq 0) { $F.mermaid = 'ok' }
-            elseif ($check.ExitCode -eq 3) { $F.mermaid = 'skipped' }
-            else { $F.mermaid = 'fail' }
+        $expected = @('base.model.json', 'head.model.json', 'diff.json', 'summary.mmd', 'report.html')
+        $present = $true
+        foreach ($file in $expected) {
+            if (-not (Test-Path -LiteralPath (Join-Path $outFull $file) -PathType Leaf)) { $present = $false }
         }
-        catch { $F.mermaid = 'skipped' }
-    }
+        if ($present) { $F.outputs = 'yes' } else { $F.outputs = 'no' }
 
-    if (-not $vdiffOk) { $F.reason = 'tool-failed' }
-    elseif ($F.unchanged -eq 'unknown') { $F.reason = 'script-error' }
-    elseif ($F.unchanged -ne 'yes') { $F.reason = 'repo-changed' }
-    elseif ($F.outputs -ne 'yes') { $F.reason = 'outputs-missing' }
-    elseif ($seconds -ge $script:BudgetSeconds) { $F.reason = 'over-budget' }
-    else { $F.reason = 'none'; $F.result = 'pass' }
+        $vdiffOk = (-not $run.TimedOut) -and ($run.ExitCode -eq 0)
+
+        # Informational only: never changes the result (D-02). The fixed check of plan 01-09
+        # raises the text-size limit; mermaid-cli is never called directly from here.
+        $checkScript = Join-Path $script:VdiffRoot 'tools/mermaid-check/check.mjs'
+        $packages = Join-Path $script:VdiffRoot 'tools/mermaid-check/node_modules'
+        $summary = Join-Path $outFull 'summary.mmd'
+        if ((-not $SkipMermaid) -and $vdiffOk -and (Test-Path -LiteralPath $summary -PathType Leaf) -and
+            (Test-Path -LiteralPath $checkScript -PathType Leaf) -and (Test-Path -LiteralPath $packages -PathType Container)) {
+            try {
+                $check = Invoke-Native 'node' @($checkScript, $summary) $script:MermaidTimeoutMs @() $null
+                if ($check.TimedOut) { $F.mermaid = 'fail' }
+                elseif ($check.ExitCode -eq 0) { $F.mermaid = 'ok' }
+                elseif ($check.ExitCode -eq 3) { $F.mermaid = 'skipped' }
+                else { $F.mermaid = 'fail' }
+            }
+            catch { $F.mermaid = 'skipped' }
+        }
+
+        if (-not $vdiffOk) { $F.reason = 'tool-failed' }
+        elseif ($F.unchanged -eq 'unknown') { $F.reason = 'script-error' }
+        elseif ($F.unchanged -ne 'yes') { $F.reason = 'repo-changed' }
+        elseif ($F.outputs -ne 'yes') { $F.reason = 'outputs-missing' }
+        elseif ($seconds -ge $script:BudgetSeconds) { $F.reason = 'over-budget' }
+        else { $F.reason = 'none'; $F.result = 'pass' }
+    }
+    finally {
+        Close-HeldDirectory $logHold
+    }
 }
 
 $script:UnboundArguments = $args
