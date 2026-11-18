@@ -1,137 +1,134 @@
 ---
 phase: 01-offline-tracer
-reviewed: 2026-11-17T00:00:00Z
+reviewed: 2026-11-18T00:00:00Z
 depth: standard
-files_reviewed: 12
+files_reviewed: 11
 files_reviewed_list:
   - scripts/trace-run.ps1
   - src/Vdiff.Core/Cli/CliApp.cs
   - src/Vdiff.Core/Cli/FinalPath.cs
-  - src/Vdiff.Core/Output/MermaidWriter.cs
-  - tests/Vdiff.Tests/Output/DeterminismTests.cs
-  - tests/Vdiff.Tests/Output/MermaidCliSyntaxTests.cs
-  - tests/Vdiff.Tests/Output/MermaidLint.cs
-  - tests/Vdiff.Tests/Output/MermaidWriterTests.cs
+  - src/Vdiff.Core/Output/OutputWriter.cs
+  - src/Vdiff.Core/Vdiff.Core.csproj
   - tests/Vdiff.Tests/Safety/AliasedOutTests.cs
   - tests/Vdiff.Tests/Safety/FinalPathTests.cs
   - tests/Vdiff.Tests/Support/LinkScratch.cs
+  - tests/Vdiff.Tests/Support/PathSpellings.cs
   - tests/Vdiff.Tests/Trial/TraceRunScriptTests.cs
+  - docs/handoffs/phase-01-gap-closure-interrupted-by-shutdown.md
 findings:
   critical: 1
   warning: 2
-  info: 4
-  total: 7
-  necessity: 0
+  info: 3
+  total: 6
+  necessity: 1
 status: issues_found
 ---
 
-# Phase 01: Code Review Report (gap-closure re-review)
+# Phase 01: Code Review Report (gap-closure re-review of plans 01-13 and 01-14)
 
-**Reviewed:** 2026-11-17
+**Reviewed:** 2026-11-18
 **Depth:** standard
-**Files Reviewed:** 12
+**Files Reviewed:** 11
 **Status:** issues_found
-
-## Scope note
-
-This report covers only the gap-closure diff `fe6c08e..HEAD` (plans 01-11 and 01-12) for the files listed above. It supersedes nothing outside that scope. The earlier full phase review stays in git at `d120fc1`; its findings and their disposition are in `01-REVIEW-DISPOSITION.md`. No structural (fallow) findings were supplied and no external reviewer evidence was supplied. The necessity rubric (`necessity-review.md`) was read; no necessity findings result (the second, resolved containment check is deliberate defence in depth, not a guard against an impossible state).
 
 ## Summary
 
-Plan 01-11 (the `C_` class-id prefix) is correct. `ClassId` is the only place an id is produced, `Render` threads the same `ids` list into `AppendClass` and into every edge endpoint in `Edges`, and `MermaidLint` plus the writer tests now fail on a bare id or an unprefixed edge endpoint. Nothing else in `src` or `tools` reads or builds class ids. The removed "T before a leading digit" and empty-id branches are correctly dead now that every id starts with `C_`.
+Scope: the files changed by plans 01-13 (CLI side) and 01-14 (script side), checked against the previous findings CR-01, WR-01 and WR-02. No structural (fallow) findings and no external reviewer evidence were supplied. The necessity rubric was read.
 
-Plan 01-12 (link resolution before the `--out` containment test) closes the junction and symbolic-link aliasing that gap 2 reproduced. I ran `FinalPathTests`, `AliasedOutTests`, `MermaidWriterTests` and the eight `Aliased_*` script tests on both PowerShell hosts: 73 pass. The link walk itself is sound: loop and ancestor-cycle detection terminate (the shared counter is never reset on recursion), relative targets are combined against the already-resolved prefix, dangling links resolve to their missing target, and every resolver failure becomes the one fixed message.
+Disposition of the previous findings, verified against the code and by running it on this Windows host (PowerShell 7.7 and Windows PowerShell 5.1, a fresh Release build of the current source):
 
-However, the guard still has a reproducible hole. The three named alias forms the plan accepted as residual (subst drives, 8.3 names) are not the only ones: Windows path namespaces that never go through a link at all (`\\?\C:\...`, loopback UNC `\\localhost\C$\...`) pass both the lexical and the resolved test and write inside the repository. I reproduced this against `vdiff.dll`. Two further ways to land bytes in the repository (a pre-existing file link in `--out`, and a check-then-write gap) are listed as warnings.
+- **WR-01 (planted file link at an output name): closed on the CLI side.** `OutputWriter.WriteText` creates a random `*.tmp-*` name with `FileMode.CreateNew` and `FileShare.None`, then `File.Move(..., overwrite: true)`, which replaces the directory entry rather than writing through it. Failure cleanup deletes the temp file and rethrows the original exception. The hard-link test covers all five names. The file-symbolic-link half of the claim is not exercised on this host (see WR-01 below). The script side (`Write-LogFile`) also does what it says: I ran it on both hosts for a new file, a new nested directory, and a pre-existing file; all write correctly, so the `catch [System.IO.FileNotFoundException]` filters do match on 5.1.
+- **WR-02 (check once, minutes before the write): mitigated as documented.** `RefuseUnsafeOut` now runs again immediately before `WriteAll`, and the script re-checks `$logFull` after the vdiff run. The remaining window is stated in the doc comments. The swap test drives the internal `Run` seam and does prove the second check fires.
+- **CR-01 (non-drive namespaces): closed for the spellings the tests cover, but not closed.** Direct `\\?\`, `\\.\`, UNC and extended-UNC spellings are refused, and so is a link whose target is `Volume{...}`. The same defect class is still reachable through a link whose NT-namespace target is anything other than `Volume{`. Reproduced on both implementations (CR-01 below).
 
 ## Critical Issues
 
-### CR-01: `--out` written as `\\?\C:\...` or `\\localhost\C$\...` bypasses the containment guard and writes inside the analysed repository
+### CR-01: A directory junction with a non-`Volume{` NT-namespace target bypasses both containment guards; vdiff and trace-run.ps1 write inside the analysed repository
 
-**File:** `src/Vdiff.Core/Cli/CliApp.cs:84-103`, `src/Vdiff.Core/Cli/FinalPath.cs:49-79`, `scripts/trace-run.ps1:166-208`
-**Issue:** `Path.GetFullPath` on Windows keeps the `\\?\` extended prefix and the `\\localhost\C$` UNC root verbatim. `IsSameOrUnder` therefore compares `\\?\C:\repo\out` against `C:\repo` and says "not inside". `FinalPath.Resolve` then walks from the root `\\?\C:\` (or `\\localhost\C$`), finds no link, and returns the same spelling, so the second (resolved) test also says "not inside". Both namespaces address the same files as `C:\repo`, so `Directory.CreateDirectory` and the five writes land inside the repository.
+**File:** `src/Vdiff.Core/Cli/FinalPath.cs:82-98, 115-116`, `scripts/trace-run.ps1:210-220`
+**Issue:** Both resolvers special-case exactly one NT-namespace spelling (`Volume{`) and otherwise trust what the runtime reports as the link target.
 
-Reproduced on this machine with a synthetic repo (commit `c`, `base == head`):
+- .NET (`DirectoryInfo.LinkTarget` / `ResolveLinkTarget`) and PowerShell (`Get-Item .Target`) both strip the `\??\` prefix from a junction's substitute name unconditionally. For a target such as `\??\GLOBALROOT\Device\HarddiskVolume3\<path to repo>` the reported target is the relative-looking text `GLOBALROOT\Device\HarddiskVolume3\<path to repo>`.
+- `IsVolumeGuidTarget` does not match it. `ResolveLinkTarget` then treats it as relative to the link's parent, so `target.FullName` is a drive-letter path (`C:\...\scratch\GLOBALROOT\Device\...`) that passes `StartsWithDriveLetter`, matches nothing in the repository, and `Step` returns a lexical path that is not under the repository. In the script the same happens: `IsPathRooted` is false, so the target is combined with the link's parent.
+- Creating such a junction needs no privilege (a plain `FSCTL_SET_REPARSE_POINT` on an empty directory). The same path is open to a symbolic link with a `\??\UNC\host\share\...` target, which the script turns into `UNC\host\share\...` and treats as relative.
+
+Reproduced on this machine against a synthetic empty repository (`base == head`), with a junction `scratch\gr` whose substitute name was `\??\GLOBALROOT\Device\HarddiskVolume3\<repo path>`. `Get-Item gr` reports `LinkType: Junction`, `Target: GLOBALROOT\Device\HarddiskVolume3\...` on both PowerShell hosts; `DirectoryInfo.LinkTarget` reports the same.
 
 ```
-vdiff --repo C:\...\er\repo --base c --head c --out \\?\C:\...\er\repo\out-ext
-  -> vdiff: wrote 5 files to \\?\C:\...\er\repo\out-ext ; exit 0
-vdiff --repo C:\...\er\repo --base c --head c --out \\localhost\C$\...\er\repo\out-unc
-  -> vdiff: wrote 5 files to \\localhost\C$\...\er\repo\out-unc ; exit 0
-git status --short  ->  ?? out-ext/   ?? out-unc/
+vdiff.dll --repo <repo> --base c --head c --out <scratch>\gr\outx
+  -> vdiff: wrote 5 files to <scratch>\gr\outx ; exit 0
+git status --short  ->  ?? outx/
+
+trace-run.ps1 -Repo <repo> ... -Out <elsewhere> -LogPath <scratch>\gr\vdiff.log   (pwsh and powershell 5.1)
+  -> vdiff.log created inside <repo>; result: fail, reason: repo-changed
 ```
 
-This is the same defect class as the original WR-01 ("an alias of the repository path"), is not a symlink or junction, and is not covered by the T-01-39 residual, which names only subst drive letters and 8.3 short names. The doc comments and the 01-12 SUMMARY therefore under-state the remaining gap. `trace-run.ps1` has the same hole: `Get-FullPath` keeps both prefixes, so `-Out \\?\C:\repo\out` passes `Test-SameOrUnder`, vdiff writes into the repo, and the script only notices afterwards (`repo_unchanged: no`, reason `repo-changed`), after the write has happened. The same applies to a link whose target is a volume GUID path (`\??\Volume{guid}\...`): the script strips `\??\`, gets a non-rooted `Volume{guid}\...`, combines it with the link's parent, and returns a garbage path that matches nothing (fail open, not fail closed).
+So the roadmap guarantee ("the analysed repository is never changed") is still broken by one more spelling of the same alias, and the doc comments ("a link whose target is a volume GUID path [is] refused, not resolved") describe a blacklist of one form while implying the namespace class is closed. The script only detects the damage afterwards, as `repo-changed`.
 
-**Fix:** Normalise the namespace before both comparisons, or fail closed on any form the resolver cannot canonicalise. The robust option is to compare identity rather than spelling: open the deepest existing ancestor of `--out` and of each protected directory and take the final path (`GetFinalPathNameByHandle`, then strip `\\?\` / map `\\?\UNC\`), which also fixes subst and 8.3 in the same stroke. If a P/Invoke is unwanted (the script runs on 5.1 without compiled code), the minimum is to refuse, on Windows, any `--out`/`-Out`/`-LogPath` that starts with `\\?\`, `\\.\`, or a UNC root, and any link target that does not parse as `X:\` or a plain UNC path:
+**Fix:** Replace the blacklist with an allow-list on the raw target, in both implementations. On Windows, after the single `\??\` strip, accept a link target only when it is drive-rooted (`^[A-Za-z]:\\`) or is a genuinely relative symbolic-link target; refuse a junction (always absolute) whose reported target is not drive-rooted, and refuse any target whose first segment is an NT namespace name (`GLOBALROOT`, `UNC`, `Volume{`, `Device`). Minimal version:
 
 ```csharp
-if (OperatingSystem.IsWindows())
+// FinalPath.Step, replacing the IsVolumeGuidTarget call
+if (OperatingSystem.IsWindows() && !IsAcceptableWindowsTarget(info.LinkTarget))
 {
-    var root = Path.GetPathRoot(Path.GetFullPath(path)) ?? "";
-    if (root.StartsWith(@"\\", StringComparison.Ordinal))   // \\?\, \\.\, \\server\share
-    {
-        throw new VdiffException(UnresolvableMessage);
-    }
+    throw new VdiffException(UnsupportedRootMessage);
+}
+
+static bool IsAcceptableWindowsTarget(string raw)
+{
+    var t = raw.TrimStart('\\', '?', '.');
+    if (t.StartsWith("Volume{", StringComparison.OrdinalIgnoreCase)) return false;
+    var first = t.Split('\\', 2)[0];
+    return !(first.Equals("GLOBALROOT", StringComparison.OrdinalIgnoreCase)
+          || first.Equals("UNC", StringComparison.OrdinalIgnoreCase)
+          || first.Equals("Device", StringComparison.OrdinalIgnoreCase));
 }
 ```
 
-Add tests for `\\?\<repo>\out`, `\\localhost\<drive>$\...\out`, and the PowerShell equivalents, and add the forms to the T-01-39 text if they are deliberately left as residual.
+```powershell
+# Resolve-FinalPathStep, next to the Volume{ test
+if ($target -match '^(?i)(GLOBALROOT|UNC|Device|Volume\{)') { throw 'nt namespace link target' }
+```
+
+Add a test that builds such a junction without privilege (the `FSCTL_SET_REPARSE_POINT` route, or `mklink /J` followed by a reparse rewrite) for both `FinalPathTests`/`AliasedOutTests` and `TraceRunScriptTests` (`-Out` and `-LogPath`), asserting `UnsupportedRootMessage` and `script-error` respectively, alongside the existing `Volume{` cases. Also update the T-01-41 wording so it says what is refused.
 
 ## Warnings
 
-### WR-01: A pre-existing file link in `--out` redirects a write into the repository
+### WR-01: The file-symbolic-link half of the output-name test passes vacuously on a host without the privilege
 
-**File:** `src/Vdiff.Core/Output/OutputWriter.cs:47-62` (reached from `src/Vdiff.Core/Cli/CliApp.cs:51`)
-**Issue:** The guard resolves the `--out` directory only. `OutputWriter.WriteText` calls `File.WriteAllBytes(Path.Combine(outDir, name), ...)`, which follows a file symbolic link and writes through a hard link. If `--out` is a real directory outside the repo that already contains `summary.mmd` (or any of the five names) as a link or hard link to a repo file, the tool overwrites that repo file. Reproduced: `mklink /H out\summary.mmd repo\README.txt`, run vdiff with `--out out`, exit 0, `git status` shows ` M README.txt` (content replaced by the Mermaid text). This is operator-planted, but the roadmap criterion is "nothing outside --out is written, the analysed repository is never changed" and nothing in the guard or its documented residual covers it.
-**Fix:** Before each write, refuse an existing target that is a reparse point or has more than one hard link, or write to a temp name in `outDir` and `File.Move(temp, final, overwrite: true)` (replaces the directory entry instead of writing through it):
+**File:** `tests/Vdiff.Tests/Safety/AliasedOutTests.cs:272-295`, `tests/Vdiff.Tests/Support/LinkScratch.cs:83-96`
+**Issue:** `A_file_symbolic_link_planted_at_an_output_name_is_replaced_and_its_target_is_unchanged` returns early with a pass when `TryFileLink` returns false. On Windows that needs Developer Mode or elevation; on this development host `New-Item -ItemType SymbolicLink` fails with "Administrator privilege required", so the claim in `OutputWriter`'s doc comment and in T-01-42 ("a hard link or file symbolic link planted at a final name is replaced") is proven here only for hard links. xUnit reports the test as passed, so a missing privilege is indistinguishable from success.
+**Fix:** Make the skip visible (xUnit v3 `Assert.Skip`, or a `SkippableFact`-style dynamic skip with a reason), and note in the test that the Ubuntu leg exercises it. The behaviour is very likely correct (`MoveFileEx`/`rename` replace the entry), but it should not be reported as covered.
 
-```csharp
-var target = Path.Combine(outDir, fileName);
-var info = new FileInfo(target);
-if (info.Exists && info.LinkTarget is not null)
-{
-    throw new VdiffException("--out holds a link where an output file goes");
-}
-var temp = Path.Combine(outDir, fileName + ".tmp-" + Guid.NewGuid().ToString("N"));
-File.WriteAllBytes(temp, bytes);
-File.Move(temp, target, overwrite: true);
-```
+### WR-02: Necessity: a second `Test-NonDriveRoot $logFull` after the vdiff run re-checks a string that cannot have changed
 
-### WR-02: Containment is checked once, minutes before the write
-
-**File:** `src/Vdiff.Core/Cli/CliApp.cs:43-51`
-**Issue:** `RefuseUnsafeOut` runs before `TracerPipeline.Run`, which may take up to the 20-minute budget; `OutputWriter.WriteAll` then calls `Directory.CreateDirectory(outPath)` on the lexical path. A link (or a directory the operator renames or replaces) that changes between the check and the write defeats the guard, and the resolved result is thrown away rather than used for the write. Likewise `trace-run.ps1` checks at lines 300-310 and writes the log at line 336 after a run of up to 25 minutes. The 01-12 plan does not list this as accepted residual.
-**Fix:** Cheapest: call `RefuseUnsafeOut(outPath, location)` again immediately before `OutputWriter.WriteAll` (and have the script re-run its `Test-SameOrUnder` for `$logFull` just before `WriteAllText`). Better: have `RefuseUnsafeOut` return the resolved out path and write to that, so the checked and written paths are the same string.
+**File:** `scripts/trace-run.ps1:391`, pinned by `tests/Vdiff.Tests/Trial/TraceRunScriptTests.cs:322`
+**Category:** necessity
+**Issue:** The guarded state (a log path that became non-drive-rooted between the first check and the write) cannot occur: `$logFull` is assigned once (line 360) from the parameter and never reassigned, and `Test-NonDriveRoot` is a pure text test with no file-system input (line 168-171). The second check can never differ from the first. The check that does carry the T-01-46 value is the second `Test-SameOrUnder`, which reads the file system. This is not defence in depth: that rule applies to a layer that re-reads mutable state. The source-order test then pins the redundant call (`Assert.Contains("Test-NonDriveRoot $logFull", between)`), so the dead check is now load-bearing for the test suite.
+**Fix:** Drop the second `Test-NonDriveRoot` call and the matching assertion; keep the second `Test-SameOrUnder`.
 
 ## Info
 
-### IN-01: The `IOException` branch still prints .NET exception text with full paths
+### IN-01: Stale handoff committed to a public repository
 
-**File:** `src/Vdiff.Core/Cli/CliApp.cs:60-62`
-**Issue:** T-01-38 ("an unresolvable link making the CLI print a .NET exception message that carries a full path") is closed for the resolver only. Any other `IOException` or `UnauthorizedAccessException` still reaches `Fail(stderr, "could not write the output: " + e.Message)`, which prints the path (observed above: `The filename, directory name, or volume label syntax is incorrect. : 'C:\...'`). The path is the operator's own, so this is low risk, but the threat register entry reads as if the leak is gone.
-**Fix:** Print a fixed message (`"could not write the output"`) and the exception type name, as the generic branch already does, or narrow the T-01-38 wording to "resolver failures".
+**File:** `docs/handoffs/phase-01-gap-closure-interrupted-by-shutdown.md:1-47`
+**Issue:** The handoff describes plan 01-13 as "in progress", 01-14 as "not started" and the phase gates as "not run", and tells a reader to re-dispatch an executor. HEAD already contains both plans' commits and SUMMARYs, so the document is false for any new reader. It also carries a machine-local path (`C:/projects/shared-copilot/docs/investigations/.../check-public-diff.sh`), a GitHub account name and a session shutdown narrative, none of which belong in a public repository's tracked docs.
+**Fix:** Delete the file (it remains in git history), or mark it superseded at the top; do not leave it as the resume point.
 
-### IN-02: Relative link targets are never exercised on Windows
+### IN-02: Source-text pin and silent non-Windows passes in the script tests
 
-**File:** `tests/Vdiff.Tests/Safety/FinalPathTests.cs:78-88`, `tests/Vdiff.Tests/Support/LinkScratch.cs:33-52`, `scripts/trace-run.ps1:193`
-**Issue:** `LinkScratch.Link` makes an absolute-target junction on Windows and ignores `relativeTarget`, so `A_relative_link_target_is_resolved_from_the_links_own_directory` is identical to the absolute-target test on the development OS, and the PowerShell branch `if (-not [IO.Path]::IsPathRooted($target)) { Combine($prefix, $target) }` is only covered on non-Windows hosts (if the test suite runs there at all). The code reads correct, but it is unproven where this project is developed.
-**Fix:** On Windows, create the relative case with a real symlink when the process may (`Directory.CreateSymbolicLink`, works in Developer Mode) and skip-with-reason only if the privilege is missing; or state in the test that the branch is covered by the Ubuntu leg of the pipeline.
+**File:** `tests/Vdiff.Tests/Trial/TraceRunScriptTests.cs:306-332, 480-482, 515-517, 549-551, 578-580, 602-604`
+**Issue:** `Log_write_is_preceded_by_a_second_containment_check_in_source_order` asserts on substrings of the script text, so a comment containing `Test-SameOrUnder $logFull` satisfies it and a refactor that keeps behaviour breaks it; it proves ordering of text, not of execution. Separately, the class summary says a missing host "fails the test; it never skips", yet five tests `return` silently on non-Windows and report as passed. Both overstate coverage.
+**Fix:** Keep the order test only as a documented backstop (the comment already says so) and strip comments before searching; mark the Windows-only theories with a visible skip instead of an early `return`.
 
-### IN-03: Rooted-without-drive and drive-relative link targets resolve against the wrong drive
+### IN-03: `TooManyLinksException` is thrown for unrelated conditions
 
-**File:** `scripts/trace-run.ps1:190-194`, `src/Vdiff.Core/Cli/FinalPath.cs:66-67`
-**Issue:** A symbolic link target of `\foo` or `C:foo` counts as rooted (`IsPathRooted` is true) and is then expanded with the process's current drive or directory, not the link's. Rare (needs a hand-made symlink), but the result is a silent mis-resolution rather than a refusal, which the stated rule ("never a guess") forbids.
-**Fix:** In both implementations, when the target is rooted but `Path.GetPathRoot(target)` is not a full `X:\` or UNC root, combine it with the link's resolved prefix root or throw.
-
-### IN-04: Case-insensitive file systems outside Windows compare case-sensitively
-
-**File:** `src/Vdiff.Core/Cli/CliApp.cs:112`, `scripts/trace-run.ps1:46`
-**Issue:** `IsSameOrUnder` uses `Ordinal` on every non-Windows OS. On macOS (APFS default is case-insensitive), `--out /Users/x/Repo/out` against a repo at `/Users/x/repo` is "outside". The resolver does not canonicalise case either. The product has a macOS frontend, so this will matter when the tool runs there. Not a regression of this diff, but the new resolved check inherits it.
-**Fix:** Compare with `OrdinalIgnoreCase` when the volume is case-insensitive (probe by checking whether the lower-cased and upper-cased spelling of the repo root both exist), or canonicalise case through the final-path call suggested in CR-01.
+**File:** `src/Vdiff.Core/Cli/FinalPath.cs:73, 96`
+**Issue:** The internal signal is thrown for a null `GetPathRoot` and for a null `ResolveLinkTarget`, neither of which is a link budget overrun. Both are converted to the same fixed message, so behaviour is right, but the name misleads the next maintainer.
+**Fix:** Rename it (for example `UnresolvableLinkException`) or throw it with a reason string that is never printed.
 
 ---
 
-_Reviewed: 2026-11-17_
+_Reviewed: 2026-11-18_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
