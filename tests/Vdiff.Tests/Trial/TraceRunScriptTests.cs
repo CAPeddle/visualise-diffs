@@ -551,6 +551,90 @@ public class TraceRunScriptTests
         Assert.DoesNotContain("Write-LogFile $logFull", code, StringComparison.Ordinal);
     }
 
+    // ---- (c6) -Out against the vdiff root, through VDIFF_PROTECTED_DIRS (G-01-1; T-01-56, T-01-58) ----
+
+    [Fact]
+    public void The_vdiff_root_travels_to_vdiff_in_the_protected_directories_variable_and_never_in_an_argument()
+    {
+        var text = File.ReadAllText(Path.Combine(RepositoryRoot(), "scripts", "trace-run.ps1"));
+        var code = text.Split('\n').Where(l => !l.TrimStart().StartsWith('#')).ToList();
+
+        Assert.Contains(code, l => l.Contains("VDIFF_PROTECTED_DIRS", StringComparison.Ordinal));
+        var invocation = Assert.Single(code, l => l.Contains("Invoke-Native 'dotnet'", StringComparison.Ordinal));
+        Assert.Contains("VDIFF_PROTECTED_DIRS", invocation, StringComparison.Ordinal);
+
+        // No line that builds the vdiff argument list names the vdiff root: it travels in the environment.
+        foreach (var line in code.Where(l => l.Contains("$vdiffArgs", StringComparison.Ordinal)))
+        {
+            Assert.DoesNotContain("VdiffRoot", line, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(Hosts))]
+    public async Task An_out_retargeted_into_the_vdiff_root_during_the_run_receives_nothing_protected_directories(string host)
+    {
+        using var repo = new SyntheticRepo();
+        using var links = new LinkScratch();
+        var (c1, c2, _) = BuildHistory(repo);
+
+        // The stand-in vdiff root is a real scratch directory with a copy of the script under scripts, so the
+        // script takes it for the vdiff repository and no link ever points at this checkout.
+        var standIn = Path.Combine(links.Root, "standin");
+        Directory.CreateDirectory(Path.Combine(standIn, "scripts"));
+        var scriptCopy = Path.Combine(standIn, "scripts", "trace-run.ps1");
+        File.Copy(Path.Combine(RepositoryRoot(), "scripts", "trace-run.ps1"), scriptCopy);
+        var elsewhere = Path.Combine(links.Root, "elsewhere");
+        Directory.CreateDirectory(elsewhere);
+        var link = links.Link("jn", elsewhere);
+        var outPath = Path.Combine(link, "run");
+        var pidFile = NewPidFile();
+        var before = RepoSnapshot.Take(repo.Root, repo.OutDir);
+
+        Exception? attackFailure = null;
+        ProcessResult result;
+        bool sidecarAppeared;
+        try
+        {
+            using var environment = StagedRunEnvironment(pidFile, 5000);
+            var (run, appeared) = StartScriptAndWaitForSidecar(host, CoreArguments(repo.RepoDir, c1, c2, outPath), pidFile, scriptCopy);
+            sidecarAppeared = appeared;
+            try
+            {
+                // Allowed while the target is not held: the entry is removed as a link and re-created pointing
+                // at the stand-in vdiff root.
+                RemoveLinkEntry(link);
+                links.Link("jn", standIn);
+            }
+            catch (Exception e)
+            {
+                attackFailure = e;
+            }
+
+            result = await run;
+        }
+        finally
+        {
+            File.Delete(pidFile);
+        }
+
+        Assert.True(attackFailure is null, "the staged attack itself failed: " + attackFailure);
+        Assert.True(sidecarAppeared, "the run never reached the fake sidecar, so nothing was staged");
+        var values = ParseSixLines(result.StdoutText);
+        Assert.Equal(1, result.ExitCode);
+        Assert.Equal("fail", values[0]);
+        Assert.Equal("tool-failed", values[1]);
+        Assert.Equal("yes", values[3]);
+        Assert.Equal("no", values[4]);
+        Assert.Equal("skipped", values[5]);
+        AssertNothingLeaks(result, repo.RepoDir, repo.OutDir, links.Root, outPath, c1, c2);
+        Assert.False(Directory.Exists(Path.Combine(standIn, "run")), "the run wrote into the stand-in vdiff root");
+        Assert.Equal(["scripts"], Directory.GetFileSystemEntries(standIn).Select(Path.GetFileName));
+        Assert.Empty(Directory.GetFileSystemEntries(elsewhere));
+        Assert.Empty(Directory.GetFileSystemEntries(repo.OutDir));
+        Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
+    }
+
     [Fact]
     public void An_unknown_commit_id_leaves_the_repository_unchanged_and_reports_it()
     {
