@@ -1,14 +1,18 @@
 ---
-status: diagnosed
+status: testing
 phase: 01-offline-tracer
 source: [01-VERIFICATION.md]
 started: 2026-11-17T00:00:00Z
-updated: 2026-11-18T22:05:00Z
+updated: 2026-11-19T10:05:00Z
 ---
 
 ## Current Test
 
-[testing complete]
+number: 10
+name: Run the suite on a Linux host and a macOS host
+expected: |
+  On a Linux host and on a macOS host (CI leg or local, pwsh installed), each of these passes: `dotnet test tests/Vdiff.Tests/Vdiff.Tests.csproj --filter "FullyQualifiedName~held_directory|FullyQualifiedName~HeldDirectoryTests"` (the swap-before-the-hold and retarget tests execute, not return early; truth 34); `--filter "FullyQualifiedName~TraceRunScriptTests"` (the log-below-missing-directories test runs, the staged log_hold test returns early by design; truth 45); `--filter "FullyQualifiedName~drive_root"` (the slash root is held as the slash; truth 55). Source: behavior_unverified_items[1]-[3] in 01-VERIFICATION.md
+awaiting: user response
 
 ## Tests
 
@@ -44,18 +48,18 @@ result: pass
 
 ### 8. Re-verify 01-UAT.md test 1 (G-01-1) against plans 01-16, 01-17 and now 01-18, and optionally repeat test 3 by hand
 expected: Product owner confirms the swap-window scope is closed on Windows as described in 01-17-SUMMARY.md (held directory, final-path writes, VDIFF_PROTECTED_DIRS) and that the stated Linux and macOS bound is acceptable. 01-UAT.md still records test 1 as result: issue; this verification does not edit it.
-result: [pending]
+result: pass
 
 ### 9. Re-confirm the AR-04 sign-off (UAT test 6) on its actual basis
 expected: Recorded acknowledgement that AR-04 no longer rests on 'a 5.1 script cannot call a final-path function without compiling code' (plan 01-17 compiles two declarations with Add-Type for the swap window) and that subst, mapped drive letters, DOS 8.3 names and IN-04 are still accepted on the owner's sign-off alone
-result: [pending]
+result: pass
 
 ### 10. Run the suite on a Linux host and a macOS host
-expected: See behavior_unverified_items[1], [2] and [3] in 01-VERIFICATION.md
+expected: On a Linux host and on a macOS host (CI leg or local, pwsh installed), each of these passes: `dotnet test tests/Vdiff.Tests/Vdiff.Tests.csproj --filter "FullyQualifiedName~held_directory|FullyQualifiedName~HeldDirectoryTests"` (the swap-before-the-hold and retarget tests execute, not return early; truth 34); `--filter "FullyQualifiedName~TraceRunScriptTests"` (the log-below-missing-directories test runs, the staged log_hold test returns early by design; truth 45); `--filter "FullyQualifiedName~drive_root"` (the slash root is held as the slash; truth 55). Source: behavior_unverified_items[1]-[3] in 01-VERIFICATION.md
 result: [pending]
 
 ### 11. Protected verdict by handle, end to end, and skip-on-failure of the hold
-expected: See behavior_unverified_items[0] in 01-VERIFICATION.md; or accept the gap and take WR-03 as a follow-up
+expected: Either (a) run end to end: with Open-HeldDirectory extracted into a child host (pattern: the drive_root driver in TraceRunScriptTests) and a protected list naming the log directory, the script ends with reason bad-arguments and six fixed lines before vdiff starts; and with the type made to fail compiling, a -LogPath run starts vdiff normally, writes no log and reports pass (truth 40). Or (b) accept the gap and take review finding WR-03 (add that test) as a follow-up. Source: behavior_unverified_items[0] in 01-VERIFICATION.md
 result: [pending]
 
 ### 12. A real drive-root run on a scratch volume (manual-only row of 01-VALIDATION.md, TRC-02 / CR-01)
@@ -73,9 +77,9 @@ result: [pending]
 ## Summary
 
 total: 14
-passed: 6
+passed: 8
 issues: 1
-pending: 7
+pending: 5
 skipped: 0
 blocked: 0
 
@@ -83,7 +87,9 @@ blocked: 0
 
 - gap_id: G-01-1
   truth: "The --out guard (CLI CliApp.RefuseUnsafeOut / FinalPath.Resolve and scripts/trace-run.ps1 -Out/-LogPath) refuses deliberately obscure spellings too: both sides canonicalised through a final-path call (or a root starting with two backslashes refused on Windows), writes go through a temp name plus move, and the target is re-checked just before the write (closes CR-01, WR-01, WR-02)"
-  status: failed
+  status: resolved
+  resolved_by: 01-17-PLAN.md
+  resolved_at: 2026-11-19
   reason: "User reported: (b) — product owner chose a hardening gap-closure plan over accepting device-path (backslash-backslash-question-backslash) prefixes, loopback UNC, pre-planted hard links and post-check swaps as residuals"
   severity: major
   test: 1
