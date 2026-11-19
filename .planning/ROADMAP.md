@@ -232,3 +232,13 @@ pending O4. The gates are listed in the Overview.
 | 7. Renderers | 0/TBD | Not started | - |
 | 8. Publisher | 0/TBD | Not started | - |
 | 9. Pipeline Template and Trial | 0/TBD | Not started | - |
+
+## Backlog
+
+### Phase 999.1: Follow-up — Phase 01 deferred UAT follow-up: Test 10 (BACKLOG)
+
+**Goal:** Resolve the UAT checkpoint deferred during Phase 01 verification
+**Source phase:** 01
+**Deferred at:** 2026-11-19 during /gsd-verify-work 01 session completion
+**Follow-ups:**
+- [ ] Test 10: Off-Windows test portability, found in the test 10 runs (not a product defect): (1) TraceRunScriptTests.A_core_fsmonitor_hook_is_never_run_by_the_script and RepoUnchangedMatrixTests.A_core_fsmonitor_hook_is_never_run_by_a_vdiff_run_or_by_the_snapshot write the hook without the execute bit, so their positive control fails on Linux and macOS and C47 is unverified off Windows (set File.SetUnixFileMode on the hook when not on Windows); (2) GitObjectReaderTests.ToplevelOrGitDir_* fail on macOS because SamePath (GitObjectReaderTests.cs:38) does not resolve /var to /private/var (deferred 2026-11-19)
