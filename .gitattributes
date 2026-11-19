@@ -1,0 +1,10 @@
+# Scripts, sources and lock files stay LF on every machine. A CRLF working copy
+# (core.autocrlf=true) would leak carriage returns into multi-line literals and
+# break shell scripts. No catch-all text=auto rule on purpose.
+*.sh text eol=lf
+*.cs text eol=lf
+*.rs text eol=lf
+*.ps1 text eol=lf
+*.mjs text eol=lf
+Cargo.lock text eol=lf
+package-lock.json text eol=lf

@@ -1,0 +1,14 @@
+{
+  "name": "vdiff-mermaid-check",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Local Mermaid syntax check for vdiff output (mermaid-cli in a local headless browser)",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "@mermaid-js/mermaid-cli": "12.2.0",
+    "puppeteer": "25.17.0"
+  }
+}
