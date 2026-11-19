@@ -181,3 +181,13 @@ Non-passing tests only (8 of 542):
 - One run, no rerun. `run-uat-10.sh` exited 0 and needed no changes on this OS.
 - mermaid-cli (`tools/mermaid-check`) and a Chrome, Chromium or Edge browser are not installed on this machine and were not installed for this run.
 - no shared-copilot clone on this machine; target-name guard not run
+
+## Reviewer evaluation (Windows host, 2026-11-19)
+
+Judged against the test sources at `3e87e5a`.
+
+- **Truth 34: observed on Linux.** `A_swap_before_the_held_directory_is_opened_is_refused_by_its_final_path` has no OS guard and asserts that its swap hook ran. `A_link_entry_retargeted_while_the_held_directory_is_open_does_not_redirect_the_write` has no OS guard. Both passed. The Windows-only tests in this filter (the rename-blocked test and `Dispose_releases_...`) return early by design, because no handle is held off Windows.
+- **Truth 45: observed on Linux.** `A_log_path_below_missing_directories_is_created_under_the_log_hold_and_leaves_no_temp_file(pwsh)` has no OS guard and passed. `The_log_hold_blocks_a_rename_...` returns early by design.
+- **Truth 55: observed on Linux.** All nine `drive_root` tests passed. None has an OS guard, so `/` was held as `/`.
+- **`three_filters_passed: no` comes from a test defect outside truths 34, 45 and 55.** `A_core_fsmonitor_hook_is_never_run_by_the_script` (and `RepoUnchangedMatrixTests.A_core_fsmonitor_hook_is_never_run_by_a_vdiff_run_or_by_the_snapshot` in the full suite) writes its hook with `File.WriteAllBytes` and never sets the execute bit. Git cannot run a non-executable `core.fsmonitor` hook on Unix, so the positive control fails before the claim is tested. The two tests fail closed as designed. On Linux, the claim that the fsmonitor hook is never run (C47) is not verified either way.
+- **The six `MermaidCliSyntaxTests` failures are a missing prerequisite** (mermaid-cli and a browser are not installed). They are not a defect.
