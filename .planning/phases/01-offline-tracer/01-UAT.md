@@ -3,15 +3,15 @@ status: testing
 phase: 01-offline-tracer
 source: [01-VERIFICATION.md]
 started: 2026-11-17T00:00:00Z
-updated: 2026-11-19T10:05:00Z
+updated: 2026-11-19T14:20:00Z
 ---
 
 ## Current Test
 
-number: 10
-name: Run the suite on a Linux host and a macOS host
+number: 14
+name: Eleven judgment-tier prohibitions (plans 01-16, 01-17, 01-18) flagged unverified-prohibition
 expected: |
-  On a Linux host and on a macOS host (CI leg or local, pwsh installed), each of these passes: `dotnet test tests/Vdiff.Tests/Vdiff.Tests.csproj --filter "FullyQualifiedName~held_directory|FullyQualifiedName~HeldDirectoryTests"` (the swap-before-the-hold and retarget tests execute, not return early; truth 34); `--filter "FullyQualifiedName~TraceRunScriptTests"` (the log-below-missing-directories test runs, the staged log_hold test returns early by design; truth 45); `--filter "FullyQualifiedName~drive_root"` (the slash root is held as the slash; truth 55). Source: behavior_unverified_items[1]-[3] in 01-VERIFICATION.md
+  Reviewer confirms or overrules each non-authoritative verdict in the Prohibitions section of 01-VERIFICATION.md (all read as honoured; note WR-02 under the 01-16 message prohibition and under the 01-18 path prohibition)
 awaiting: user response
 
 ## Tests
@@ -56,19 +56,23 @@ result: pass
 
 ### 10. Run the suite on a Linux host and a macOS host
 expected: On a Linux host and on a macOS host (CI leg or local, pwsh installed), each of these passes: `dotnet test tests/Vdiff.Tests/Vdiff.Tests.csproj --filter "FullyQualifiedName~held_directory|FullyQualifiedName~HeldDirectoryTests"` (the swap-before-the-hold and retarget tests execute, not return early; truth 34); `--filter "FullyQualifiedName~TraceRunScriptTests"` (the log-below-missing-directories test runs, the staged log_hold test returns early by design; truth 45); `--filter "FullyQualifiedName~drive_root"` (the slash root is held as the slash; truth 55). Source: behavior_unverified_items[1]-[3] in 01-VERIFICATION.md
-result: [pending]
+result: pass
+evidence: "uat-runs/01-UAT-10-linux.md and uat-runs/01-UAT-10-macos.md; truths 34, 45 and 55 observed on WSL2 and macOS arm64 (see the Reviewer evaluation in each)"
 
 ### 11. Protected verdict by handle, end to end, and skip-on-failure of the hold
 expected: Either (a) run end to end: with Open-HeldDirectory extracted into a child host (pattern: the drive_root driver in TraceRunScriptTests) and a protected list naming the log directory, the script ends with reason bad-arguments and six fixed lines before vdiff starts; and with the type made to fail compiling, a -LogPath run starts vdiff normally, writes no log and reports pass (truth 40). Or (b) accept the gap and take review finding WR-03 (add that test) as a follow-up. Source: behavior_unverified_items[0] in 01-VERIFICATION.md
-result: [pending]
+result: pass
+evidence: "option (a): uat-runs/01-UAT-11-windows.md (run-uat-11.ps1, C1-C3 pass on pwsh 7.7.0 and PowerShell 5.1 at d1a50f9); WR-03 (a repository test) stays open"
 
 ### 12. A real drive-root run on a scratch volume (manual-only row of 01-VALIDATION.md, TRC-02 / CR-01)
 expected: On a volume the owner controls, run vdiff with --out set to that volume's root from an unrelated current directory: five files appear in the root and none in the current directory
-result: [pending]
+result: pass
+evidence: "uat-runs/01-UAT-12-windows.md (run-uat-12.ps1 at a9b9c3e): --out T:\ from T:\sub on a subst drive; five files in T:\, none in T:\sub. T: is subst-backed by a folder on C:, not a separate physical volume"
 
 ### 13. Re-run the trial wrapper once on the private clone with the current scripts/trace-run.ps1 (recommended)
 expected: Six-line block: pass, none, under budget, repo_unchanged yes, outputs_present yes, mermaid_syntax ok; only that block recorded
-result: [pending]
+result: pass
+evidence: "2026-11-19 re-run by the product owner with the rebuilt Release CLI at a9b9c3e and later: result pass, reason none, wall_clock under-1-min, repo_unchanged yes, outputs_present yes, mermaid_syntax ok (block recorded in docs/trials/phase-1-offline-tracer.md)"
 
 ### 14. Eleven judgment-tier prohibitions (plans 01-16, 01-17, 01-18) flagged unverified-prohibition
 expected: Reviewer confirms or overrules each non-authoritative verdict in the Prohibitions section of 01-VERIFICATION.md (all read as honoured; note WR-02 under the 01-16 message prohibition and under the 01-18 path prohibition)
@@ -77,9 +81,9 @@ result: [pending]
 ## Summary
 
 total: 14
-passed: 8
+passed: 12
 issues: 1
-pending: 5
+pending: 1
 skipped: 0
 blocked: 0
 
@@ -109,3 +113,9 @@ blocked: 0
     - "Close the -LogPath check-to-write window (temp name plus move into a held or handle-verified directory, or route the log write through the CLI); add a pre-write vdiff-root guard for -Out"
     - "Tests: held-handle rename/replace test during the write; update T-01-43/46 and the duplicated Bound comments"
   debug_session: ".planning/debug/out-guard-obscure-spellings-and-swaps.md"
+
+## Deferred Follow-Ups
+
+- test: 10
+  idea: "Off-Windows test portability, found in the test 10 runs (not a product defect): (1) TraceRunScriptTests.A_core_fsmonitor_hook_is_never_run_by_the_script and RepoUnchangedMatrixTests.A_core_fsmonitor_hook_is_never_run_by_a_vdiff_run_or_by_the_snapshot write the hook without the execute bit, so their positive control fails on Linux and macOS and C47 is unverified off Windows (set File.SetUnixFileMode on the hook when not on Windows); (2) GitObjectReaderTests.ToplevelOrGitDir_* fail on macOS because SamePath (GitObjectReaderTests.cs:38) does not resolve /var to /private/var"
+  deferred_at: 2026-11-19

@@ -17,6 +17,19 @@ mermaid_syntax: ok
 
 This is a single run judged against the R26 budget (P90 under 5 minutes, 20-minute hard limit), not a P90 measurement.
 
+## TRC-03 re-run after plans 01-13 to 01-18
+
+Run date: 2026-11-19. The same private local clone and inputs as the first run, with the current `scripts/trace-run.ps1` and a rebuilt Release CLI. Phase 01 UAT test 13.
+
+```
+result: pass
+reason: none
+wall_clock: under-1-min
+repo_unchanged: yes
+outputs_present: yes
+mermaid_syntax: ok
+```
+
 ## SPK-02 evidence
 
 SPK-02 is satisfied. ADR-001 records the C++ tree-sitter packaging choice together with its comparison. The tracer's C++ extraction runs through the sidecar that ADR-001 chose: the two pinned versions, tree-sitter 0.27.0 and tree-sitter-cpp 0.23.4, are recorded in every model's extraction metadata and are asserted by the end-to-end test. ADR-001 was accepted by the product owner on 2026-11-16, and its status line reads Accepted.
