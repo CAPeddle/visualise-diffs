@@ -7,9 +7,9 @@ kernel: "Darwin 25.6.0"
 arch: arm64
 dotnet_sdk: "10.0.400"
 pwsh: "7.6.5"
-commit_tested: 7136b7b1c7e00a79d42bb43f7e46005bb350fb42
+commit_tested: 4b8e8bd9c433df205d5f3aa42720b7ec741c4783
 worktree_clean_before_run: yes
-run_at: 2026-11-19T11:15:20Z
+run_at: 2026-11-19T12:19:27Z
 build_exit: 0
 three_filters_passed: no
 ---
@@ -121,9 +121,9 @@ counts: Passed 9
 ## full_suite (truth all)
 filter: `(none)`  
 exit: 1  
-counts: Failed 11, Passed 531
+counts: Failed 5, Passed 537
 
-Non-passing tests only (11 of 542):
+Non-passing tests only (5 of 542):
 
 - `Vdiff.Tests.GitObjectReaderTests.ToplevelOrGitDir_for_a_bare_repository_is_the_git_directory`: Failed
 
@@ -155,42 +155,6 @@ Non-passing tests only (11 of 542):
               ↑ (pos 1)
   ```
 
-- `Vdiff.Tests.Output.MermaidCliSyntaxTests.A_broken_diagram_over_fifty_thousand_characters_fails_so_the_text_size_limit_was_raised`: Failed
-
-  ```text
-  A prerequisite of the Mermaid check is missing: mermaid-check: mermaid-cli is not installed; run: npm --prefix tools/mermaid-check ci --ignore-scripts (fix: `npm --prefix tools/mermaid-check ci --ignore-scripts`, and install Chrome, Chromium or Edge).
-  ```
-
-- `Vdiff.Tests.Output.MermaidCliSyntaxTests.A_broken_diagram_with_an_unbalanced_brace_fails_the_check_and_is_not_a_missing_prerequisite`: Failed
-
-  ```text
-  A prerequisite of the Mermaid check is missing: mermaid-check: mermaid-cli is not installed; run: npm --prefix tools/mermaid-check ci --ignore-scripts (fix: `npm --prefix tools/mermaid-check ci --ignore-scripts`, and install Chrome, Chromium or Edge).
-  ```
-
-- `Vdiff.Tests.Output.MermaidCliSyntaxTests.A_valid_diagram_over_fifty_thousand_characters_is_really_parsed_and_passes`: Failed
-
-  ```text
-  A prerequisite of the Mermaid check is missing: mermaid-check: mermaid-cli is not installed; run: npm --prefix tools/mermaid-check ci --ignore-scripts (fix: `npm --prefix tools/mermaid-check ci --ignore-scripts`, and install Chrome, Chromium or Edge).
-  ```
-
-- `Vdiff.Tests.Output.MermaidCliSyntaxTests.A_zero_change_diagram_of_classDiagram_and_three_classDef_lines_passes`: Failed
-
-  ```text
-  A prerequisite of the Mermaid check is missing: mermaid-check: mermaid-cli is not installed; run: npm --prefix tools/mermaid-check ci --ignore-scripts (fix: `npm --prefix tools/mermaid-check ci --ignore-scripts`, and install Chrome, Chromium or Edge).
-  ```
-
-- `Vdiff.Tests.Output.MermaidCliSyntaxTests.Writer_output_for_a_header_of_hard_cases_passes_the_real_syntax_check`: Failed
-
-  ```text
-  A prerequisite of the Mermaid check is missing: mermaid-check: mermaid-cli is not installed; run: npm --prefix tools/mermaid-check ci --ignore-scripts (fix: `npm --prefix tools/mermaid-check ci --ignore-scripts`, and install Chrome, Chromium or Edge).
-  ```
-
-- `Vdiff.Tests.Output.MermaidCliSyntaxTests.Writer_output_for_keyword_named_global_types_passes_the_real_syntax_check`: Failed
-
-  ```text
-  A prerequisite of the Mermaid check is missing: mermaid-check: mermaid-cli is not installed; run: npm --prefix tools/mermaid-check ci --ignore-scripts (fix: `npm --prefix tools/mermaid-check ci --ignore-scripts`, and install Chrome, Chromium or Edge).
-  ```
-
 - `Vdiff.Tests.Safety.RepoUnchangedMatrixTests.A_core_fsmonitor_hook_is_never_run_by_a_vdiff_run_or_by_the_snapshot`: Failed
 
   ```text
@@ -206,14 +170,12 @@ Non-passing tests only (11 of 542):
 ## Agent notes
 
 - Host: macOS 26.7.3 on arm64. The clone is an existing one under the home directory on APFS.
-- Prerequisites were already installed; nothing was installed for this run: git 2.50.1 (Apple Git-155), python3 3.14.7, .NET SDK 10.0.400, pwsh 7.6.5.
-- `git switch ccr-c12d6a45-a0eke4 && git pull --ff-only` reported already up to date. HEAD was 7136b7b (the Linux results commit), whose parent is 3e87e5a.
-- run-uat-10.sh ran unmodified and exited 0. There was one run and no rerun.
+- Prerequisites were already installed: git 2.50.1 (Apple Git-155), python3 3.14.7, .NET SDK 10.0.400, pwsh 7.6.5, node 26.5.0, npm 12.0.2, Google Chrome.
+- This is the second run on this host. The first, at commit 7136b7b, was committed as 4b8e8bd; its full suite failed 11 tests, six of them MermaidCliSyntaxTests because mermaid-cli was not installed.
+- Before this run, the operator asked for the mermaid-check dependencies to be installed: `npm --prefix tools/mermaid-check ci --ignore-scripts` added 192 packages from the lockfile and reported 0 vulnerabilities. No other change was made between the runs.
+- commit_tested 4b8e8bd differs from 7136b7b only by this results file; no source or test file changed.
+- run-uat-10.sh ran unmodified and exited 0.
 - No `core.fsmonitor` is set in system or global git config on this host (`git config --show-origin --get-all core.fsmonitor` printed nothing).
-- The npm dependencies of tools/mermaid-check are not installed on this host and were not installed for this run.
 - On macOS, `/var` is a symbolic link to `/private/var`. The three GitObjectReaderTests failures show the expected path under `/var/folders/...` and the actual path under `/private/var/folders/...`.
 - The `/var/folders/...` temp paths in the failure messages were left as generated. They contain no user name or host name, and the personal-detail grep printed nothing.
-- A shared-copilot clone exists on this host. check-public-diff.sh from it was run against the staged file; its output is below.
-  ```text
-  clean: no target names in diff (--cached)
-  ```
+- A shared-copilot clone exists on this host. check-public-diff.sh from it was run against the staged file and printed `clean: no target names in diff (--cached)`.
