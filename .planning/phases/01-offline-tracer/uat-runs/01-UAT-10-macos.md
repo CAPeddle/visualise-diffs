@@ -179,3 +179,13 @@ Non-passing tests only (5 of 542):
 - On macOS, `/var` is a symbolic link to `/private/var`. The three GitObjectReaderTests failures show the expected path under `/var/folders/...` and the actual path under `/private/var/folders/...`.
 - The `/var/folders/...` temp paths in the failure messages were left as generated. They contain no user name or host name, and the personal-detail grep printed nothing.
 - A shared-copilot clone exists on this host. check-public-diff.sh from it was run against the staged file and printed `clean: no target names in diff (--cached)`.
+
+## Reviewer evaluation (Windows host, 2026-11-19, of the rerun)
+
+Judged against the test sources. The commit tested, `4b8e8bd`, adds only results files on top of `3e87e5a`, so the code is identical.
+
+- **Truths 34, 45 and 55: observed on macOS.** The same tests as on Linux ran with no OS guard and passed: the swap-before-the-hold test (asserts its hook ran), the retarget test, the log-below-missing-directories test and all nine `drive_root` tests. The Windows-only tests return early by design.
+- **The fsmonitor positive-control failures are the same test defect as on Linux.** The hook is written without the execute bit, so Git cannot run it on Unix. The claim that the fsmonitor hook is never run (C47) is not verified off Windows.
+- **The three `GitObjectReaderTests.ToplevelOrGitDir_*` failures are a test defect on macOS.** `SamePath` in `tests/Vdiff.Tests/GitObjectReaderTests.cs:38` uses `Path.GetFullPath`, which does not resolve links. Git returns the real path under `/private/var`, and the temp directory is spelled `/var`. The product guard handles the same alias: the `out-inside-repository` and `out-inside-this-repository` refusals passed on this host with synthetic repositories under `/var`.
+- **With the mermaid-check dependencies and Chrome installed, all six `MermaidCliSyntaxTests` pass on macOS.** The first run's six Mermaid failures were the missing prerequisite only.
+- Both test defects are recorded as a deferred follow-up under test 10 in `01-UAT.md`.
