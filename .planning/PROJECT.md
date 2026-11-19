@@ -22,7 +22,7 @@ traceability; where they differ, `docs/requirements/requirements.md` wins.
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ Offline tracer: `vdiff` against a local repo from git objects, C++ diff to model/diff JSON, Mermaid and HTML, no ADO (TRC-01..03, SPK-02) — Phase 1 (verified 2026-11-19, incl. Linux and macOS test runs and a private-clone trial)
 
 ### Active
 
@@ -42,7 +42,6 @@ traceability; where they differ, `docs/requirements/requirements.md` wins.
 - [ ] One sticky PR thread found by marker and updated in place; nothing posted for no structural change (R24, R25)
 - [ ] Separate non-blocking job, 20-minute limit, P90 under 5 minutes (R26, R27)
 - [ ] Dry-run mode writing everything locally (R28)
-- [ ] Offline tracer first: `vdiff` against a local repo from git objects, C++ diff to model/diff JSON, Mermaid and HTML, no ADO (TRC-01..03; PO pivot 2026-11-16)
 
 ### Out of Scope
 
@@ -105,8 +104,9 @@ traceability; where they differ, `docs/requirements/requirements.md` wins.
 | No thread for no structural change (D16) | Avoid noise | — Pending |
 | Trailing member tags for change state | Leading symbols are Mermaid syntax | — Pending S1 |
 | GSD bootstrapped from existing docs, questioning/research skipped | Seven PO rounds and a target investigation already done | ✓ Good |
-| C++ tree-sitter extractor is a Rust sidecar (ADR-001, accepted by PO 2026-11-16) | Exact byte spans, pinned versions, process isolation | — Pending |
-| Offline tracer first, against a local clone (PO pivot 2026-11-16) | Prove the pipeline on real code before any ADO work | — Pending |
+| C++ tree-sitter extractor is a Rust sidecar (ADR-001, accepted by PO 2026-11-16) | Exact byte spans, pinned versions, process isolation | ✓ Good — Phase 1 tracer built on it; private-clone trial passed twice |
+| Offline tracer first, against a local clone (PO pivot 2026-11-16) | Prove the pipeline on real code before any ADO work | ✓ Good — Phase 1 complete 2026-11-19 |
+| --out and -LogPath held by directory handle and written by final path on Windows; Linux and macOS bounded by statement (plans 01-16 to 01-18) | Close the check-to-write swap window the PO scoped (G-01-1) | ✓ Good — verified end to end in UAT 2026-11-19; subst, mapped drives and 8.3 names stay accepted (AR-04) |
 
 ## Evolution
 
@@ -126,4 +126,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-16 after initialization*
+*Last updated: 2026-11-19 after Phase 1*

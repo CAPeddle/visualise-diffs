@@ -1,43 +1,43 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 01
-current_phase_name: Offline Tracer
-status: verifying
-stopped_at: Completed 01-18-PLAN.md
-last_updated: "2026-11-18T21:21:03.757Z"
-last_activity: 2026-11-18
-last_activity_desc: Phase 01 execution started
-state_head: ac78c546a8f1bde3c0aa77b306362be3a94d0174
+current_phase: 2
+current_phase_name: Model Contract and Fixture Harness
+status: planning
+stopped_at: Phase 01 complete, ready to plan Phase 2
+last_updated: "2026-11-19T15:12:33.268Z"
+last_activity: 2026-11-19
+last_activity_desc: Phase 01 complete, transitioned to Phase 2
+state_head: 6c700d035407e313a919c74b08034faa6b90db3d
 progress:
   total_phases: 9
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 18
   completed_plans: 18
-  percent: 0
+  percent: 11
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-16)
+See: .planning/PROJECT.md (updated 2026-11-19)
 
 **Core value:** A reviewer understands a PR's structural change (which types, members and edges changed shape) from the diagram, without reading every file.
-**Current focus:** Phase 01 — Offline Tracer
+**Current focus:** Phase 2 — Model Contract and Fixture Harness
 
 ## Current Position
 
-Phase: 01 (Offline Tracer) — EXECUTING
-Plan: 18 of 18
-Status: Phase complete — ready for verification
-Last activity: 2026-11-18 — Phase 01 execution started
+Phase: 2 — Model Contract and Fixture Harness
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-19 — Phase 01 complete, transitioned to Phase 2
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 11%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
+- Total plans completed: 18
 - Average duration: - min
 - Total execution time: 0.0 hours
 
@@ -45,7 +45,7 @@ Progress: [░░░░░░░░░░] 0%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01 | 18 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -115,8 +115,8 @@ None yet.
 
 - [Phase 4] SPK-03 (S3) is on hold pending PO decision O4. The PO said S3's premise came from a mis-report and that the target C# is built on Windows; what that means for S3 has not been confirmed. It blocks the C# plan in Phase 4 and the runner choice in Phase 9. It does not block Phases 1 to 3, or the C++ and C++/CLI plans in Phase 4. Update 2026-11-16: the PO named a local Windows clone as the first-pass test repository; the orchestrator reads that as the first pass running locally on Windows, with the Ubuntu-runner question deferred until after it.
 - [Phase 8] SPK-01 (S1) is prepared but not run: `docs/spikes/S1-mermaid-in-ado-pr.md` is "ready to run (manual)" and needs the PO or an agent in the target organisation. It has no code dependency and can run any time; it must be recorded before Phase 7 closes, and it gates the PR-thread renderer default in Phase 8. It does not gate local Mermaid rendering.
-- [Phase 1] SPK-02 (S2): ADR-001 accepted by the PO on 2026-11-16 (Rust sidecar). The tracer in Phase 1 is built on it, and it gates the C++ plan in Phase 4.
-- [Phase 1] TRC-03 needs a private local clone of the target repository and the base and head commits of one small real PR, supplied by the PO. Its location and content must not be recorded here, and every output stays outside this repository.
+- [Phase 1] Off-Windows test portability (backlog 999.1): the two fsmonitor tests cannot run their hook on Linux or macOS, so C47 is unverified on the default Ubuntu runner; fix before a Linux CI leg is added. GitObjectReaderTests.SamePath fails on macOS (/var link).
+- [Phase 1] Open code-review advisories carried forward (01-REVIEW-DISPOSITION.md): WR-01..WR-06 (WR-03 asks for a repository test of the protected verdict, checked by hand in UAT test 11; WR-02 the I/O error branch prints the held path) and IN-01..IN-08.
 - [All] Repository is public (D15): no target names, identifiers or target-measured figures may be committed. Private results are recorded here without identifiers.
 
 ## Deferred Items
@@ -129,6 +129,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-18T21:20:55.564Z
-Stopped at: Completed 01-18-PLAN.md
+Last session: 2026-11-19T14:50:00Z
+Stopped at: Phase 01 complete, ready to plan Phase 2
 Resume file: None
