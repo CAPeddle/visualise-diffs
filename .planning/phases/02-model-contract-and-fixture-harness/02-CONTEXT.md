@@ -124,6 +124,12 @@ rename scoring, `body-changed` and edge diffing (Phase 5), the node selector and
     a resolution algorithm. The Roslyn C# extractor (Phase 4) resolves bases semantically, so
     `to` is the resolved symbol's full id (for example `class Synthetic.Orders.Document` for a
     written base `Document`). C# fixtures are written in idiomatic, unqualified C#.
+- **D-19 (user, 2026-11-20, after the final plan check):** `TypeModel` in `vdiff-model/v1`
+  carries an optional type-level `access` (reusing the member access enum) and a `partial`
+  flag, so Phase 4 (accessibility, partials) and Phase 6 (public API ranked before internal)
+  need no v2. A partial type spanning several files lists its files. The C++ tracer fills what
+  it can and omits the rest. Both fields are shown at the 02-06 freeze review.
+  — **Reversibility:** one-way (part of the frozen schema).
 - **D-17:** Types are keyed by `(language, id)`. The managed-wrapper lane is the `language`
   value `cpp-cli`, with no separate `lane` field; the lane label is rendered from it.
   — **Reversibility:** one-way (part of the frozen schema).
