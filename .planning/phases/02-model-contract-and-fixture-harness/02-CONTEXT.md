@@ -108,6 +108,23 @@ rename scoring, `body-changed` and edge diffing (Phase 5), the node selector and
   shape (the five shape names) with a date: no SHAs, paths, type names or counts. This is the
   same rule as the TRC-03 trial record.
 
+### Decisions taken after research (2026-11-20, from 02-RESEARCH.md open questions)
+- **D-15:** The JSON Schema validator is NJsonSchema 11.6.2 (MIT), in the test project only.
+  Schemas use the draft-07 subset it enforces: single-value `enum` instead of `const`, and no
+  `if/then` or `dependentRequired`. A keyword allow-list test runs over the schema files, with at
+  least one negative document for each keyword used. JsonSchema.Net was rejected because of its
+  OSMF EULA.
+- **D-16:** `vdiff-model/v1` has a top-level `edges` array. The Phase 2 tracer already emits
+  `base` edges, resolved by a unique exact match or `::`-suffix match (the rule in
+  `MermaidWriter.Edges`). Each fixture also holds a feature the tracer can't produce, so this
+  turns no fixture green by accident. — **Reversibility:** one-way (part of the frozen schema).
+- **D-17:** Types are keyed by `(language, id)`. The managed-wrapper lane is the `language`
+  value `cpp-cli`, with no separate `lane` field; the lane label is rendered from it.
+  — **Reversibility:** one-way (part of the frozen schema).
+- **D-18:** The D-10 ratchet reads `state: pending | green` for each output. A `due: <phase>`
+  number sits alongside it as documentation only. The harness branches on `state` alone and
+  takes no current-phase input.
+
 ### Claude's Discretion
 - How volatile metadata is kept apart (D-04): a separate `*.model.meta.json` file or a section
   that one shared canonicaliser removes. Either is acceptable, provided the canonical body
