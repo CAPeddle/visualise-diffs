@@ -61,21 +61,21 @@ Filled in by the planner and executor per task. Requirement → test map from RE
 
 ### By plan and task (planned 2026-11-20, revised after plan check: 02-01 and 02-03 split, 02-11 and 02-12 added)
 
-All commands run as `dotnet test tests/Vdiff.Tests/Vdiff.Tests.csproj --nologo --filter "<filter>"` unless shown in full; each plan's `<verify>` block holds the exact command and its failure signal.
+All commands run as `dotnet test tests/Vdiff.Tests/Vdiff.Tests.csproj --nologo --filter "<filter>"` unless shown in full; each plan's `<verify>` block holds the exact command and its failure signal. Per-task commands filter to the test classes the task edits or whose output it changes, to stay inside the 30-second feedback budget; a filtered run still builds the whole test assembly, so compile-atomic record changes are covered. The full suite (`Category!=MermaidCli`) runs in each plan's `<verification>` and after every wave.
 
 | Task | Wave | Requirement | Filter or check | Status |
 |------|------|-------------|-----------------|--------|
 | 02-01-1 | 1 | R-23 | `FullyQualifiedName~DeterminismTests\|…\|FullyQualifiedName~TraceRunScriptTests`; no hard-coded five-file success line | ⬜ pending |
 | 02-02-1 | 1 | ACC-01 | package legitimacy checkpoint (manual, blocking) | ⬜ pending |
 | 02-02-2 | 1 | ACC-01 | `FullyQualifiedName~PipelineYamlTests` | ⬜ pending |
-| 02-11-1 | 2 | R-23 | `Category!=MermaidCli`; `FullyQualifiedName~TracerEndToEndTests\|FullyQualifiedName~DeterminismTests\|FullyQualifiedName~HostileInputTests` | ⬜ pending |
-| 02-11-2 | 2 | R-23 | `FullyQualifiedName~HtmlWriterTests\|FullyQualifiedName~MermaidWriterTests\|FullyQualifiedName~DeterminismTests`; `Category!=MermaidCli`; no commit field left in the diff record | ⬜ pending |
+| 02-11-1 | 2 | R-23 | `FullyQualifiedName~TracerEndToEndTests\|FullyQualifiedName~DeterminismTests\|FullyQualifiedName~HostileInputTests` | ⬜ pending |
+| 02-11-2 | 2 | R-23 | `FullyQualifiedName~HtmlWriterTests\|FullyQualifiedName~MermaidWriterTests\|FullyQualifiedName~DeterminismTests\|FullyQualifiedName~TracerEndToEndTests`; no commit field left in the diff record | ⬜ pending |
 | 02-04-1 | 2 | 999.1 (D-11) | `FullyQualifiedName~GitObjectReaderTests\|FullyQualifiedName~A_core_fsmonitor_hook_is_never_run` | ⬜ pending |
 | 02-04-2 | 2 | ACC-01 | `FullyQualifiedName~RatchetTests` | ⬜ pending |
-| 02-03-1 | 3 | R-10 | `Category!=MermaidCli`; no provisional model schema name in `src`/`tests` | ⬜ pending |
-| 02-03-2 | 3 | R-10, R-23 | `Category!=MermaidCli`; `FullyQualifiedName~ModelBuilderTests` | ⬜ pending |
-| 02-12-1 | 4 | R-10 | `Category!=MermaidCli`; no provisional schema name in `src`/`tests` | ⬜ pending |
-| 02-12-2 | 4 | R-23 | `Category!=MermaidCli`; `FullyQualifiedName~Same_trees_committed_twice_give_identical_canonical_files_and_differ_only_in_run_meta` | ⬜ pending |
+| 02-03-1 | 3 | R-10 | `FullyQualifiedName~ModelBuilderTests\|FullyQualifiedName~ModelAssemblyTests\|FullyQualifiedName~ModelDifferTests\|FullyQualifiedName~BlankingEndToEndTests\|FullyQualifiedName~RichFixtureEndToEndTests\|FullyQualifiedName~TracerEndToEndTests`; no provisional model schema name in `src`/`tests` | ⬜ pending |
+| 02-03-2 | 3 | R-10, R-23 | `FullyQualifiedName~ModelBuilderTests\|FullyQualifiedName~ModelDifferTests\|FullyQualifiedName~TracerEndToEndTests\|FullyQualifiedName~DeterminismTests` | ⬜ pending |
+| 02-12-1 | 4 | R-10 | `FullyQualifiedName~ModelDifferTests\|FullyQualifiedName~ModelBuilderTests\|FullyQualifiedName~MermaidWriterTests\|FullyQualifiedName~HtmlWriterTests\|FullyQualifiedName~DeterminismTests\|FullyQualifiedName~RichFixtureEndToEndTests\|FullyQualifiedName~IncludeGlobEndToEndTests\|FullyQualifiedName~TracerEndToEndTests`; no provisional schema name in `src`/`tests` | ⬜ pending |
+| 02-12-2 | 4 | R-23 | `FullyQualifiedName~ModelDifferTests\|FullyQualifiedName~MermaidWriterTests\|FullyQualifiedName~HtmlWriterTests\|FullyQualifiedName~DeterminismTests\|FullyQualifiedName~TracerEndToEndTests`; `FullyQualifiedName~Same_trees_committed_twice_give_identical_canonical_files_and_differ_only_in_run_meta` | ⬜ pending |
 | 02-05-1 | 5 | R-10 | `FullyQualifiedName~SchemaValidationTests` | ⬜ pending |
 | 02-05-2 | 5 | R-10 | `FullyQualifiedName~SchemaParityTests\|FullyQualifiedName~SchemaValidationTests\|FullyQualifiedName~DiffPresenceTests` | ⬜ pending |
 | 02-06-1 | 6 | R-23 | `FullyQualifiedName~CanonicalSerialisationTests` | ⬜ pending |
