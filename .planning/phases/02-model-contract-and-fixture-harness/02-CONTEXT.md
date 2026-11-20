@@ -130,6 +130,26 @@ rename scoring, `body-changed` and edge diffing (Phase 5), the node selector and
   need no v2. A partial type spanning several files lists its files. The C++ tracer fills what
   it can and omits the rest. Both fields are shown at the 02-06 freeze review.
   — **Reversibility:** one-way (part of the frozen schema).
+- **D-20 (user, 2026-11-20, ce-doc-review of 02-03/02-05/02-06/02-12):** the v1 diff reports
+  no type-level attribute changes. `TypeDiff` carries no access or modifiers before/after pair,
+  and a type is `modified` only when its bases or members differ. Phase 5 may add type-level
+  change fields as optional properties inside v1. D-19's model fields stay.
+  — **Reversibility:** one-way (frozen diff shape).
+- **D-21 (user, same review):** a repeated type id in one language is disambiguated by its
+  repo-relative file path (`#<path>`), with an `@<n>` counter only when the same file repeats
+  it, instead of an ordinal `#2` counted across files, so adding an unrelated file never
+  renumbers other ids. The same rule applies to member keys. — **Reversibility:** one-way.
+- **D-22 (user, same review):** the id and member-key grammar per language (cpp, csharp,
+  cpp-cli: kind, namespace and nesting separators, generic arity and template arguments,
+  overload disambiguation) is written in an Identity section of `docs/schema/README.md` and
+  in the id and key schema descriptions, and is on the 02-06 freeze review list. The C#
+  fixture includes a same-namespace `Foo` and `Foo<T>` pair and a nested type.
+  — **Reversibility:** one-way.
+- **D-23 (user, same review):** edge identity is (kind, from, to_name, via), with `to`
+  excluded. An edge is `modified` when its identity matches and its resolved `to` differs;
+  `EdgeDiff` gains optional `to_before`/`to_after` for that case. The `renamed` edge state
+  stays and means head-side ids, the base-side ids coming from the type's `renamed_from`.
+  — **Reversibility:** one-way.
 - **D-17:** Types are keyed by `(language, id)`. The managed-wrapper lane is the `language`
   value `cpp-cli`, with no separate `lane` field; the lane label is rendered from it.
   — **Reversibility:** one-way (part of the frozen schema).
