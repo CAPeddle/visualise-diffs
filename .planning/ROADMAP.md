@@ -121,8 +121,37 @@ Plans:
   3. Five synthetic fixtures (small C++, C#, cross-stack with C++/CLI, extract-class refactor, rename) are in the repository, and the CI harness reports each as failing against its expected output, as intended before any extractor exists.
   4. Serialising the same model twice, with collections supplied in any order, yields byte-identical JSON.
   5. A documented private-fixture recipe lets five real PRs of the same shapes be checked inside the target organisation without their content entering this repository.
-**Plans**: TBD
+**Plans**: 12 plans in 8 waves
 **Note**: ACC-01 ("green in CI") is owned here but only reaches green in later phases; see the coverage note in the Overview.
+
+Plans:
+**Wave 1**
+- [ ] 02-01-PLAN.md — Wave 1: one shared output-file-name constant; every test reads it (pure refactor)
+- [ ] 02-02-PLAN.md — Wave 1: NuGet legitimacy checkpoint and pins, two-leg `azure-pipelines.yml` with its static guard, LF rules
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 02-11-PLAN.md — Wave 2: volatile metadata in `run.meta.json`, added end to end; `report.html` reads `RunMeta`; the diff record drops its commit fields (tracer)
+- [ ] 02-04-PLAN.md — Wave 2: backlog 999.1 portability fixes; pure expected-failure ratchet, report table and shape names
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 02-03-PLAN.md — Wave 3: model records to `vdiff-model/v1` (no commit or tool version), one `Canonical` ordering module, base edges
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 02-12-PLAN.md — Wave 4: diff records to `vdiff-diff/v1` keyed by (language, id), canonical diff order, separation test; provisional schema names deleted
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 02-05-PLAN.md — Wave 5: three JSON Schema files, tracer output validated, parity, keyword allow-list with negative documents, presence checker
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 02-06-PLAN.md — Wave 6: seeded-shuffle proof of criterion 4; blocking schema-freeze decision; hash pins
+- [ ] 02-07-PLAN.md — Wave 6: fixture harness (strict loader, CLI run, byte compare, ratchet, unified diff, report), accept mode, CR/BOM guard
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 02-08-PLAN.md — Wave 7: small-cpp, rename and extract-class fixtures with hand-written goldens; guard change with the first golden; fixtures README; local Mermaid parse of the summary goldens
+- [ ] 02-09-PLAN.md — Wave 7: private-fixture mode, its refusals and leak checks, `docs/how-to/private-fixtures.md` and the header-only public record
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 02-10-PLAN.md — Wave 8: csharp and cross-stack fixtures, five-shape assertion, all ten outputs RED, all five summary goldens parsed locally
 
 ### Phase 3: Git Layer
 **Goal**: Given an Azure DevOps PR context, the tool knows exactly what to compare and which PRs to leave alone.

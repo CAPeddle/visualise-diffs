@@ -118,6 +118,12 @@ rename scoring, `body-changed` and edge diffing (Phase 5), the node selector and
   `base` edges, resolved by a unique exact match or `::`-suffix match (the rule in
   `MermaidWriter.Edges`). Each fixture also holds a feature the tracer can't produce, so this
   turns no fixture green by accident. — **Reversibility:** one-way (part of the frozen schema).
+  - **D-16 clarification (user, 2026-11-20, after plan-check iteration 3):** the exact or
+    `::`-suffix rule governs the syntax-only C++ extractors (the tracer and the tree-sitter
+    sidecar). The frozen schema carries the edge shape (`from`, optional `to`, `to_name`), not
+    a resolution algorithm. The Roslyn C# extractor (Phase 4) resolves bases semantically, so
+    `to` is the resolved symbol's full id (for example `class Synthetic.Orders.Document` for a
+    written base `Document`). C# fixtures are written in idiomatic, unqualified C#.
 - **D-17:** Types are keyed by `(language, id)`. The managed-wrapper lane is the `language`
   value `cpp-cli`, with no separate `lane` field; the lane label is rendered from it.
   — **Reversibility:** one-way (part of the frozen schema).

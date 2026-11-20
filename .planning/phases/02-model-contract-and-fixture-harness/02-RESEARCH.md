@@ -691,30 +691,37 @@ All `expected.diff` and `expected.summary` entries start `state: pending`. Fixtu
 | A11 | The Windows hosted agent's bundled git behaves like the local one for `git diff --no-index` | Code Examples | Mismatch output differs slightly; harness only prints it |
 | A12 | Corvus.Json.Validator would also work (not probed); listed only as an unverified alternative | Alternatives Considered | None unless chosen |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 Numbering note: the Proposed v1 Shapes and Pitfalls sections refer to questions by the labels below (O1 = Q1, and so on; the shape discussion's "O1 managed-wrapper", "O2 edges" and "O3 ids" are items 4, 2 and 3 here).
 
-1. **JsonSchema.Net versus NJsonSchema (licence).**
+Resolution note (2026-11-20): Q1 to Q4 were settled by the user after research (CONTEXT.md D-15 to D-17). Q5 needs no decision for the Phase 2 contract and is deferred to Phase 6 planning, for the reason given under it.
+
+1. **JsonSchema.Net versus NJsonSchema (licence).** RESOLVED by D-15.
    - What we know: NJsonSchema is MIT and passed every probe within the keyword allow-list. JsonSchema.Net is functionally better (full 2020-12, no silent ignoring) but its NuGet licence file is the OSMF EULA quoted in A5; private-fixture runs happen inside the target organisation.
    - What's unclear: whether the user or the organisation accepts or exempts that fee; this research does not give a legal reading.
    - Recommendation: build on NJsonSchema with the allow-list; ask the user to confirm A5 only if they want JsonSchema.Net.
+   - RESOLVED (D-15): NJsonSchema 11.6.2, in the test project only, with schemas in the draft-07 subset it enforces and a keyword allow-list test. JsonSchema.Net was rejected because of its OSMF EULA.
 
-2. **Derived edges (A6).**
+2. **Derived edges (A6).** RESOLVED by D-16.
    - What we know: R10 says "bases and derived edges"; R18 names bases, derived types and association targets as neighbours; ModelBuilder today records only `bases` as written.
    - What's unclear: whether the tracer should already emit `base` edges.
    - Recommendation: define `edges` in the schema now; have `ModelBuilder` emit `base` edges resolved by unique exact or `::`-suffix match (the rule `MermaidWriter.Edges` uses at `MermaidWriter.cs:122-160`). That does not make fixtures accidentally green, because every fixture also holds a feature the tracer cannot produce (Pitfall 10).
+   - RESOLVED (D-16): `vdiff-model/v1` has a top-level `edges` array, and the Phase 2 tracer emits `base` edges resolved by a unique exact or `::`-suffix match.
 
-3. **Cross-language id collisions (Pitfall 9).**
+3. **Cross-language id collisions (Pitfall 9).** RESOLVED by D-17.
    - Recommendation: key types by `(language, id)`; confirm before the freeze because it is one-way.
+   - RESOLVED (D-17): types are keyed by `(language, id)`.
 
-4. **Managed-wrapper lane naming (A9, `language: cpp-cli`).**
+4. **Managed-wrapper lane naming (A9, `language: cpp-cli`).** RESOLVED by D-17.
    - Recommendation: keep one field; render the lane name from it.
+   - RESOLVED (D-17): the lane is the `language` value `cpp-cli`, with no separate `lane` field; the lane label is rendered from it.
 
-5. **Where the unchanged edges for neighbours come from in Phase 6.**
+5. **Where the unchanged edges for neighbours come from in Phase 6.** RESOLVED for Phase 2 (no v1 change); the selector-side choice is deferred to Phase 6 planning.
    - What we know: v1 diff lists only changed edges; unchanged edges are counted.
    - What's unclear: whether the selector reads the models for neighbour edges (likely) or needs them in the diff.
    - Recommendation: the selector reads both models; no change to v1.
+   - RESOLVED (no decision needed now): the frozen v1 contract does not depend on the answer. Each model already carries the full `edges` array (D-16), so a selector that reads both models has every neighbour edge. If Phase 6 instead wants unchanged edges listed in the diff, that needs a new `unchanged` value in the `EdgeDiff.state` enum and a relaxed "counted, never listed" rule for edges. Every existing document stays valid under that change, so the evolution policy keeps it inside v1 (`docs/schema/README.md`, plans 02-05 and 02-06). Which route the selector takes is decided when Phase 6 is planned.
 
 ## Environment Availability
 
