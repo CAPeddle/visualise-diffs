@@ -223,6 +223,62 @@ public partial class RepoHygieneTests
             + string.Join('\n', findings));
     }
 
+    // ---- (4) fixture and schema bytes: no carriage return, no byte-order mark ----
+
+    /// <summary>
+    /// The reasons one file's bytes break the fixture rule: a CR changes spans and commit ids when the
+    /// file is copied into a repository, and a BOM changes the first token.
+    /// </summary>
+    public static IReadOnlyList<string> TextFileProblems(string path, byte[] bytes) => [];
+
+    [Fact]
+    public void Fixture_and_schema_files_have_no_carriage_return_or_bom()
+    {
+        var root = FindRoot();
+        var listing = Git(root, "ls-files", "-z", "--", "tests/fixtures", "docs/schema");
+        Assert.True(listing.ExitCode == 0, "git ls-files failed: " + listing.StderrTail);
+
+        var problems = new List<string>();
+        var scanned = 0;
+        foreach (var path in Encoding.UTF8.GetString(listing.Stdout).Split('\0', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var isFixture = path.StartsWith("tests/fixtures/", StringComparison.Ordinal);
+            var isSchema = path.StartsWith("docs/schema/", StringComparison.Ordinal)
+                && path.EndsWith(".json", StringComparison.Ordinal)
+                && path.IndexOf('/', "docs/schema/".Length) < 0;
+            if (!isFixture && !isSchema)
+            {
+                continue;
+            }
+
+            // The working-tree bytes are what the harness copies into a repository.
+            scanned++;
+            problems.AddRange(TextFileProblems(path, File.ReadAllBytes(Path.Combine(root, path))));
+        }
+
+        Assert.True(scanned >= 3, "fewer than three fixture or schema files were scanned, so the guard proves nothing");
+        Assert.True(
+            problems.Count == 0,
+            "fixture or schema files with a carriage return or a byte-order mark (RESEARCH Pitfall 3); check .gitattributes:\n"
+            + string.Join('\n', problems));
+    }
+
+    [Theory]
+    [InlineData(new byte[] { 0x61, 0x0D, 0x0A, 0x62 }, 1)]
+    [InlineData(new byte[] { 0x0D }, 1)]
+    [InlineData(new byte[] { 0xEF, 0xBB, 0xBF, 0x7B, 0x7D, 0x0A }, 1)]
+    [InlineData(new byte[] { 0xEF, 0xBB, 0xBF, 0x61, 0x0D }, 2)]
+    [InlineData(new byte[] { 0x7B, 0x7D, 0x0A }, 0)]
+    [InlineData(new byte[] { 0xEF, 0xBB, 0x7B }, 0)]
+    [InlineData(new byte[0], 0)]
+    public void The_text_file_guard_flags_a_carriage_return_or_a_byte_order_mark(byte[] bytes, int expectedProblems)
+    {
+        var problems = TextFileProblems("tests/fixtures/small-cpp/head/include/a.h", bytes);
+
+        Assert.Equal(expectedProblems, problems.Count);
+        Assert.All(problems, p => Assert.StartsWith("tests/fixtures/small-cpp/head/include/a.h: ", p, StringComparison.Ordinal));
+    }
+
     // ---- the guards must fail when their condition breaks (both directions) ----
 
     [Theory]

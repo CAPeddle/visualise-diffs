@@ -725,6 +725,264 @@ public class FixtureHarnessTests(ITestOutputHelper output)
         Assert.Contains("fixtures root not found", exception.Message);
     }
 
+    // ---- accept mode (D-06) ----
+
+    const string CiRefusal = "accept mode never runs in CI (TF_BUILD or CI is set)";
+    const string ShapeRefusal = "VDIFF_FIXTURE_ACCEPT must name exactly one of the five shapes";
+
+    static Func<string, string?> Env(string? accept, string? tfBuild = null, string? ci = null, string? report = null) => name => name switch
+    {
+        AcceptMode.Variable => accept,
+        "TF_BUILD" => tfBuild,
+        "CI" => ci,
+        FixtureReport.Variable => report,
+        _ => null,
+    };
+
+    [Theory]
+    [InlineData(null, null, null, null)]
+    [InlineData("", null, null, null)]
+    [InlineData("small-cpp", null, null, null)]
+    [InlineData("rename", "", "", null)]
+    [InlineData(null, "True", "true", null)]
+    [InlineData("small-cpp", "True", null, CiRefusal)]
+    [InlineData("small-cpp", null, "true", CiRefusal)]
+    [InlineData("small-cpp", "1", "1", CiRefusal)]
+    [InlineData("all", null, null, ShapeRefusal)]
+    [InlineData("small-cpp,rename", null, null, ShapeRefusal)]
+    [InlineData("Rename", null, null, ShapeRefusal)]
+    [InlineData(" small-cpp", null, null, ShapeRefusal)]
+    [InlineData("small-cpp ", null, null, ShapeRefusal)]
+    [InlineData("not-a-shape", null, null, ShapeRefusal)]
+    public void Accept_mode_is_refused_in_CI_and_for_anything_but_one_shape_name(string? accept, string? tfBuild, string? ci, string? expected)
+    {
+        Assert.Equal(expected, AcceptMode.Refusal(Env(accept, tfBuild, ci)));
+    }
+
+    [Theory]
+    [InlineData("small-cpp", "small-cpp")]
+    [InlineData("extract-class", "extract-class")]
+    [InlineData("Rename", null)]
+    [InlineData(" small-cpp", null)]
+    [InlineData("small-cpp,rename", null)]
+    [InlineData("", null)]
+    [InlineData(null, null)]
+    public void The_requested_shape_is_the_value_only_when_it_is_exactly_one_shape_name(string? value, string? expected)
+    {
+        Assert.Equal(expected, AcceptMode.RequestedShape(Env(value)));
+    }
+
+    static Dictionary<string, string> FileHashes(string root) =>
+        Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories).ToDictionary(
+            f => Path.GetRelativePath(root, f).Replace('\\', '/'),
+            f => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(f))),
+            StringComparer.Ordinal);
+
+    static string WriteRunOutputs(string root)
+    {
+        var outDir = Path.Combine(root, "run-outputs");
+        Directory.CreateDirectory(outDir);
+        WriteText(Path.Combine(outDir, OutputWriter.DiffJsonFile), "new diff\n");
+        WriteText(Path.Combine(outDir, OutputWriter.MermaidFile), "new summary\n");
+        WriteText(Path.Combine(outDir, OutputWriter.HtmlFile), "a page\n");
+        WriteText(Path.Combine(outDir, OutputWriter.HeadModelFile), "a model\n");
+        return outDir;
+    }
+
+    [Fact]
+    public void Apply_copies_exactly_the_diff_and_the_summary_into_expected_and_changes_nothing_else()
+    {
+        using var fixtures = new TempFixtures();
+        var goldens = EmptyGoldens();
+        goldens["notes.md"] = "a note that is not a golden\n";
+        var dir = fixtures.Add("small-cpp", GreenYaml, Notes(), Notes(), goldens);
+        var outDir = WriteRunOutputs(fixtures.Root);
+        var before = FileHashes(dir);
+
+        var accepted = AcceptMode.Apply(dir, outDir);
+
+        Assert.Equal(["expected/diff.json", "expected/summary.mmd"], accepted);
+        var after = FileHashes(dir);
+        Assert.Equal(before.Keys.Order(StringComparer.Ordinal), after.Keys.Order(StringComparer.Ordinal));
+        Assert.Equal("new diff\n", File.ReadAllText(Path.Combine(dir, "expected", "diff.json")));
+        Assert.Equal("new summary\n", File.ReadAllText(Path.Combine(dir, "expected", "summary.mmd")));
+        foreach (var (path, hash) in before.Where(p => p.Key is not ("expected/diff.json" or "expected/summary.mmd")))
+        {
+            Assert.Equal(hash, after[path]);
+        }
+    }
+
+    [Fact]
+    public void Apply_refuses_an_expected_directory_that_is_a_link_and_writes_nothing_through_it()
+    {
+        using var scratch = new Support.LinkScratch();
+        var target = Path.Combine(scratch.Root, "elsewhere");
+        Directory.CreateDirectory(target);
+        var dir = WriteFixture(scratch.Root, "small-cpp", GreenYaml, Notes(), Notes(), null);
+        scratch.Link(Path.Combine("small-cpp", "expected"), target);
+        var outDir = WriteRunOutputs(scratch.Root);
+
+        Assert.Throws<InvalidOperationException>(() => AcceptMode.Apply(dir, outDir));
+
+        Assert.Empty(Directory.GetFileSystemEntries(target));
+    }
+
+    [Fact]
+    public void Apply_refuses_a_fixture_directory_that_is_a_link()
+    {
+        using var scratch = new Support.LinkScratch();
+        var real = WriteFixture(Path.Combine(scratch.Root, "real"), "small-cpp", GreenYaml, Notes(), Notes(), EmptyGoldens());
+        var linked = scratch.Link("linked-fixture", real);
+        var outDir = WriteRunOutputs(scratch.Root);
+        var before = FileHashes(real);
+
+        Assert.Throws<InvalidOperationException>(() => AcceptMode.Apply(linked, outDir));
+
+        Assert.Equal(before, FileHashes(real));
+    }
+
+    [Fact]
+    public void Apply_refuses_a_fixture_without_an_expected_directory()
+    {
+        using var fixtures = new TempFixtures();
+        var dir = fixtures.Add("small-cpp", GreenYaml, Notes(), Notes(), null);
+        var outDir = WriteRunOutputs(fixtures.Root);
+
+        Assert.Throws<InvalidOperationException>(() => AcceptMode.Apply(dir, outDir));
+
+        Assert.False(Directory.Exists(Path.Combine(dir, "expected")));
+    }
+
+    [Fact]
+    public void Apply_refuses_when_the_run_did_not_write_both_files()
+    {
+        using var fixtures = new TempFixtures();
+        var dir = fixtures.Add("small-cpp", GreenYaml, Notes(), Notes(), EmptyGoldens());
+        var outDir = WriteRunOutputs(fixtures.Root);
+        File.Delete(Path.Combine(outDir, OutputWriter.MermaidFile));
+        var before = FileHashes(dir);
+
+        Assert.Throws<InvalidOperationException>(() => AcceptMode.Apply(dir, outDir));
+
+        Assert.Equal(before, FileHashes(dir));
+    }
+
+    [Fact]
+    public void RunAll_in_accept_mode_rewrites_the_goldens_then_fails_the_run_and_never_changes_a_state()
+    {
+        using var fixtures = new TempFixtures();
+        var dir = fixtures.Add("rename", Yaml(shape: "rename"), BaseHeader(), HeadHeader(), EmptyGoldens());
+        var green = fixtures.Add("small-cpp", GreenYaml, Notes(), Notes(), EmptyGoldens());
+        var greenBefore = FileHashes(green);
+        var yamlBefore = File.ReadAllBytes(Path.Combine(dir, "fixture.yml"));
+
+        var exception = Assert.ThrowsAny<Xunit.Sdk.XunitException>(
+            () => FixtureHarness.RunAll(fixtures.Root, _ => { }, Env("rename")));
+
+        Assert.StartsWith("accept mode rewrote", exception.Message);
+        Assert.Contains("rename/expected/diff.json", exception.Message);
+        Assert.Equal(greenBefore, FileHashes(green));
+        Assert.Equal(yamlBefore, File.ReadAllBytes(Path.Combine(dir, "fixture.yml")));
+
+        // The goldens now equal what a fresh run writes.
+        var loaded = FixtureLoader.Load(dir, FixtureKind.Synthetic);
+        var (repo, baseId, headId) = FixtureHarness.BuildSyntheticRepo(loaded);
+        using (repo)
+        {
+            var outDir = Path.Combine(repo.Root, "fresh");
+            var run = FixtureHarness.RunCli(FixtureHarness.CliArguments(loaded, repo.RepoDir, baseId, headId, outDir), outDir);
+            Assert.Equal(0, run.ExitCode);
+            foreach (var name in new[] { OutputWriter.DiffJsonFile, OutputWriter.MermaidFile })
+            {
+                Assert.Equal(File.ReadAllBytes(Path.Combine(outDir, name)), File.ReadAllBytes(Path.Combine(dir, "expected", name)));
+            }
+        }
+
+        // The state is still pending, so a normal run now reports that the output unexpectedly matches.
+        var second = FixtureHarness.RunAll(fixtures.Root, _ => { }, Env(null));
+        var rename = second.Where(o => o.Row.Fixture == "rename").ToList();
+        Assert.Equal(2, rename.Count);
+        Assert.All(rename, o =>
+        {
+            Assert.False(o.Passed);
+            Assert.Equal("FAIL", o.Row.Status);
+            Assert.StartsWith("unexpectedly matches", o.Row.Detail);
+        });
+    }
+
+    [Theory]
+    [InlineData("True", null)]
+    [InlineData(null, "true")]
+    public void RunAll_refuses_accept_mode_in_CI_before_running_anything(string? tfBuild, string? ci)
+    {
+        using var fixtures = new TempFixtures();
+        var dir = fixtures.Add("rename", Yaml(shape: "rename"), BaseHeader(), HeadHeader(), EmptyGoldens());
+        var before = FileHashes(dir);
+        var reportPath = TempReportPath();
+        var log = new List<string>();
+
+        var exception = Assert.ThrowsAny<Xunit.Sdk.XunitException>(
+            () => FixtureHarness.RunAll(fixtures.Root, log.Add, Env("rename", tfBuild, ci, reportPath)));
+
+        Assert.Equal(CiRefusal, exception.Message);
+        Assert.Equal(before, FileHashes(dir));
+        Assert.Empty(log);
+        Assert.False(File.Exists(reportPath));
+    }
+
+    [Theory]
+    [InlineData("all")]
+    [InlineData("rename,small-cpp")]
+    [InlineData("Rename")]
+    public void RunAll_refuses_accept_mode_for_anything_but_one_shape_name(string value)
+    {
+        using var fixtures = new TempFixtures();
+        var dir = fixtures.Add("rename", Yaml(shape: "rename"), BaseHeader(), HeadHeader(), EmptyGoldens());
+        var before = FileHashes(dir);
+
+        var exception = Assert.ThrowsAny<Xunit.Sdk.XunitException>(
+            () => FixtureHarness.RunAll(fixtures.Root, _ => { }, Env(value)));
+
+        Assert.Equal(ShapeRefusal, exception.Message);
+        Assert.Equal(before, FileHashes(dir));
+    }
+
+    [Fact]
+    public void RunAll_in_accept_mode_still_fails_when_the_named_fixture_is_absent_or_cannot_load()
+    {
+        using var fixtures = new TempFixtures();
+        var green = fixtures.Add("small-cpp", GreenYaml, Notes(), Notes(), EmptyGoldens());
+        var before = FileHashes(green);
+
+        var absent = Assert.ThrowsAny<Xunit.Sdk.XunitException>(
+            () => FixtureHarness.RunAll(fixtures.Root, _ => { }, Env("rename")));
+        Assert.Contains("accept mode", absent.Message);
+
+        var broken = fixtures.Add("csharp", Yaml(shape: "csharp", top: "bogus: 1\n"), Notes(), Notes(), EmptyGoldens());
+        var brokenBefore = FileHashes(broken);
+        var unloadable = Assert.ThrowsAny<Xunit.Sdk.XunitException>(
+            () => FixtureHarness.RunAll(fixtures.Root, _ => { }, Env("csharp")));
+        Assert.Contains("accept mode", unloadable.Message);
+
+        Assert.Equal(before, FileHashes(green));
+        Assert.Equal(brokenBefore, FileHashes(broken));
+    }
+
+    [Fact]
+    public void Accept_mode_writes_nothing_from_a_failed_run()
+    {
+        using var fixtures = new TempFixtures();
+        var config = "config:\n  blank:\n    - not-an-identifier\n";
+        var dir = fixtures.Add("small-cpp", Yaml(config: config), BaseHeader(), HeadHeader(), EmptyGoldens());
+        var before = FileHashes(dir);
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => FixtureHarness.RunSynthetic(FixtureLoader.Load(dir, FixtureKind.Synthetic), accept: true));
+
+        Assert.Equal("accept mode writes only from a successful, schema-valid run", exception.Message);
+        Assert.Equal(before, FileHashes(dir));
+    }
+
     static void DeleteDirectory(string path)
     {
         if (Directory.Exists(path))
