@@ -121,7 +121,7 @@ Plans:
   3. Five synthetic fixtures (small C++, C#, cross-stack with C++/CLI, extract-class refactor, rename) are in the repository, and the CI harness reports each as failing against its expected output, as intended before any extractor exists.
   4. Serialising the same model twice, with collections supplied in any order, yields byte-identical JSON.
   5. A documented private-fixture recipe lets five real PRs of the same shapes be checked inside the target organisation without their content entering this repository.
-**Plans**: 5/12 plans executed in 8 waves
+**Plans**: 6/12 plans executed in 8 waves
 **Note**: ACC-01 ("green in CI") is owned here but only reaches green in later phases; see the coverage note in the Overview.
 
 Plans:
@@ -137,7 +137,7 @@ Plans:
 - [x] 02-03-PLAN.md — Wave 3: model records to `vdiff-model/v1` (no commit or tool version), one `Canonical` ordering module, base edges
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 02-12-PLAN.md — Wave 4: diff records to `vdiff-diff/v1` keyed by (language, id), canonical diff order, separation test; provisional schema names deleted
+- [x] 02-12-PLAN.md — Wave 4: diff records to `vdiff-diff/v1` keyed by (language, id), canonical diff order, separation test; provisional schema names deleted
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 02-05-PLAN.md — Wave 5: three JSON Schema files, tracer output validated, parity, keyword allow-list with negative documents, presence checker
@@ -253,7 +253,7 @@ pending O4. The gates are listed in the Overview.
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Offline Tracer | 18/18 | Complete    | 2026-11-19 |
-| 2. Model Contract and Fixture Harness | 5/12 | In Progress | - |
+| 2. Model Contract and Fixture Harness | 6/12 | In Progress | - |
 | 3. Git Layer | 0/TBD | Not started | - |
 | 4. Extractors | 0/TBD | Not started | - |
 | 5. Differ | 0/TBD | Not started | - |
