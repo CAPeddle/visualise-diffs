@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Model Contract and Fixture Harness
 status: executing
-stopped_at: Completed 02-05-PLAN.md
-last_updated: "2026-11-21T08:49:47.227Z"
+stopped_at: Completed 02-06-PLAN.md
+last_updated: "2026-11-21T09:16:39.507Z"
 last_activity: 2026-11-21
 last_activity_desc: Phase 02 execution started
-state_head: 17a5032892440a9cb4ec8c0a3d474c32b74cb5f7
+state_head: cc1f1db5340ba4c469fdb8b6d5b7f818c6ec3f76
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 30
-  completed_plans: 25
+  completed_plans: 26
   percent: 11
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-19)
 ## Current Position
 
 Phase: 02 (Model Contract and Fixture Harness) — EXECUTING
-Plan: 8 of 12
+Plan: 9 of 12
 Status: Ready to execute
 Last activity: 2026-11-21 — Phase 02 execution started
 
@@ -79,6 +79,7 @@ Progress: [█░░░░░░░░░] 11%
 | Phase 02 P03 | 21 min | 2 tasks | 12 files |
 | Phase 02 P12 | 31 min | 2 tasks | 12 files |
 | Phase 02 P05 | 28 min | 3 tasks | 12 files |
+| Phase 02 P06 | 2 sessions (checkpoint split) | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -120,6 +121,8 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-03: BaseResolver.Resolve gives an edge without a target for a self match; Canonical tie-break serialises the element after canonicalising nested collections; OutputWriter.Serialize canonicalises ModelFile, DiffFile and RunMeta
 - [Phase 02]: 02-12: TypeDiff has no type-level attribute pair (D-20); Canonical.Edges is built from Canonical.EdgeIdentity (D-23) and EdgeDiff rows sort by the same identity; ModelDiffer member order includes modifiers
 - [Phase 02]: 02-05: DiffPresence treats renamed_from, rename and renamed_from_key as present exactly for state renamed; schemas add minLength 1 and unique modifiers on diff-side fields beyond the 02-03 tables (listed for the 02-06 freeze review)
+- [Phase 02]: 02-06: v1 schemas frozen as written by 02-05 on owner approval 2026-11-21; SchemaFreezeTests pins SHA-256 over LF-normalised text
+- [Phase 02]: 02-06: README presence wording fixed to 'exactly for state renamed' to match DiffPresence (wording only, not a schema revision)
 
 ### Pending Todos
 
@@ -143,6 +146,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-21T08:49:46.833Z
-Stopped at: Completed 02-05-PLAN.md
+Last session: 2026-11-21T09:16:39.094Z
+Stopped at: Completed 02-06-PLAN.md
 Resume file: None

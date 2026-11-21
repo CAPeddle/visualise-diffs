@@ -25,8 +25,8 @@ roadmap) and have no counterpart in that file yet.
 
 ### Model and harness
 
-- [ ] **R-10**: Every extractor emits one versioned model `vdiff-model/v1` (types, members, bases, derived edges, spans, extraction metadata)
-- [ ] **R-23**: Identical inputs produce byte-identical outputs; canonical ordering, volatile metadata kept apart
+- [x] **R-10**: Every extractor emits one versioned model `vdiff-model/v1` (types, members, bases, derived edges, spans, extraction metadata)
+- [x] **R-23**: Identical inputs produce byte-identical outputs; canonical ordering, volatile metadata kept apart
 
 ### Inputs and scope
 
@@ -104,8 +104,8 @@ Phases are defined in `.planning/ROADMAP.md`. Each requirement maps to exactly o
 | TRC-02 | Phase 1 | Complete |
 | TRC-03 | Phase 1 | Complete |
 | SPK-02 | Phase 1 | Complete |
-| R-10 | Phase 2 | Pending |
-| R-23 | Phase 2 | Pending |
+| R-10 | Phase 2 | Complete |
+| R-23 | Phase 2 | Complete |
 | ACC-01 | Phase 2 | Pending |
 | ACC-02 | Phase 2 | Pending |
 | R-01 | Phase 3 | Pending |
