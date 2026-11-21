@@ -395,6 +395,21 @@ public class PrivateFixtureTests(ITestOutputHelper output)
         Assert.Equal([OutRefusal], refused.Lines);
     }
 
+    [Fact]
+    [Trait("Category", "Fixtures")]
+    public void A_private_out_that_cannot_be_created_gives_one_fixed_line_with_no_path()
+    {
+        using var standIn = new StandIn();
+        var blocker = Path.Combine(standIn.Root, "a-file");
+        File.WriteAllText(blocker, "x");
+
+        var result = RunPrivate(standIn, Path.Combine(blocker, "results"));
+
+        Assert.False(result.Passed);
+        Assert.Equal(["the private run could not read or write its files; check VDIFF_FIXTURES_DIR and VDIFF_PRIVATE_OUT"], result.Lines);
+        Assert.DoesNotContain(standIn.Root, string.Join('\n', result.Lines), StringComparison.OrdinalIgnoreCase);
+    }
+
     static string RepositoryStatus()
     {
         var limits = new ProcessLimits(TimeSpan.FromSeconds(60), 16L * 1024 * 1024, 1024 * 1024);

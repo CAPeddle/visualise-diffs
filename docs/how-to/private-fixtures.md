@@ -135,6 +135,10 @@ A refusal is the only console line, and nothing is written.
 | `VDIFF_FIXTURES_DIR may hold only directories named after the five shapes` | Remove or rename the other directory. The message does not say which one, on purpose. |
 | `VDIFF_FIXTURES_DIR holds no shape directory` | Add at least one shape directory. |
 
+If the runner cannot read the fixtures directory or write under `VDIFF_PRIVATE_OUT`, the only line is
+`the private run could not read or write its files; check VDIFF_FIXTURES_DIR and VDIFF_PRIVATE_OUT`. The
+underlying error is not printed, because it would name a path.
+
 A shape whose `fixture.yml` is invalid, or whose run throws, is a `FAIL` line for that shape; the reason is in
 `<shape>/error.txt`.
 

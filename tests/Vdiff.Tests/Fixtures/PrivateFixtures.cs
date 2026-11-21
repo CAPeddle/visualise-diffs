@@ -132,6 +132,22 @@ public static class PrivateFixtures
             return new PrivateRunResult([refusal], false);
         }
 
+        try
+        {
+            return RunShapes(fixturesDir, privateOut, repoRoot, date);
+        }
+        catch (Exception)
+        {
+            // An exception from reading the fixtures or writing the results names a path, and an unhandled one
+            // would reach the test output: the console gets one fixed line instead (T-02-28).
+            return new PrivateRunResult([RunFailure], false);
+        }
+    }
+
+    const string RunFailure = "the private run could not read or write its files; check VDIFF_FIXTURES_DIR and VDIFF_PRIVATE_OUT";
+
+    static PrivateRunResult RunShapes(string fixturesDir, string privateOut, string repoRoot, DateOnly date)
+    {
         Directory.CreateDirectory(privateOut);
         var stamp = date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var lines = new List<string>();
