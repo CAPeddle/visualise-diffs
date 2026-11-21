@@ -1,0 +1,138 @@
+{
+  "schema": "vdiff-diff/v1",
+  "summary": {
+    "types": {
+      "added": 1,
+      "removed": 0,
+      "modified": 1,
+      "renamed": 0,
+      "unchanged": 0
+    },
+    "members": {
+      "added": 4,
+      "removed": 2,
+      "modified": 0,
+      "renamed": 0,
+      "body_changed": 1
+    },
+    "edges": {
+      "added": 1,
+      "removed": 0,
+      "modified": 0,
+      "renamed": 0,
+      "unchanged": 0
+    },
+    "unmodelled": {
+      "base": 0,
+      "head": 0
+    }
+  },
+  "warnings": [],
+  "packages": [],
+  "types": [
+    {
+      "language": "cpp",
+      "id": "class synthetic::Formatter",
+      "fqn": "synthetic::Formatter",
+      "kind": "class",
+      "state": "added",
+      "head_file": "include/synthetic/formatter.h",
+      "bases": {
+        "added": [],
+        "removed": []
+      },
+      "members": [
+        {
+          "key": "footer_width",
+          "name": "footer_width",
+          "state": "added",
+          "access_after": "public",
+          "signature_after": "int footer_width",
+          "modifiers_after": []
+        },
+        {
+          "key": "header_width",
+          "name": "header_width",
+          "state": "added",
+          "access_after": "public",
+          "signature_after": "int header_width",
+          "modifiers_after": []
+        },
+        {
+          "key": "write()",
+          "name": "write",
+          "state": "added",
+          "access_after": "public",
+          "signature_after": "void write()",
+          "modifiers_after": []
+        }
+      ]
+    },
+    {
+      "language": "cpp",
+      "id": "class synthetic::Report",
+      "fqn": "synthetic::Report",
+      "kind": "class",
+      "state": "modified",
+      "base_file": "include/synthetic/report.h",
+      "head_file": "include/synthetic/report.h",
+      "bases": {
+        "added": [],
+        "removed": []
+      },
+      "members": [
+        {
+          "key": "footer_width",
+          "name": "footer_width",
+          "state": "removed",
+          "access_before": "public",
+          "signature_before": "int footer_width",
+          "modifiers_before": []
+        },
+        {
+          "key": "formatter",
+          "name": "formatter",
+          "state": "added",
+          "access_after": "public",
+          "signature_after": "Formatter formatter",
+          "modifiers_after": []
+        },
+        {
+          "key": "header_width",
+          "name": "header_width",
+          "state": "removed",
+          "access_before": "public",
+          "signature_before": "int header_width",
+          "modifiers_before": []
+        },
+        {
+          "key": "print()",
+          "name": "print",
+          "state": "body-changed",
+          "access_before": "public",
+          "access_after": "public",
+          "signature_before": "void print()",
+          "signature_after": "void print()",
+          "modifiers_before": [],
+          "modifiers_after": []
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "kind": "association",
+      "from": {
+        "language": "cpp",
+        "id": "class synthetic::Report"
+      },
+      "to": {
+        "language": "cpp",
+        "id": "class synthetic::Formatter"
+      },
+      "to_name": "Formatter",
+      "via": "formatter",
+      "state": "added"
+    }
+  ]
+}
