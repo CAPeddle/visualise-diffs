@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Model Contract and Fixture Harness
 status: executing
-stopped_at: Completed 02-07-PLAN.md
-last_updated: "2026-11-21T09:47:54.442Z"
+stopped_at: Completed 02-08-PLAN.md
+last_updated: "2026-11-21T10:19:43.799Z"
 last_activity: 2026-11-21
 last_activity_desc: Phase 02 execution started
-state_head: da325aa1adf7bc708cd5817ce91aef8cda10a010
+state_head: 796af2e0cd74efa6b55f0f7be1e38d7e76edd10d
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 30
-  completed_plans: 27
+  completed_plans: 28
   percent: 11
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-19)
 ## Current Position
 
 Phase: 02 (Model Contract and Fixture Harness) — EXECUTING
-Plan: 10 of 12
+Plan: 11 of 12
 Status: Ready to execute
 Last activity: 2026-11-21 — Phase 02 execution started
 
@@ -81,6 +81,7 @@ Progress: [█░░░░░░░░░] 11%
 | Phase 02 P05 | 28 min | 3 tasks | 12 files |
 | Phase 02 P06 | 2 sessions (checkpoint split) | 3 tasks | 3 files |
 | Phase 02 P07 | 29 min | 3 tasks | 6 files |
+| Phase 02 P08 | 31 min | 3 tasks | 27 files |
 
 ## Accumulated Context
 
@@ -125,6 +126,7 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-06: v1 schemas frozen as written by 02-05 on owner approval 2026-11-21; SchemaFreezeTests pins SHA-256 over LF-normalised text
 - [Phase 02]: 02-06: README presence wording fixed to 'exactly for state renamed' to match DiffPresence (wording only, not a schema revision)
 - [Phase 02]: 02-07: accept mode fails closed (no expected/ dir is refused, a named absent or unloadable fixture still fails the run); SyntheticResult gained optional Run; Evaluate attaches MismatchDiff, which 02-09 must not log for private fixtures
+- [Phase 02]: 02-08: three synthetic C++ fixtures committed with hand-written goldens, all pending/RED; tracked-file guard admits only tests/fixtures/<shape>/expected/{diff.json,summary.mmd}; member rename inside an id-matched type (small-cpp paint() vs show()) flagged for Phase 5
 
 ### Pending Todos
 
@@ -148,6 +150,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-21T09:47:54.052Z
-Stopped at: Completed 02-07-PLAN.md
+Last session: 2026-11-21T10:19:43.348Z
+Stopped at: Completed 02-08-PLAN.md
 Resume file: None

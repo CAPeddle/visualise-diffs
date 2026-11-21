@@ -121,7 +121,7 @@ Plans:
   3. Five synthetic fixtures (small C++, C#, cross-stack with C++/CLI, extract-class refactor, rename) are in the repository, and the CI harness reports each as failing against its expected output, as intended before any extractor exists.
   4. Serialising the same model twice, with collections supplied in any order, yields byte-identical JSON.
   5. A documented private-fixture recipe lets five real PRs of the same shapes be checked inside the target organisation without their content entering this repository.
-**Plans**: 9/12 plans executed in 8 waves
+**Plans**: 10/12 plans executed in 8 waves
 **Note**: ACC-01 ("green in CI") is owned here but only reaches green in later phases; see the coverage note in the Overview.
 
 Plans:
@@ -147,7 +147,7 @@ Plans:
 - [x] 02-07-PLAN.md — Wave 6: fixture harness (strict loader, CLI run, byte compare, ratchet, unified diff, report), accept mode, CR/BOM guard
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 02-08-PLAN.md — Wave 7: small-cpp, rename and extract-class fixtures with hand-written goldens; guard change with the first golden; fixtures README; local Mermaid parse of the summary goldens
+- [x] 02-08-PLAN.md — Wave 7: small-cpp, rename and extract-class fixtures with hand-written goldens; guard change with the first golden; fixtures README; local Mermaid parse of the summary goldens
 - [ ] 02-09-PLAN.md — Wave 7: private-fixture mode, its refusals and leak checks, `docs/how-to/private-fixtures.md` and the header-only public record
 
 **Wave 8** *(blocked on Wave 7 completion)*
@@ -253,7 +253,7 @@ pending O4. The gates are listed in the Overview.
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Offline Tracer | 18/18 | Complete    | 2026-11-19 |
-| 2. Model Contract and Fixture Harness | 9/12 | In Progress | - |
+| 2. Model Contract and Fixture Harness | 10/12 | In Progress | - |
 | 3. Git Layer | 0/TBD | Not started | - |
 | 4. Extractors | 0/TBD | Not started | - |
 | 5. Differ | 0/TBD | Not started | - |
