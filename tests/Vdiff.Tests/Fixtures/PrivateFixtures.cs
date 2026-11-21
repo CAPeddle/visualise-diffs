@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using Vdiff.Core;
 using Vdiff.Core.Cli;
 using Vdiff.Tests.Support;
 
@@ -56,21 +57,67 @@ public static class PrivateFixtures
         return (FixtureHarness.Evaluate(f, run), run);
     }
 
-    /// <summary>Null when the run may start; otherwise the fixed reason it must not. Nothing from a private fixture is echoed.</summary>
+    /// <summary>
+    /// Null when the run may start; otherwise the first applicable fixed reason it must not (D-06, D-14). Nothing
+    /// from a private fixture is echoed: not a directory name, not a path.
+    /// </summary>
     public static string? Refusal(
         string fixturesDir, string privateOut, string repoRoot, Func<string, string?> getEnvironmentVariable)
     {
-        if (string.IsNullOrEmpty(fixturesDir))
+        if (!string.IsNullOrEmpty(getEnvironmentVariable(AcceptMode.Variable)))
+        {
+            return "accept mode is synthetic-only; unset VDIFF_FIXTURE_ACCEPT for a private run";
+        }
+
+        if (string.IsNullOrEmpty(fixturesDir) || !Directory.Exists(fixturesDir))
         {
             return "VDIFF_FIXTURES_DIR must name an existing directory";
         }
 
-        if (string.IsNullOrEmpty(privateOut))
+        if (IsInside(fixturesDir, repoRoot))
+        {
+            return "VDIFF_FIXTURES_DIR must be outside this repository";
+        }
+
+        if (string.IsNullOrEmpty(privateOut) || IsInside(privateOut, repoRoot))
         {
             return "VDIFF_PRIVATE_OUT must name a directory outside this repository";
         }
 
-        return null;
+        List<string> names;
+        try
+        {
+            names = Directory.EnumerateDirectories(fixturesDir).Select(d => Path.GetFileName(d)).ToList();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return "VDIFF_FIXTURES_DIR must name an existing directory";
+        }
+
+        if (names.Any(name => !Shapes.IsShape(name)))
+        {
+            return "VDIFF_FIXTURES_DIR may hold only directories named after the five shapes";
+        }
+
+        return names.Count == 0 ? "VDIFF_FIXTURES_DIR holds no shape directory" : null;
+    }
+
+    /// <summary>
+    /// True when <paramref name="path"/> is <paramref name="root"/> or below it after both are taken through
+    /// <see cref="FinalPath.Resolve"/>, so a link into the repository counts. The nearest existing ancestor is
+    /// resolved and the missing rest appended, so an output directory that does not exist yet can be judged. A
+    /// path that cannot be resolved counts as inside (fail closed).
+    /// </summary>
+    static bool IsInside(string path, string root)
+    {
+        try
+        {
+            return CliApp.IsSameOrUnder(FinalPath.Resolve(path), FinalPath.Resolve(root));
+        }
+        catch (VdiffException)
+        {
+            return true;
+        }
     }
 
     /// <summary>
