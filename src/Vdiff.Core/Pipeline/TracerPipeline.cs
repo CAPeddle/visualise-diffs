@@ -6,7 +6,7 @@ using Vdiff.Core.Scope;
 
 namespace Vdiff.Core.Pipeline;
 
-public sealed record PipelineResult(ModelFile Base, ModelFile Head, DiffFile Diff);
+public sealed record PipelineResult(ModelFile Base, ModelFile Head, DiffFile Diff, RunMeta Meta);
 
 /// <summary>
 /// The in-memory tracer pipeline (D-10): changed files, the blobs of each side, one sidecar
@@ -32,17 +32,32 @@ public static class TracerPipeline
         // A path git could not give as UTF-8 cannot be told apart by side, so it is unmodelled on both.
         var pathLevel = changes.Unmodelled.Where(u => scope.IsInScope(u.Path)).ToList();
 
-        var baseModel = BuildSide(
+        var (baseModel, _) = BuildSide(
             reader, baseId, inScope.Where(f => f.BaseBlob is not null).Select(f => new BlobRequest(f.Path, f.BaseBlob!)),
             pathLevel, blank, command, limits);
-        var headModel = BuildSide(
+        var (headModel, headResponse) = BuildSide(
             reader, headId, inScope.Where(f => f.HeadBlob is not null).Select(f => new BlobRequest(f.Path, f.HeadBlob!)),
             pathLevel, blank, command, limits);
 
-        return new PipelineResult(baseModel, headModel, ModelDiffer.Diff(baseModel, headModel));
+        // Versions come from the sidecar response, not from the model, so the model can drop them
+        // without this code changing.
+        var meta = new RunMeta(
+            RunMeta.SchemaName,
+            RunMeta.CurrentVdiffVersion,
+            baseId,
+            headId,
+            [
+                new ExtractorRun("cpp-ts",
+                [
+                    new ToolVersion("tree-sitter", headResponse.TreeSitter),
+                    new ToolVersion("tree-sitter-cpp", headResponse.TreeSitterCpp),
+                ]),
+            ]);
+
+        return new PipelineResult(baseModel, headModel, ModelDiffer.Diff(baseModel, headModel), meta);
     }
 
-    static ModelFile BuildSide(
+    static (ModelFile Model, SidecarResponse Response) BuildSide(
         GitObjectReader reader,
         string commit,
         IEnumerable<BlobRequest> requests,
@@ -58,6 +73,6 @@ public static class TracerPipeline
         var response = CppSidecar.Extract(
             read.Blobs.Select(b => new SidecarInput(b.Path, b.Bytes)).ToList(), blank, command, limits);
 
-        return ModelBuilder.Build(commit, response, [.. pathLevel, .. read.Unmodelled], blank);
+        return (ModelBuilder.Build(commit, response, [.. pathLevel, .. read.Unmodelled], blank), response);
     }
 }

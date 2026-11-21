@@ -28,12 +28,12 @@ public sealed partial record CliOptions(
         "  --repo <path>      the git repository to analyse (read only; nothing is checked out)\n" +
         "  --base <commit>    the base commit, 7 to 64 hexadecimal characters\n" +
         "  --head <commit>    the head commit, 7 to 64 hexadecimal characters\n" +
-        "  --out <dir>        where the five output files are written; must lie outside the repository\n" +
+        "  --out <dir>        where the six output files are written; must lie outside the repository\n" +
         "  --blank <MACRO>    blank this export macro name before parsing (repeatable, at most 256)\n" +
         "  --include <glob>   only analyse changed C++ files matching this glob (repeatable, at most 64)\n" +
         "  --help             print this text\n" +
         "\n" +
-        "Writes base.model.json, head.model.json, diff.json, summary.mmd and report.html under --out.\n" +
+        "Writes base.model.json, head.model.json, diff.json, summary.mmd, report.html and run.meta.json under --out.\n" +
         "Exit code 0 on success, 1 on failure.\n";
 
     public static CliOptions Parse(IReadOnlyList<string> args)

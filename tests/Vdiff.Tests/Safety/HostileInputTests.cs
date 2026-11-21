@@ -131,9 +131,9 @@ public class HostileInputTests
         if (exit == 0)
         {
             // Analysed the intended commit: the head of the diff is the commit, not the branch tip.
-            var diff = JsonSerializer.Deserialize<DiffFile>(File.ReadAllText(Path.Combine(repo.OutDir, "diff.json")), ReadOptions)!;
-            Assert.Equal(headId, diff.Head);
-            Assert.NotEqual(baseId, diff.Head);
+            var meta = JsonSerializer.Deserialize<RunMeta>(File.ReadAllText(Path.Combine(repo.OutDir, OutputWriter.MetaFile)), ReadOptions)!;
+            Assert.Equal(headId, meta.HeadCommit);
+            Assert.NotEqual(baseId, meta.HeadCommit);
         }
         else
         {

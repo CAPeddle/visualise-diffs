@@ -124,8 +124,6 @@ public class TracerEndToEndTests
         Assert.Equal("vdiff-model/v0-tracer", model.Schema);
         Assert.Equal("cpp-ts", model.Extraction.Extractor);
         Assert.Equal("syntax-only", model.Extraction.Mode);
-        Assert.Equal("0.27.0", model.Extraction.TreeSitter);
-        Assert.Equal("0.23.4", model.Extraction.TreeSitterCpp);
         Assert.Empty(model.Extraction.MacrosBlanked);
         Assert.Equal(files, model.Files.Select(f => f.Path));
         Assert.All(model.Files, f => Assert.Equal(0, f.ErrorNodes));
@@ -151,10 +149,22 @@ public class TracerEndToEndTests
         AssertFixtureADiff(result.Diff);
         AssertExtractionMetadata(result.Base, "include/shop/gadget.h", "include/shop/legacy.h");
         AssertExtractionMetadata(result.Head, "include/shop/gadget.h", "include/shop/widget.h");
-        Assert.Equal(baseId, result.Base.Commit);
-        Assert.Equal(headId, result.Head.Commit);
-        Assert.Equal(baseId, result.Diff.Base);
-        Assert.Equal(headId, result.Diff.Head);
+        Assert.Equal(baseId, result.Meta.BaseCommit);
+        Assert.Equal(headId, result.Meta.HeadCommit);
+    }
+
+    static void AssertRunMeta(RunMeta meta, string baseId, string headId)
+    {
+        Assert.Equal("vdiff-run-meta/v1", meta.Schema);
+        Assert.Equal(baseId, meta.BaseCommit);
+        Assert.Equal(headId, meta.HeadCommit);
+        Assert.False(string.IsNullOrEmpty(meta.VdiffVersion));
+        Assert.DoesNotContain('+', meta.VdiffVersion);
+        var extractor = Assert.Single(meta.Extractors);
+        Assert.Equal("cpp-ts", extractor.Name);
+        Assert.Equal(
+            [new ToolVersion("tree-sitter", "0.27.0"), new ToolVersion("tree-sitter-cpp", "0.23.4")],
+            extractor.Tools);
     }
 
     static readonly JsonSerializerOptions ReadOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
@@ -172,7 +182,7 @@ public class TracerEndToEndTests
     }
 
     [Fact]
-    public void Cli_run_on_fixture_A_writes_the_five_files_and_leaves_the_repository_untouched()
+    public void Cli_run_on_fixture_A_writes_every_output_file_and_leaves_the_repository_untouched()
     {
         using var repo = new SyntheticRepo();
         var (baseId, headId) = BuildFixtureA(repo);
@@ -204,6 +214,8 @@ public class TracerEndToEndTests
         AssertExtractionMetadata(head, "include/shop/gadget.h", "include/shop/widget.h");
         var baseModel = ReadJson<ModelFile>(Path.Combine(repo.OutDir, "base.model.json"));
         AssertExtractionMetadata(baseModel, "include/shop/gadget.h", "include/shop/legacy.h");
+
+        AssertRunMeta(ReadJson<RunMeta>(Path.Combine(repo.OutDir, OutputWriter.MetaFile)), baseId, headId);
 
         var mermaid = File.ReadAllText(Path.Combine(repo.OutDir, "summary.mmd"));
         Assert.StartsWith("classDiagram", mermaid);

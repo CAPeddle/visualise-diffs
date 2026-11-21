@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using Vdiff.Core.Output;
 using Vdiff.Core.Process;
 
 namespace Vdiff.Tests.Safety;
@@ -22,8 +23,7 @@ public partial class RepoHygieneTests
         "tools/mermaid-check/node_modules/x",
     ];
 
-    static readonly string[] GeneratedFileNames =
-        ["base.model.json", "head.model.json", "diff.json", "summary.mmd", "report.html"];
+    static readonly IReadOnlyList<string> GeneratedFileNames = OutputWriter.FileNames;
 
     static readonly string[] GeneratedDirectoryNames = ["out", "bin", "obj", "target", "node_modules"];
 

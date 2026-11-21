@@ -105,7 +105,7 @@ public static class CliApp
 
             using var held = HeldDirectory.Create(resolvedOut, p => FindRefusal(p, location, protectedDirectories));
             hooks?.AfterHeld?.Invoke(held.Path);
-            OutputWriter.WriteAll(held, result.Base, result.Head, result.Diff, mermaid, html);
+            OutputWriter.WriteAll(held, result.Base, result.Head, result.Diff, mermaid, html, result.Meta);
 
             stdout.Write($"vdiff: wrote {OutputWriter.FileNames.Count} files to {outPath}\n");
             return 0;

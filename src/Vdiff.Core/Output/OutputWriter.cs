@@ -17,10 +17,18 @@ public static class OutputWriter
     public const string DiffJsonFile = "diff.json";
     public const string MermaidFile = "summary.mmd";
     public const string HtmlFile = "report.html";
+    public const string MetaFile = "run.meta.json";
 
     /// <summary>Every file a run writes, in write order; tests read this list instead of naming files.</summary>
     public static readonly IReadOnlyList<string> FileNames =
-        [BaseModelFile, HeadModelFile, DiffJsonFile, MermaidFile, HtmlFile];
+        [BaseModelFile, HeadModelFile, DiffJsonFile, MermaidFile, HtmlFile, MetaFile];
+
+    /// <summary>
+    /// The canonical outputs: files whose bytes are meant to depend only on the trees and the config.
+    /// Commit ids and tool versions belong in run.meta.json.
+    /// </summary>
+    public static readonly IReadOnlyList<string> CanonicalFileNames =
+        [BaseModelFile, HeadModelFile, DiffJsonFile, MermaidFile];
 
     static readonly UTF8Encoding Utf8NoBom = new(false);
 
@@ -55,13 +63,20 @@ public static class OutputWriter
     /// between that judgement and each write stays open for a process that is able to rename a directory.
     /// </summary>
     internal static void WriteAll(
-        HeldDirectory held, ModelFile baseModel, ModelFile headModel, DiffFile diff, string mermaid, string html)
+        HeldDirectory held,
+        ModelFile baseModel,
+        ModelFile headModel,
+        DiffFile diff,
+        string mermaid,
+        string html,
+        RunMeta meta)
     {
         WriteText(held.Path, BaseModelFile, Serialize(baseModel));
         WriteText(held.Path, HeadModelFile, Serialize(headModel));
         WriteText(held.Path, DiffJsonFile, Serialize(diff));
         WriteText(held.Path, MermaidFile, mermaid);
         WriteText(held.Path, HtmlFile, html);
+        WriteText(held.Path, MetaFile, Serialize(meta));
     }
 
     /// <summary>
