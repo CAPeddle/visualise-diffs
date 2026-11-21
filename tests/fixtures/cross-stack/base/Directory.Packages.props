@@ -1,0 +1,7 @@
+<Project>
+
+  <ItemGroup>
+    <PackageVersion Include="Synthetic.Telemetry" Version="1.2.0" />
+  </ItemGroup>
+
+</Project>

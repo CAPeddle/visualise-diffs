@@ -1,0 +1,11 @@
+shape: cross-stack
+description: "One change across a native C++ class, its C++/CLI wrapper and a C# caller, with a package pin update"
+# The package-pin rule is added to config when Phase 4 defines that key (R-2, R-15).
+# The C++/CLI lane selection (here the headers of a project with CLRSupport) is added to config the same way (R-8).
+expected:
+  diff:
+    state: pending
+    due: 5
+  summary:
+    state: pending
+    due: 7
