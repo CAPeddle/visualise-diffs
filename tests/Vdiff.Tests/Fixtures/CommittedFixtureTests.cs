@@ -41,4 +41,25 @@ public class CommittedFixtureTests(ITestOutputHelper output)
 
         Assert.True(strays.Count == 0, "directories under tests/fixtures that are not one of the five shape names: " + string.Join(", ", strays));
     }
+
+    [Fact]
+    public void All_five_shapes_have_a_fixture()
+    {
+        var root = Path.Combine(RepoRoot.Find(), "tests", "fixtures");
+        Assert.True(Directory.Exists(root), "tests/fixtures is missing");
+
+        var present = Directory.EnumerateDirectories(root)
+            .Select(d => Path.GetFileName(d))
+            .OrderBy(n => n, StringComparer.Ordinal)
+            .ToList();
+        var expected = Shapes.All.OrderBy(n => n, StringComparer.Ordinal).ToList();
+
+        var missing = expected.Except(present, StringComparer.Ordinal).ToList();
+        var extra = present.Except(expected, StringComparer.Ordinal).ToList();
+        Assert.True(
+            missing.Count == 0 && extra.Count == 0,
+            "tests/fixtures must hold exactly the five shape directories; missing: ["
+            + string.Join(", ", missing) + "], extra: [" + string.Join(", ", extra) + "]");
+        Assert.Equal(expected, present);
+    }
 }
