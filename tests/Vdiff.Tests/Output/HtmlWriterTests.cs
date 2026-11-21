@@ -19,15 +19,17 @@ public class HtmlWriterTests
         DiffSummary? summary = null) =>
         new(
             DiffFile.SchemaName,
-            summary ?? new DiffSummary(new TypeCounts(0, 0, 0, 0), new MemberCounts(0, 0, 0), new UnmodelledCounts(0, 0)),
+            summary ?? new DiffSummary(new TypeCounts(0, 0, 0, 0, 0), new MemberCounts(0, 0, 0, 0, 0), new EdgeCounts(0, 0, 0, 0, 0), new UnmodelledCounts(0, 0)),
             warnings ?? [],
-            types);
+            [],
+            types,
+            []);
 
     static TypeDiff Type(string fqn, string state, params MemberDiff[] members) =>
-        new("class " + fqn, fqn, "class", state, "include/a.h", "include/a.h", new BaseChanges([], []), members);
+        new(Languages.Cpp, "class " + fqn, fqn, "class", state, "include/a.h", "include/a.h", null, null, new BaseChanges([], []), members);
 
     static MemberDiff Member(string key, string state, string? before, string? after, string? accessBefore = null, string? accessAfter = null) =>
-        new(key, "m", state, accessBefore, accessAfter, before, after);
+        new(key, "m", state, accessBefore, accessAfter, before, after, null, null, null);
 
     static readonly RunMeta DefaultMeta = Meta("1111111111111111111111111111111111111111", "2222222222222222222222222222222222222222");
 
@@ -103,7 +105,7 @@ public class HtmlWriterTests
     public void Hostile_values_cannot_break_out_of_an_attribute_or_smuggle_a_url_into_a_tag()
     {
         var diff = Diff(
-            [new TypeDiff("class x", "x", "class", "added\" onclick=\"alert(1)", null, null, new BaseChanges([], []), [])],
+            [new TypeDiff(Languages.Cpp, "class x", "x", "class", "added\" onclick=\"alert(1)", null, null, null, null, new BaseChanges([], []), [])],
             ["http://example.invalid/x"]);
 
         var html = Page(diff);
@@ -163,7 +165,7 @@ public class HtmlWriterTests
     [Fact]
     public void The_summary_counts_and_the_warnings_are_shown()
     {
-        var summary = new DiffSummary(new TypeCounts(1, 2, 3, 4), new MemberCounts(5, 6, 7), new UnmodelledCounts(8, 9));
+        var summary = new DiffSummary(new TypeCounts(1, 2, 3, 0, 4), new MemberCounts(5, 6, 7, 0, 0), new EdgeCounts(0, 0, 0, 0, 0), new UnmodelledCounts(8, 9));
         var html = Page(Diff([], ["base: 2 file(s) not modelled", "head: duplicate"], summary));
 
         Assert.Contains(

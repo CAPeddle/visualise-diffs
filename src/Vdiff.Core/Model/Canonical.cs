@@ -42,7 +42,8 @@ public static class Canonical
                 Bases = new BaseChanges(SortedValues(t.Bases.Added), SortedValues(t.Bases.Removed)),
                 Members = t.Members.OrderBy(m => m.Key, StringComparer.Ordinal).ToList(),
             })
-            .OrderBy(t => t.Id, StringComparer.Ordinal)
+            .OrderBy(t => t.Language, StringComparer.Ordinal)
+            .ThenBy(t => t.Id, StringComparer.Ordinal)
             .ToList(),
     };
 

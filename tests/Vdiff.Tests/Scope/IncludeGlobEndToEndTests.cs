@@ -164,7 +164,7 @@ public class IncludeGlobEndToEndTests
         Assert.Empty(Files(repo.OutDir, "head.model.json"));
         var diff = Read<DiffFile>(repo.OutDir, "diff.json");
         Assert.Empty(diff.Types);
-        Assert.Equal(new TypeCounts(0, 0, 0, 0), diff.Summary.Types);
+        Assert.Equal(new TypeCounts(0, 0, 0, 0, 0), diff.Summary.Types);
         Assert.Empty(diff.Warnings);
     }
 

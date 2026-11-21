@@ -83,6 +83,8 @@ public class TracerEndToEndTests
 
     static void AssertFixtureADiff(DiffFile diff)
     {
+        Assert.Equal("vdiff-diff/v1", diff.Schema);
+        Assert.All(diff.Types, t => Assert.Equal("cpp", t.Language));
         Assert.Equal(
             ["class shop::Gadget", "class shop::Widget", "struct shop::Legacy"],
             diff.Types.Select(t => t.Id));
@@ -113,8 +115,8 @@ public class TracerEndToEndTests
         Assert.Equal(["id"], legacy.Members.Select(m => m.Key));
         Assert.Equal("removed", legacy.Members[0].State);
 
-        Assert.Equal(new TypeCounts(Added: 1, Removed: 1, Modified: 1, Unchanged: 0), diff.Summary.Types);
-        Assert.Equal(new MemberCounts(Added: 3, Removed: 2, Modified: 2), diff.Summary.Members);
+        Assert.Equal(new TypeCounts(Added: 1, Removed: 1, Modified: 1, Renamed: 0, Unchanged: 0), diff.Summary.Types);
+        Assert.Equal(new MemberCounts(Added: 3, Removed: 2, Modified: 2, Renamed: 0, BodyChanged: 0), diff.Summary.Members);
         Assert.Equal(new UnmodelledCounts(Base: 0, Head: 0), diff.Summary.Unmodelled);
         Assert.Empty(diff.Warnings);
     }
@@ -221,6 +223,10 @@ public class TracerEndToEndTests
         {
             Assert.False(diffJson.RootElement.TryGetProperty("base", out _));
             Assert.False(diffJson.RootElement.TryGetProperty("head", out _));
+            Assert.Equal("vdiff-diff/v1", diffJson.RootElement.GetProperty("schema").GetString());
+            Assert.All(diffJson.RootElement.GetProperty("types").EnumerateArray(), t => Assert.Equal("cpp", t.GetProperty("language").GetString()));
+            Assert.Equal(0, diffJson.RootElement.GetProperty("packages").GetArrayLength());
+            Assert.Equal(0, diffJson.RootElement.GetProperty("edges").GetArrayLength());
         }
 
         var head = ReadJson<ModelFile>(Path.Combine(repo.OutDir, "head.model.json"));

@@ -119,8 +119,8 @@ public class RichFixtureEndToEndTests
         Assert.Empty(mode.Bases.Added);
 
         // Slot is unchanged, so it is counted and not listed.
-        Assert.Equal(new TypeCounts(Added: 0, Removed: 0, Modified: 2, Unchanged: 1), diff.Summary.Types);
-        Assert.Equal(new MemberCounts(Added: 3, Removed: 1, Modified: 0), diff.Summary.Members);
+        Assert.Equal(new TypeCounts(Added: 0, Removed: 0, Modified: 2, Renamed: 0, Unchanged: 1), diff.Summary.Types);
+        Assert.Equal(new MemberCounts(Added: 3, Removed: 1, Modified: 0, Renamed: 0, BodyChanged: 0), diff.Summary.Members);
         Assert.Equal(new UnmodelledCounts(Base: 0, Head: 0), diff.Summary.Unmodelled);
         Assert.Empty(diff.Warnings);
     }

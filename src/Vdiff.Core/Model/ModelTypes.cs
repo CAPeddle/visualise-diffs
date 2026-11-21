@@ -4,7 +4,7 @@ namespace Vdiff.Core.Model;
 // serialised with snake_case names, in declaration order, with null values omitted (see OutputWriter),
 // so the declaration order of the positional parameters is the JSON key order. A nullable property
 // is optional in the schema; every other property, and every list, is always written. The diff
-// records further down are still the provisional tracer shape (plan 02-12 rewrites them).
+// records further down are vdiff-diff/v1 (D-02).
 
 /// <summary>The language values a type or file can carry; the managed-wrapper lane is <c>cpp-cli</c> (D-17).</summary>
 public static class Languages
@@ -106,17 +106,37 @@ public sealed record ModelFile(
     public const string SchemaName = "vdiff-model/v1";
 }
 
-public sealed record TypeCounts(int Added, int Removed, int Modified, int Unchanged);
+public sealed record TypeCounts(int Added, int Removed, int Modified, int Renamed, int Unchanged);
 
-public sealed record MemberCounts(int Added, int Removed, int Modified);
+public sealed record MemberCounts(int Added, int Removed, int Modified, int Renamed, int BodyChanged);
+
+public sealed record EdgeCounts(int Added, int Removed, int Modified, int Renamed, int Unchanged);
 
 public sealed record UnmodelledCounts(int Base, int Head);
 
-public sealed record DiffSummary(TypeCounts Types, MemberCounts Members, UnmodelledCounts Unmodelled);
+public sealed record DiffSummary(TypeCounts Types, MemberCounts Members, EdgeCounts Edges, UnmodelledCounts Unmodelled);
+
+/// <summary>
+/// One package pin change. <c>OldVersion</c> is present exactly for <c>updated</c> and <c>removed</c>,
+/// <c>NewVersion</c> exactly for <c>updated</c> and <c>added</c>.
+/// </summary>
+public sealed record PackageDiff(string Name, string State, string? OldVersion, string? NewVersion);
+
+/// <summary>The base-side identity of a renamed type.</summary>
+public sealed record RenameSource(string Id, string Fqn);
+
+/// <summary>The evidence behind a rename: <c>ScoreMilli</c> is 0 to 1000 (R-14).</summary>
+public sealed record RenameScore(int ScoreMilli, MemberJaccard MemberJaccard, bool SameFileOrRenamePair, bool SameNamespace, bool SameBases);
+
+public sealed record MemberJaccard(int Shared, int Total);
 
 public sealed record BaseChanges(IReadOnlyList<string> Added, IReadOnlyList<string> Removed);
 
-/// <summary>One changed member; values that do not apply to the state are null and omitted from the JSON.</summary>
+/// <summary>
+/// One changed member. A <c>*_before</c> value is present exactly when the member exists on the base
+/// side and a <c>*_after</c> value exactly when it exists on the head side; values that do not apply
+/// are null and omitted from the JSON. <c>RenamedFromKey</c> is present only for state <c>renamed</c>.
+/// </summary>
 public sealed record MemberDiff(
     string Key,
     string Name,
@@ -124,33 +144,62 @@ public sealed record MemberDiff(
     string? AccessBefore,
     string? AccessAfter,
     string? SignatureBefore,
-    string? SignatureAfter);
+    string? SignatureAfter,
+    IReadOnlyList<string>? ModifiersBefore,
+    IReadOnlyList<string>? ModifiersAfter,
+    string? RenamedFromKey);
 
+/// <summary>
+/// One changed type, identified by (<c>Language</c>, <c>Id</c>). It has no type-level access or
+/// modifiers pair: the v1 diff reports no type-level attribute change (D-20).
+/// </summary>
 public sealed record TypeDiff(
+    string Language,
     string Id,
     string Fqn,
     string Kind,
     string State,
     string? BaseFile,
     string? HeadFile,
+    RenameSource? RenamedFrom,
+    RenameScore? Rename,
     BaseChanges Bases,
     IReadOnlyList<MemberDiff> Members);
+
+/// <summary>
+/// One changed edge. Its identity is (<c>Kind</c>, <c>From</c>, <c>ToName</c>, <c>Via</c>); the resolved
+/// <c>To</c> is not part of it (D-23). A <c>modified</c> edge carries <c>ToBefore</c> and <c>ToAfter</c>
+/// instead of <c>To</c>.
+/// </summary>
+public sealed record EdgeDiff(
+    string Kind,
+    TypeRef From,
+    TypeRef? To,
+    TypeRef? ToBefore,
+    TypeRef? ToAfter,
+    string ToName,
+    string? Via,
+    string State);
 
 /// <summary>Exactly the content of diff.json: the summary and the changed types only.</summary>
 public sealed record DiffFile(
     string Schema,
     DiffSummary Summary,
     IReadOnlyList<string> Warnings,
-    IReadOnlyList<TypeDiff> Types)
+    IReadOnlyList<PackageDiff> Packages,
+    IReadOnlyList<TypeDiff> Types,
+    IReadOnlyList<EdgeDiff> Edges)
 {
-    public const string SchemaName = "vdiff-diff/v0-tracer";
+    public const string SchemaName = "vdiff-diff/v1";
 }
 
-/// <summary>The states a type or member can be in (D-07).</summary>
+/// <summary>The states a type, member or edge can be in (D-07).</summary>
 public static class States
 {
     public const string Added = "added";
     public const string Removed = "removed";
     public const string Modified = "modified";
+    public const string Renamed = "renamed";
     public const string Unchanged = "unchanged";
+    public const string BodyChanged = "body-changed";
 }

@@ -153,7 +153,7 @@ public class ModelBuilderTests
         Assert.Equal(
             [("class shop::X", "removed"), ("class shop::X#a.h", "added"), ("class shop::X#a.h@2", "added")],
             diff.Types.Select(t => (t.Id, t.State)));
-        Assert.Equal(new TypeCounts(Added: 2, Removed: 1, Modified: 0, Unchanged: 0), diff.Summary.Types);
+        Assert.Equal(new TypeCounts(Added: 2, Removed: 1, Modified: 0, Renamed: 0, Unchanged: 0), diff.Summary.Types);
         Assert.Equal(
             ["head: duplicate class shop::X (2 definitions)", "head: duplicate member f() of class shop::X#a.h@2 (2 definitions)"],
             diff.Warnings);

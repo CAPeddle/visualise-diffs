@@ -125,8 +125,8 @@ public class DeterminismTests
         var diff = JsonSerializer.Deserialize<DiffFile>(File.ReadAllText(Path.Combine(first, "diff.json")), ReadOptions)!;
         Assert.Empty(diff.Types);
         Assert.Empty(diff.Warnings);
-        Assert.Equal(new TypeCounts(0, 0, 0, 0), diff.Summary.Types);
-        Assert.Equal(new MemberCounts(0, 0, 0), diff.Summary.Members);
+        Assert.Equal(new TypeCounts(0, 0, 0, 0, 0), diff.Summary.Types);
+        Assert.Equal(new MemberCounts(0, 0, 0, 0, 0), diff.Summary.Members);
         Assert.Equal(new UnmodelledCounts(0, 0), diff.Summary.Unmodelled);
         var meta = JsonSerializer.Deserialize<RunMeta>(File.ReadAllText(Path.Combine(first, OutputWriter.MetaFile)), ReadOptions)!;
         Assert.Equal(headId, meta.BaseCommit);
@@ -169,13 +169,15 @@ public class DeterminismTests
     [Fact]
     public void A_quote_or_a_backslash_in_a_name_is_still_escaped_in_the_json()
     {
-        var member = new MemberDiff("k", "n", "added", null, "public", null, "char c = '\"'; // a\\b <x>");
-        var type = new TypeDiff("class a\"b\\c", "a\"b\\c", "class", "added", null, "f.h", new BaseChanges([], []), [member]);
+        var member = new MemberDiff("k", "n", "added", null, "public", null, "char c = '\"'; // a\\b <x>", null, [], null);
+        var type = new TypeDiff(Languages.Cpp, "class a\"b\\c", "a\"b\\c", "class", "added", null, "f.h", null, null, new BaseChanges([], []), [member]);
         var diff = new DiffFile(
             DiffFile.SchemaName,
-            new DiffSummary(new TypeCounts(1, 0, 0, 0), new MemberCounts(1, 0, 0), new UnmodelledCounts(0, 0)),
+            new DiffSummary(new TypeCounts(1, 0, 0, 0, 0), new MemberCounts(1, 0, 0, 0, 0), new EdgeCounts(0, 0, 0, 0, 0), new UnmodelledCounts(0, 0)),
             [],
-            [type]);
+            [],
+            [type],
+            []);
 
         var json = OutputWriter.Serialize(diff);
 

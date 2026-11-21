@@ -127,7 +127,7 @@ public class ModelDifferTests
 
         var members = Assert.Single(diff.Types).Members;
         Assert.Equal([("f(int a)", "removed"), ("f(int b)", "added")], members.Select(m => (m.Key, m.State)));
-        Assert.Equal(new MemberCounts(Added: 1, Removed: 1, Modified: 0), diff.Summary.Members);
+        Assert.Equal(new MemberCounts(Added: 1, Removed: 1, Modified: 0, Renamed: 0, BodyChanged: 0), diff.Summary.Members);
     }
 
     [Fact]
@@ -166,11 +166,11 @@ public class ModelDifferTests
             [same, T("ns::New", members: [M("n1"), M("n2")]), T("ns::Edit", members: [M("keep"), M("add")])]);
 
         Assert.Equal(["class ns::Edit", "class ns::Gone", "class ns::New"], diff.Types.Select(t => t.Id));
-        Assert.Equal(new TypeCounts(Added: 1, Removed: 1, Modified: 1, Unchanged: 1), diff.Summary.Types);
+        Assert.Equal(new TypeCounts(Added: 1, Removed: 1, Modified: 1, Renamed: 0, Unchanged: 1), diff.Summary.Types);
         var members = diff.Types.SelectMany(t => t.Members).ToList();
         Assert.Equal(
             new MemberCounts(
-                members.Count(m => m.State == "added"), members.Count(m => m.State == "removed"), members.Count(m => m.State == "modified")),
+                members.Count(m => m.State == "added"), members.Count(m => m.State == "removed"), members.Count(m => m.State == "modified"), 0, 0),
             diff.Summary.Members);
         // The unchanged member `keep` is not listed.
         Assert.DoesNotContain(members, m => m.Key == "keep");
@@ -182,7 +182,7 @@ public class ModelDifferTests
         var diff = Diff([T("ns::A", kind: "class", members: [M("x")])], [T("ns::A", kind: "struct", members: [M("x")])]);
 
         Assert.Equal([("class ns::A", "removed"), ("struct ns::A", "added")], diff.Types.Select(t => (t.Id, t.State)));
-        Assert.Equal(new TypeCounts(Added: 1, Removed: 1, Modified: 0, Unchanged: 0), diff.Summary.Types);
+        Assert.Equal(new TypeCounts(Added: 1, Removed: 1, Modified: 0, Renamed: 0, Unchanged: 0), diff.Summary.Types);
     }
 
     [Fact]
@@ -205,7 +205,7 @@ public class ModelDifferTests
             [T("ns::A", file: "new/a.h", start: 90, members: [M("x")])]);
 
         Assert.Empty(diff.Types);
-        Assert.Equal(new TypeCounts(0, 0, 0, Unchanged: 1), diff.Summary.Types);
+        Assert.Equal(new TypeCounts(0, 0, 0, 0, Unchanged: 1), diff.Summary.Types);
     }
 
     [Fact]
@@ -215,8 +215,8 @@ public class ModelDifferTests
 
         Assert.Empty(diff.Types);
         Assert.Empty(diff.Warnings);
-        Assert.Equal(new TypeCounts(0, 0, 0, 0), diff.Summary.Types);
-        Assert.Equal(new MemberCounts(0, 0, 0), diff.Summary.Members);
+        Assert.Equal(new TypeCounts(0, 0, 0, 0, 0), diff.Summary.Types);
+        Assert.Equal(new MemberCounts(0, 0, 0, 0, 0), diff.Summary.Members);
         Assert.Equal(new UnmodelledCounts(0, 0), diff.Summary.Unmodelled);
     }
 
@@ -395,5 +395,83 @@ public class ModelDifferTests
                 "head: duplicate class shop::Z (2 definitions)",
             ],
             diff.Warnings);
+    }
+
+    [Fact]
+    public void An_added_member_has_only_after_fields_a_removed_one_only_before_fields_and_a_modified_one_all_six()
+    {
+        var diff = Diff(
+            [T("ns::A", members: [M("gone", signature: "int gone", modifiers: ["static"]), M("edit", signature: "int edit", modifiers: [])])],
+            [T("ns::A", members: [M("new", signature: "int new", modifiers: ["virtual"]), M("edit", access: "private", signature: "int edit", modifiers: ["static", "const"])])]);
+
+        var members = Assert.Single(diff.Types).Members.ToDictionary(m => m.Key);
+        var added = members["new"];
+        Assert.Equal(("added", null, "public", null, "int new", null), (added.State, added.AccessBefore, added.AccessAfter, added.SignatureBefore, added.SignatureAfter, added.ModifiersBefore));
+        Assert.Equal(["virtual"], added.ModifiersAfter);
+        var removed = members["gone"];
+        Assert.Equal(("removed", "public", null, "int gone", null, null), (removed.State, removed.AccessBefore, removed.AccessAfter, removed.SignatureBefore, removed.SignatureAfter, removed.ModifiersAfter));
+        Assert.Equal(["static"], removed.ModifiersBefore);
+        var edited = members["edit"];
+        Assert.Equal(("modified", "public", "private", "int edit", "int edit"), (edited.State, edited.AccessBefore, edited.AccessAfter, edited.SignatureBefore, edited.SignatureAfter));
+        Assert.Equal([], edited.ModifiersBefore);
+        Assert.Equal(["const", "static"], edited.ModifiersAfter);
+        Assert.All(members.Values, m => Assert.Null(m.RenamedFromKey));
+    }
+
+    [Fact]
+    public void A_type_whose_only_change_is_its_access_or_modifiers_or_partial_files_stays_unchanged_and_unlisted()
+    {
+        // D-20: the v1 diff reports no type-level attribute change; D-19's model fields stay and are not compared.
+        var members = new[] { M("x") };
+        var baseType = T("ns::A", members: members, language: Languages.CSharp) with { Access = "public" };
+        var accessOnly = baseType with { Access = "internal" };
+        var modifiersOnly = baseType with { Modifiers = ["sealed"] };
+        var partialOnly = baseType with { Partial = true, Files = ["a.h", "b.h"] };
+
+        foreach (var head in new[] { accessOnly, modifiersOnly, partialOnly })
+        {
+            var diff = Diff([baseType], [head]);
+
+            Assert.Empty(diff.Types);
+            Assert.Equal(new TypeCounts(0, 0, 0, 0, Unchanged: 1), diff.Summary.Types);
+        }
+    }
+
+    [Fact]
+    public void A_type_whose_access_and_a_member_both_change_is_modified_because_of_the_member_and_lists_no_type_level_attribute()
+    {
+        var baseType = T("ns::A", members: [M("x", signature: "int x")], language: Languages.CSharp) with { Access = "public" };
+        var head = T("ns::A", members: [M("x", signature: "long x")], language: Languages.CSharp) with { Access = "internal", Modifiers = ["sealed"] };
+
+        var diff = Diff([baseType], [head]);
+
+        var type = Assert.Single(diff.Types);
+        Assert.Equal("modified", type.State);
+        using var json = System.Text.Json.JsonDocument.Parse(OutputWriter.Serialize(diff));
+        var listed = json.RootElement.GetProperty("types")[0];
+        foreach (var name in new[] { "access", "modifiers", "partial", "files", "access_before", "access_after", "modifiers_before", "modifiers_after" })
+        {
+            Assert.False(listed.TryGetProperty(name, out _), name);
+        }
+    }
+
+    [Fact]
+    public void Packages_and_edges_are_empty_and_the_phase_five_counts_are_zero()
+    {
+        var diff = Diff([T("ns::A", members: [M("x")])], [T("ns::A", members: [M("x", signature: "long x")]), T("ns::B")]);
+
+        Assert.Equal("vdiff-diff/v1", diff.Schema);
+        Assert.Empty(diff.Packages);
+        Assert.Empty(diff.Edges);
+        Assert.Equal(new EdgeCounts(0, 0, 0, 0, 0), diff.Summary.Edges);
+        Assert.Equal(0, diff.Summary.Types.Renamed);
+        Assert.Equal(0, diff.Summary.Members.Renamed);
+        Assert.Equal(0, diff.Summary.Members.BodyChanged);
+        Assert.All(diff.Types, t =>
+        {
+            Assert.Null(t.RenamedFrom);
+            Assert.Null(t.Rename);
+            Assert.Equal(Languages.Cpp, t.Language);
+        });
     }
 }

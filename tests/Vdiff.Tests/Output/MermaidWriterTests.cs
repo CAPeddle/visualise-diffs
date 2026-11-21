@@ -25,9 +25,11 @@ public class MermaidWriterTests
     static DiffFile Diff(params TypeDiff[] types) =>
         new(
             DiffFile.SchemaName,
-            new DiffSummary(new TypeCounts(0, 0, 0, 0), new MemberCounts(0, 0, 0), new UnmodelledCounts(0, 0)),
+            new DiffSummary(new TypeCounts(0, 0, 0, 0, 0), new MemberCounts(0, 0, 0, 0, 0), new EdgeCounts(0, 0, 0, 0, 0), new UnmodelledCounts(0, 0)),
             [],
-            types);
+            [],
+            types,
+            []);
 
     static TypeDiff Type(
         string fqn,
@@ -35,14 +37,18 @@ public class MermaidWriterTests
         string kind = "class",
         string[]? basesAdded = null,
         string[]? basesRemoved = null,
-        MemberDiff[]? members = null) =>
+        MemberDiff[]? members = null,
+        string language = Languages.Cpp) =>
         new(
+            language,
             kind + " " + fqn,
             fqn,
             kind,
             state,
             state == "added" ? null : "a.h",
             state == "removed" ? null : "a.h",
+            null,
+            null,
             new BaseChanges(basesAdded ?? [], basesRemoved ?? []),
             members ?? []);
 
@@ -54,7 +60,7 @@ public class MermaidWriterTests
         string? accessAfter = "public",
         string? accessBefore = null,
         string name = "m") =>
-        new(key, name, state, accessBefore, accessAfter, before, after);
+        new(key, name, state, accessBefore, accessAfter, before, after, null, null, null);
 
     static string Render(DiffFile diff)
     {
