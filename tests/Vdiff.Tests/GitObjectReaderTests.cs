@@ -1,5 +1,6 @@
 using System.Text;
 using Vdiff.Core;
+using Vdiff.Core.Cli;
 using Vdiff.Core.Git;
 using Vdiff.Core.Process;
 using Vdiff.Core.Scope;
@@ -35,7 +36,7 @@ public class GitObjectReaderTests
 
     static string BlobId(SyntheticRepo repo, string path) => repo.Git("rev-parse", "HEAD:" + path).Trim();
 
-    static string SamePath(string path) => Path.GetFullPath(path).TrimEnd('\\', '/');
+    static string SamePath(string path) => FinalPath.Resolve(path).TrimEnd('\\', '/');
 
     // ---- ResolveCommit ----
 

@@ -1149,6 +1149,12 @@ public class TraceRunScriptTests
                     $"mkdir -p \"{ForwardSlashes(markerDir)}\"\n" +
                     $"echo ran >> \"{ForwardSlashes(markerDir)}/ran.txt\"\n" +
                     "exit 0\n"));
+            // git cannot run a non-executable core.fsmonitor hook on Unix, so without this the positive control fails off Windows (backlog 999.1).
+            if (!OperatingSystem.IsWindows())
+            {
+                File.SetUnixFileMode(hook, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            }
+
             repo.Git("config", "core.fsmonitor", ForwardSlashes(hook));
             MakeDirty(repo);
 
