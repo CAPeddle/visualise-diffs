@@ -1,6 +1,6 @@
 # vdiff schemas
 
-Status: draft, pending the freeze review in plan 02-06.
+Status: frozen on 2026-11-21 after review (plan 02-06).
 
 Three JSON Schema files define what a `vdiff` run writes. Every extractor, the differ, the
 hand-written goldens and the private fixtures are written against them.
