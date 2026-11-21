@@ -66,10 +66,10 @@ public class ModelAssemblyTests
 
         var model = ModelBuilder.Build("1111111", response, [], []);
 
-        Assert.Equal(["class ns::A", "class ns::A#2"], model.Types.Select(t => t.Id));
-        // The definition earlier in the file keeps the plain id.
+        Assert.Equal(["class ns::A#a.h", "class ns::A#a.h@2"], model.Types.Select(t => t.Id));
+        // The definition earlier in the file takes the first suffix (D-21).
         Assert.Equal(0, model.Types[0].Span.StartByte);
-        Assert.Equal(["x", "x#2"], model.Types[1].Members.Select(m => m.Key));
+        Assert.Equal(["x#a.h", "x#a.h@2"], model.Types[1].Members.Select(m => m.Key));
         Assert.Equal(110, model.Types[1].Members[0].Span.StartByte);
     }
 

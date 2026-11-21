@@ -27,14 +27,16 @@ public class ModelBuilderTests
     static ModelFile Build(params SidecarFile[] files) => ModelBuilder.Build("1111111", Response(files), [], []);
 
     [Fact]
-    public void Repeated_types_get_hash_n_ids_in_file_then_start_byte_order_and_are_recorded()
+    public void Repeated_types_get_path_suffixed_ids_and_at_n_only_for_a_repeat_in_one_file()
     {
-        // The definition in the earlier file keeps the plain id, whatever the order of the answer.
+        // D-21: once an id repeats, every definition carries its file path, the first one included.
         var model = Build(
             File("src/b.h", Type("X", 5)),
             File("src/a.h", Type("X", 300), Type("X", 20)));
 
-        Assert.Equal(["class shop::X", "class shop::X#2", "class shop::X#3"], model.Types.Select(t => t.Id));
+        Assert.Equal(
+            ["class shop::X#src/a.h", "class shop::X#src/a.h@2", "class shop::X#src/b.h"],
+            model.Types.Select(t => t.Id));
         Assert.Equal(
             [("src/a.h", 20), ("src/a.h", 300), ("src/b.h", 5)],
             model.Types.Select(t => (t.File, t.Span.StartByte)));
@@ -47,7 +49,7 @@ public class ModelBuilderTests
         var model = Build(File("a.h", Type("Y", 0, Member("f()", 30), Member("f()", 10), Member("g()", 20))));
 
         var members = Assert.Single(model.Types).Members;
-        Assert.Equal(["f()", "f()#2", "g()"], members.Select(m => m.Key));
+        Assert.Equal(["f()#a.h", "f()#a.h@2", "g()"], members.Select(m => m.Key));
         Assert.Equal([10, 30, 20], members.Select(m => m.Span.StartByte));
         Assert.Equal(["member f() of class shop::Y (2 definitions)"], model.Duplicates);
     }
@@ -115,7 +117,7 @@ public class ModelBuilderTests
         var backward = Build(File("a.h", Type("A", 0, two, one)));
 
         Assert.Equal(OutputWriter.Serialize(forward), OutputWriter.Serialize(backward));
-        Assert.Equal(["p", "p#2"], forward.Types[0].Members.Select(m => m.Key));
+        Assert.Equal(["p#a.h", "p#a.h@2"], forward.Types[0].Members.Select(m => m.Key));
     }
 
     [Fact]
@@ -146,12 +148,28 @@ public class ModelBuilderTests
 
         var diff = ModelDiffer.Diff(baseModel, headModel);
 
-        // The first definition is unchanged, the second is a new type with its own id.
-        var added = Assert.Single(diff.Types);
-        Assert.Equal(("class shop::X#2", "added"), (added.Id, added.State));
-        Assert.Equal(new TypeCounts(Added: 1, Removed: 0, Modified: 0, Unchanged: 1), diff.Summary.Types);
+        // D-21: once the id repeats, both head definitions carry a path suffix, so the base's plain
+        // id is removed and both suffixed ids are added.
         Assert.Equal(
-            ["head: duplicate class shop::X (2 definitions)", "head: duplicate member f() of class shop::X#2 (2 definitions)"],
+            [("class shop::X", "removed"), ("class shop::X#a.h", "added"), ("class shop::X#a.h@2", "added")],
+            diff.Types.Select(t => (t.Id, t.State)));
+        Assert.Equal(new TypeCounts(Added: 2, Removed: 1, Modified: 0, Unchanged: 0), diff.Summary.Types);
+        Assert.Equal(
+            ["head: duplicate class shop::X (2 definitions)", "head: duplicate member f() of class shop::X#a.h@2 (2 definitions)"],
             diff.Warnings);
+    }
+
+    [Fact]
+    public void Adding_an_earlier_sorting_file_with_a_repeated_type_leaves_the_other_ids_unchanged()
+    {
+        var one = Build(File("src/b.h", Type("X", 5)), File("src/c.h", Type("X", 10), Type("X", 60)));
+        var two = Build(
+            File("src/a.h", Type("X", 1)), File("src/b.h", Type("X", 5)), File("src/c.h", Type("X", 10), Type("X", 60)));
+
+        string[] before = ["class shop::X#src/b.h", "class shop::X#src/c.h", "class shop::X#src/c.h@2"];
+        Assert.Equal(before, one.Types.Select(t => t.Id));
+        Assert.Equal(["class shop::X#src/a.h", .. before], two.Types.Select(t => t.Id));
+        Assert.Equal(["class shop::X (3 definitions)"], one.Duplicates);
+        Assert.Equal(["class shop::X (4 definitions)"], two.Duplicates);
     }
 }
