@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using Vdiff.Core.Process;
 using Vdiff.Tests.Support;
 using Xunit.Abstractions;
@@ -430,5 +431,123 @@ public class PrivateFixtureTests(ITestOutputHelper output)
     public void Aggregate_is_FAIL_over_PENDING_over_PASS(string expected, string first, string second)
     {
         Assert.Equal(expected, PrivateFixtures.Aggregate([Outcome(first), Outcome(second)]));
+    }
+
+    // ---- the recipe and the public record ----
+
+    const string RecordHeader = "| shape | status | date |";
+    const string RecordSeparator = "| --- | --- | --- |";
+
+    static readonly Regex RecordRow = new(
+        @"^\| (small-cpp|csharp|cross-stack|extract-class|rename) \| (PASS|FAIL|PENDING) \| [0-9]{4}-[0-9]{2}-[0-9]{2} \|$",
+        RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// What is wrong with the text of <c>docs/trials/private-fixtures.md</c>, as fixed messages that never echo the
+    /// text. Valid is: the header line and the separator line once each, every other table row a shape, a status
+    /// and a date, at most one row per shape, no run of seven or more hex digits (a commit id) and no backslash (a
+    /// path). Zero rows is valid.
+    /// </summary>
+    public static IReadOnlyList<string> RecordProblems(string text)
+    {
+        var problems = new List<string>();
+        var lines = text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        if (lines.Count(l => l == RecordHeader) != 1)
+        {
+            problems.Add("the header line must appear exactly once");
+        }
+
+        if (lines.Count(l => l == RecordSeparator) != 1)
+        {
+            problems.Add("the separator line must appear exactly once");
+        }
+
+        var shapes = new List<string>();
+        foreach (var line in lines.Where(l => l.StartsWith('|') && l != RecordHeader && l != RecordSeparator))
+        {
+            var match = RecordRow.Match(line);
+            if (match.Success)
+            {
+                shapes.Add(match.Groups[1].Value);
+            }
+            else
+            {
+                problems.Add("a table row is not a shape, a status and a date");
+            }
+        }
+
+        if (shapes.GroupBy(s => s, StringComparer.Ordinal).Any(g => g.Count() > 1))
+        {
+            problems.Add("a shape has more than one row");
+        }
+
+        if (Regex.IsMatch(text, "[0-9a-fA-F]{7,}", RegexOptions.CultureInvariant))
+        {
+            problems.Add("the text holds a run of seven or more hex digits");
+        }
+
+        if (text.Contains('\\', StringComparison.Ordinal))
+        {
+            problems.Add("the text holds a backslash");
+        }
+
+        return problems;
+    }
+
+    static string ReadDocument(params string[] relative) =>
+        File.ReadAllText(Path.Combine([RepoRoot.Find(), .. relative])).Replace("\r\n", "\n", StringComparison.Ordinal);
+
+    static string Table(params string[] rows) =>
+        "# Private fixtures\n\n" + RecordHeader + "\n" + RecordSeparator + "\n" + string.Concat(rows.Select(r => r + "\n"));
+
+    [Fact]
+    [Trait("Category", "Fixtures")]
+    public void The_private_fixture_recipe_names_its_variables_and_record()
+    {
+        var text = ReadDocument("docs", "how-to", "private-fixtures.md");
+
+        foreach (var required in new[]
+        {
+            PrivateFixtures.FixturesDirVariable,
+            PrivateFixtures.OutVariable,
+            "Category=PrivateFixtures",
+            "docs/trials/private-fixtures.md",
+        })
+        {
+            Assert.Contains(required, text, StringComparison.Ordinal);
+        }
+
+        // Built by concatenation so that this file does not itself hold a remote address (RepoHygieneTests).
+        Assert.DoesNotContain("git" + "@", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("ssh:" + "//", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Trait("Category", "Fixtures")]
+    public void The_private_record_holds_only_shape_status_and_date()
+    {
+        var problems = RecordProblems(ReadDocument("docs", "trials", "private-fixtures.md"));
+
+        Assert.True(problems.Count == 0, string.Join("; ", problems));
+    }
+
+    public static TheoryData<bool, string> RecordCases() => new()
+    {
+        { true, Table() },
+        { true, Table("| rename | PASS | 2026-11-20 |") },
+        { false, Table("| rename | TBD | 2026-11-20 |") },
+        { false, Table("| rename | PASS | - |") },
+        { false, Table("| widget | PASS | 2026-11-20 |") },
+        { false, Table("| rename | PASS | 2026-11-20 |", "| rename | FAIL | 2026-11-21 |") },
+        { false, Table("| rename | PASS | 2026-11-20 | " + new string('a', 40) + " |") },
+        { false, Table("| rename | PASS | 2026-11-20 |").Replace("# Private", "# D:\\Private", StringComparison.Ordinal) },
+    };
+
+    [Theory]
+    [Trait("Category", "Fixtures")]
+    [MemberData(nameof(RecordCases))]
+    public void The_record_check_accepts_header_only_and_one_row_per_shape_and_rejects_the_rest(bool valid, string text)
+    {
+        Assert.Equal(valid, RecordProblems(text).Count == 0);
     }
 }
