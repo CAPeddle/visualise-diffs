@@ -163,12 +163,12 @@ public static class ContractSamples
                 new EdgeDiff(
                     EdgeKinds.Base,
                     new TypeRef(Languages.Cpp, "class synthetic::ModA"),
-                    null,
-                    new TypeRef(Languages.Cpp, "class synthetic::Base"),
-                    new TypeRef(Languages.Cpp, "class other::Base"),
-                    "Base",
-                    null,
-                    States.Modified),
+                    To: null,
+                    ToBefore: new TypeRef(Languages.Cpp, "class synthetic::Base"),
+                    ToAfter: new TypeRef(Languages.Cpp, "class other::Base"),
+                    ToName: "Base",
+                    Via: null,
+                    State: States.Modified),
             ]);
     }
 

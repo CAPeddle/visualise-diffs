@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Vdiff.Core.Cli;
+using Vdiff.Core.Model;
 using Vdiff.Core.Output;
 using Vdiff.Tests.Support;
 
@@ -93,6 +94,22 @@ public class SchemaValidationTests
         using var head = JsonDocument.Parse(File.ReadAllText(Path.Combine(outDir, OutputWriter.HeadModelFile)));
         var edges = head.RootElement.GetProperty("edges").EnumerateArray().ToList();
         Assert.Contains(edges, e => e.GetProperty("kind").GetString() == "base" && e.TryGetProperty("to", out _));
+    }
+
+    [Fact]
+    public void Tracer_models_keep_the_model_presence_rules()
+    {
+        using var repo = new SyntheticRepo();
+        var outDir = RunTracer(repo);
+        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
+
+        foreach (var name in new[] { OutputWriter.BaseModelFile, OutputWriter.HeadModelFile })
+        {
+            var model = JsonSerializer.Deserialize<ModelFile>(File.ReadAllText(Path.Combine(outDir, name)), options)!;
+
+            Assert.NotEmpty(model.Types);
+            Assert.Empty(ModelPresence.Problems(model));
+        }
     }
 
     [Fact]
