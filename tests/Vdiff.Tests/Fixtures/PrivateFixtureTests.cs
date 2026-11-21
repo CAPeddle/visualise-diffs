@@ -1,4 +1,5 @@
 using System.Text;
+using Vdiff.Core.Process;
 using Vdiff.Tests.Support;
 using Xunit.Abstractions;
 
@@ -199,6 +200,218 @@ public class PrivateFixtureTests(ITestOutputHelper output)
         Assert.True(File.Exists(Path.Combine(privateOut, "fixture-report.md")));
         Assert.True(File.Exists(Path.Combine(privateOut, "small-cpp", "out", "diff.json")));
         Assert.True(File.Exists(Path.Combine(privateOut, "small-cpp", "diff.diff")));
+    }
+
+    // ---- refusals and leak checks ----
+
+    const string OutRefusal = "VDIFF_PRIVATE_OUT must name a directory outside this repository";
+    const string FixturesRefusal = "VDIFF_FIXTURES_DIR must be outside this repository";
+    const string MissingRefusal = "VDIFF_FIXTURES_DIR must name an existing directory";
+    const string NonShapeRefusal = "VDIFF_FIXTURES_DIR may hold only directories named after the five shapes";
+    const string NoShapeRefusal = "VDIFF_FIXTURES_DIR holds no shape directory";
+    const string AcceptRefusal = "accept mode is synthetic-only; unset VDIFF_FIXTURE_ACCEPT for a private run";
+
+    static void DeleteIfExists(string path)
+    {
+        if (Directory.Exists(path))
+        {
+            Directory.Delete(path, recursive: true);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Fixtures")]
+    public void A_private_out_inside_this_repository_is_refused_naming_only_the_variable_and_is_not_created()
+    {
+        using var standIn = new StandIn();
+        var inside = Path.Combine(RepoRoot.Find(), "out", "private-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var result = RunPrivate(standIn, inside);
+
+            Assert.False(result.Passed);
+            Assert.Equal([OutRefusal], result.Lines);
+            Assert.False(Directory.Exists(inside));
+        }
+        finally
+        {
+            DeleteIfExists(inside);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Fixtures")]
+    public void The_CLI_itself_refuses_an_out_inside_this_repository_when_the_runner_is_bypassed()
+    {
+        using var standIn = new StandIn();
+        var inside = Path.Combine(RepoRoot.Find(), "out", "private-cli-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var (outcomes, run) = PrivateFixtures.RunShape(
+                FixtureLoader.Load(standIn.ShapeDir, FixtureKind.Private), inside, RepoRoot.Find());
+
+            Assert.NotEqual(0, run.ExitCode);
+            Assert.Equal(2, outcomes.Count);
+            Assert.All(outcomes, o =>
+            {
+                Assert.Equal("FAIL", o.Row.Status);
+                Assert.Equal("the tool run failed", o.Row.Detail);
+            });
+            Assert.False(Directory.Exists(inside));
+        }
+        finally
+        {
+            DeleteIfExists(inside);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Fixtures")]
+    public void A_fixtures_directory_inside_this_repository_is_refused()
+    {
+        using var standIn = new StandIn();
+        var inside = Path.Combine(RepoRoot.Find(), "tests", "fixtures");
+        var privateOut = standIn.NewOut();
+
+        var result = PrivateFixtures.Run(inside, privateOut, RepoRoot.Find(), RunDate, _ => null);
+
+        Assert.False(result.Passed);
+        Assert.Equal([FixturesRefusal], result.Lines);
+        Assert.False(Directory.Exists(privateOut));
+    }
+
+    [Fact]
+    [Trait("Category", "Fixtures")]
+    public void A_fixtures_directory_that_does_not_exist_is_refused()
+    {
+        using var standIn = new StandIn();
+        var privateOut = standIn.NewOut();
+
+        var result = PrivateFixtures.Run(Path.Combine(standIn.Root, "absent"), privateOut, RepoRoot.Find(), RunDate, _ => null);
+
+        Assert.False(result.Passed);
+        Assert.Equal([MissingRefusal], result.Lines);
+        Assert.False(Directory.Exists(privateOut));
+    }
+
+    [Fact]
+    [Trait("Category", "Fixtures")]
+    public void A_directory_that_is_not_a_shape_is_refused_without_echoing_its_name_and_no_shape_runs()
+    {
+        using var standIn = new StandIn();
+        Directory.CreateDirectory(Path.Combine(standIn.FixturesDir, "SecretTypeName"));
+        var privateOut = standIn.NewOut();
+
+        var result = RunPrivate(standIn, privateOut);
+
+        Assert.False(result.Passed);
+        Assert.Equal([NonShapeRefusal], result.Lines);
+        Assert.DoesNotContain("SecretTypeName", string.Join("\n", result.Lines), StringComparison.Ordinal);
+        Assert.False(Directory.Exists(privateOut));
+    }
+
+    [Fact]
+    [Trait("Category", "Fixtures")]
+    public void A_fixtures_directory_with_no_shape_directory_is_refused()
+    {
+        using var standIn = new StandIn();
+        var empty = Path.Combine(standIn.Root, "empty");
+        Directory.CreateDirectory(empty);
+        var privateOut = standIn.NewOut();
+
+        var result = PrivateFixtures.Run(empty, privateOut, RepoRoot.Find(), RunDate, _ => null);
+
+        Assert.False(result.Passed);
+        Assert.Equal([NoShapeRefusal], result.Lines);
+        Assert.False(Directory.Exists(privateOut));
+    }
+
+    [Fact]
+    [Trait("Category", "Fixtures")]
+    public void Accept_mode_is_refused_for_a_private_run()
+    {
+        using var standIn = new StandIn();
+        var privateOut = standIn.NewOut();
+        var goldenBefore = File.ReadAllBytes(Path.Combine(standIn.ShapeDir, "expected", "diff.json"));
+
+        var result = PrivateFixtures.Run(
+            standIn.FixturesDir, privateOut, RepoRoot.Find(), RunDate, name => name == AcceptMode.Variable ? "small-cpp" : null);
+
+        Assert.False(result.Passed);
+        Assert.Equal([AcceptRefusal], result.Lines);
+        Assert.False(Directory.Exists(privateOut));
+        Assert.Equal(goldenBefore, File.ReadAllBytes(Path.Combine(standIn.ShapeDir, "expected", "diff.json")));
+    }
+
+    [Fact]
+    [Trait("Category", "Fixtures")]
+    public void An_unknown_key_in_a_private_fixture_is_a_FAIL_line_that_echoes_nothing_and_a_file_holds_the_error()
+    {
+        using var standIn = new StandIn();
+        standIn.WritePrivate("pending", "pending", WrongDiff, WrongSummary, extraTop: "secret_widget: x\n");
+        var privateOut = standIn.NewOut();
+
+        var result = RunPrivate(standIn, privateOut);
+
+        Assert.False(result.Passed);
+        Assert.Equal(["small-cpp: FAIL 2026-11-20"], result.Lines);
+        Assert.DoesNotContain("secret_widget", string.Join("\n", result.Lines), StringComparison.Ordinal);
+        Assert.True(File.Exists(Path.Combine(privateOut, "small-cpp", "error.txt")));
+    }
+
+    [Fact]
+    [Trait("Category", "Fixtures")]
+    public void Every_console_line_is_a_shape_a_verdict_and_a_date_and_nothing_else()
+    {
+        using var standIn = new StandIn();
+
+        var result = RunPrivate(standIn, standIn.NewOut());
+
+        Assert.NotEmpty(result.Lines);
+        foreach (var line in result.Lines)
+        {
+            Assert.Matches(@"^(small-cpp|csharp|cross-stack|extract-class|rename): (PASS|FAIL|PENDING) \d{4}-\d{2}-\d{2}$", line);
+            Assert.DoesNotMatch("[0-9a-fA-F]{7,}", line);
+            foreach (var secret in new[] { standIn.BaseId, standIn.HeadId, standIn.Root, standIn.RepoDir })
+            {
+                Assert.DoesNotContain(secret, line, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Fixtures")]
+    public void Without_VDIFF_FIXTURES_DIR_the_environment_run_is_null_and_with_it_but_no_out_it_is_refused()
+    {
+        using var standIn = new StandIn();
+
+        Assert.Null(PrivateFixtures.RunFromEnvironment(_ => null, RepoRoot.Find(), RunDate));
+
+        var refused = PrivateFixtures.RunFromEnvironment(
+            name => name == PrivateFixtures.FixturesDirVariable ? standIn.FixturesDir : null, RepoRoot.Find(), RunDate);
+        Assert.NotNull(refused);
+        Assert.False(refused.Passed);
+        Assert.Equal([OutRefusal], refused.Lines);
+    }
+
+    static string RepositoryStatus()
+    {
+        var limits = new ProcessLimits(TimeSpan.FromSeconds(60), 16L * 1024 * 1024, 1024 * 1024);
+        var result = GitCommand.Run(RepoRoot.Find(), ["status", "--porcelain", "--ignored"], limits);
+        Assert.Equal(0, result.ExitCode);
+        return result.StdoutText;
+    }
+
+    [Fact]
+    [Trait("Category", "Fixtures")]
+    public void A_private_run_leaves_this_repository_status_unchanged()
+    {
+        using var standIn = new StandIn();
+        var before = RepositoryStatus();
+
+        RunPrivate(standIn, standIn.NewOut());
+
+        Assert.Equal(before, RepositoryStatus());
     }
 
     // ---- the aggregation rule ----
