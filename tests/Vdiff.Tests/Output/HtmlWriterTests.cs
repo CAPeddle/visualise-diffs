@@ -33,6 +33,14 @@ public class HtmlWriterTests
 
     static string Page(DiffFile diff) => HtmlWriter.Render(diff, MermaidWriter.Render(diff));
 
+    static RunMeta Meta(string baseCommit, string headCommit) =>
+        new(
+            RunMeta.SchemaName,
+            "0.0.0",
+            baseCommit,
+            headCommit,
+            [new ExtractorRun("cpp-ts", [new ToolVersion("tree-sitter", "0.27.0"), new ToolVersion("tree-sitter-cpp", "0.23.4")])]);
+
     static DiffFile Typical() => Diff(
         [
             Type(
@@ -104,6 +112,36 @@ public class HtmlWriterTests
         Assert.Contains("added&quot; onclick=&quot;alert(1)", html);
         Assert.DoesNotMatch("<[^>]*https?:", html);
         Assert.DoesNotMatch("<[^>]* onclick=\"", html);
+    }
+
+    [Fact]
+    public void The_commit_ids_come_from_the_run_meta()
+    {
+        var diff = Typical();
+        var meta = Meta("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+
+        var html = HtmlWriter.Render(diff, MermaidWriter.Render(diff), meta);
+
+        Assert.Contains("<p>Base <code>aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</code>, head <code>bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb</code></p>", html);
+        Assert.DoesNotContain("1111111111111111111111111111111111111111", html);
+        Assert.DoesNotContain("2222222222222222222222222222222222222222", html);
+    }
+
+    [Fact]
+    public void Two_run_metas_with_different_ids_give_pages_that_differ_only_in_the_commit_text()
+    {
+        var diff = Typical();
+        var mermaid = MermaidWriter.Render(diff);
+        var first = Meta("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+        var second = Meta("cccccccccccccccccccccccccccccccccccccccc", "dddddddddddddddddddddddddddddddddddddddd");
+
+        var pageOne = HtmlWriter.Render(diff, mermaid, first);
+        var pageTwo = HtmlWriter.Render(diff, mermaid, second);
+
+        Assert.NotEqual(pageOne, pageTwo);
+        Assert.Equal(
+            pageOne.Replace(first.BaseCommit, "BASE").Replace(first.HeadCommit, "HEAD"),
+            pageTwo.Replace(second.BaseCommit, "BASE").Replace(second.HeadCommit, "HEAD"));
     }
 
     [Fact]

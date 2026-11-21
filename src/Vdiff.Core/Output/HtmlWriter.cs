@@ -13,6 +13,9 @@ namespace Vdiff.Core.Output;
 /// </summary>
 public static class HtmlWriter
 {
+    // Placeholder for the RED step: accepts the run metadata but still reads the diff.
+    public static string Render(DiffFile diff, string mermaid, RunMeta meta) => Render(diff, mermaid);
+
     public static string Render(DiffFile diff, string mermaid)
     {
         var html = new StringBuilder();
