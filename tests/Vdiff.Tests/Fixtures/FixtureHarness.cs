@@ -135,4 +135,10 @@ public static class FixtureHarness
             return new SyntheticResult(Evaluate(f, run), []);
         }
     }
+
+    // RED-phase stubs (plan 02-07 task 2); replaced in the GREEN commit.
+    public static string UnifiedDiff(byte[] expected, byte[] actual, string fileName) => "";
+
+    public static IReadOnlyList<FixtureOutcome> RunAll(
+        string fixturesRoot, Action<string> log, Func<string, string?> getEnvironmentVariable) => [];
 }
