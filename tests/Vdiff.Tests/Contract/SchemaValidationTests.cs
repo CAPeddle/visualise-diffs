@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Vdiff.Core.Cli;
 using Vdiff.Core.Output;
@@ -142,5 +143,171 @@ public class SchemaValidationTests
         }
 
         Assert.Equal(perLanguage.Order(StringComparer.Ordinal), seen.Order(StringComparer.Ordinal));
+    }
+
+    /// <summary>The only schema keywords the three files may use (D-15). NJsonSchema ignores the fixed-value and conditional keywords.</summary>
+    public static readonly IReadOnlySet<string> AllowedKeywords = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "$schema", "title", "description", "type", "properties", "required", "additionalProperties",
+        "items", "enum", "pattern", "minimum", "maximum", "minLength", "uniqueItems", "definitions", "$ref",
+    };
+
+    /// <summary>
+    /// Every keyword a schema text uses. In a schema object every key is a keyword; the values of
+    /// <c>properties</c> and <c>definitions</c> are name-to-schema maps whose names are not keywords;
+    /// <c>items</c> is a schema; <c>enum</c>, <c>required</c> and scalars are leaves.
+    /// </summary>
+    public static IReadOnlySet<string> KeywordsUsed(string schemaText)
+    {
+        var used = new HashSet<string>(StringComparer.Ordinal);
+        using var doc = JsonDocument.Parse(schemaText);
+        Walk(doc.RootElement, used);
+        return used;
+    }
+
+    static void Walk(JsonElement schema, HashSet<string> used)
+    {
+        if (schema.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        foreach (var keyword in schema.EnumerateObject())
+        {
+            used.Add(keyword.Name);
+            switch (keyword.Name)
+            {
+                case "properties" or "definitions":
+                    foreach (var named in keyword.Value.EnumerateObject())
+                    {
+                        Walk(named.Value, used);
+                    }
+
+                    break;
+                case "items":
+                    Walk(keyword.Value, used);
+                    break;
+            }
+        }
+    }
+
+    static readonly HashSet<string> NotValidating = new(StringComparer.Ordinal) { "$schema", "title", "description", "definitions" };
+
+    static JsonNode ModelJson() => JsonNode.Parse(OutputWriter.Serialize(ContractSamples.FullModel()))!;
+
+    static JsonNode DiffJson() => JsonNode.Parse(OutputWriter.Serialize(ContractSamples.FullDiff()))!;
+
+    static JsonNode MetaJson() => JsonNode.Parse(OutputWriter.Serialize(ContractSamples.FullMeta()))!;
+
+    static JsonObject FindObject(JsonNode array, Func<JsonObject, bool> where) =>
+        array.AsArray().Select(n => n!.AsObject()).First(where);
+
+    // Row name -> (keyword exercised, schema file, the document to break, the break, the error kind NJsonSchema must report).
+    static readonly Dictionary<string, (string Keyword, string SchemaFile, Func<JsonNode> Sample, Action<JsonNode> Break, string ErrorKind)> Negatives = new()
+    {
+        ["type"] = ("type", SchemaSupport.ModelSchemaFile, ModelJson, m => m["files"] = "not a list", "ArrayExpected"),
+        ["required"] = ("required", SchemaSupport.ModelSchemaFile, ModelJson, m => m.AsObject().Remove("schema"), "PropertyRequired"),
+        ["additionalProperties"] = ("additionalProperties", SchemaSupport.ModelSchemaFile, ModelJson,
+            m => FindObject(m["types"]!, _ => true)["extra"] = 1, "NoAdditionalPropertiesAllowed"),
+        ["properties"] = ("properties", SchemaSupport.ModelSchemaFile, ModelJson,
+            m => FindObject(m["types"]!, _ => true)["span"]!["end_line"] = "ten", "IntegerExpected"),
+        ["items"] = ("items", SchemaSupport.ModelSchemaFile, ModelJson, m => m["duplicates"] = new JsonArray(1), "StringExpected"),
+        ["enum"] = ("enum", SchemaSupport.ModelSchemaFile, ModelJson, m => FindObject(m["types"]!, _ => true)["kind"] = "widget", "NotInEnumeration"),
+        ["pattern"] = ("pattern", SchemaSupport.ModelSchemaFile, ModelJson, m => FindObject(m["unmodelled"]!, _ => true)["reason"] = "Not A Code", "PatternMismatch"),
+        ["minimum"] = ("minimum", SchemaSupport.ModelSchemaFile, ModelJson, m => FindObject(m["types"]!, _ => true)["span"]!["start_byte"] = -1, "NumberTooSmall"),
+        ["maximum"] = ("maximum", SchemaSupport.DiffSchemaFile, DiffJson,
+            d => FindObject(d["types"]!, t => t.ContainsKey("rename"))["rename"]!["score_milli"] = 1001, "NumberTooBig"),
+        ["minLength"] = ("minLength", SchemaSupport.ModelSchemaFile, ModelJson, m => FindObject(m["types"]!, _ => true)["id"] = "", "StringTooShort"),
+        ["uniqueItems"] = ("uniqueItems", SchemaSupport.ModelSchemaFile, ModelJson, m =>
+        {
+            var type = FindObject(m["types"]!, t => t["modifiers"]!.AsArray().Count > 0);
+            var first = type["modifiers"]![0]!.GetValue<string>();
+            type["modifiers"] = new JsonArray(first, first);
+        }, "ItemsNotUnique"),
+        ["$ref"] = ("$ref", SchemaSupport.ModelSchemaFile, ModelJson, m => FindObject(m["edges"]!, e => e.ContainsKey("from"))["from"] = new JsonObject(), "PropertyRequired"),
+        ["run_meta_schema_name"] = ("enum", SchemaSupport.RunMetaSchemaFile, MetaJson, r => r["schema"] = "vdiff-run-meta/v2", "NotInEnumeration"),
+    };
+
+    public static TheoryData<string> NegativeRowNames() => [.. Negatives.Keys];
+
+    [Fact]
+    public void Every_schema_file_uses_only_allowed_keywords()
+    {
+        foreach (var file in SchemaSupport.AllSchemaFiles)
+        {
+            var extra = KeywordsUsed(SchemaSupport.ReadText(file)).Except(AllowedKeywords).Order(StringComparer.Ordinal).ToList();
+            Assert.True(extra.Count == 0, $"{file} uses keywords outside the allow-list: {string.Join(", ", extra)}");
+        }
+    }
+
+    [Fact]
+    public void The_keyword_walker_reports_a_disallowed_keyword_and_ignores_property_names()
+    {
+        const string text =
+            "{\"type\": \"object\", \"const\": 1, \"if\": {}, \"properties\": {\"title\": {\"type\": \"string\", \"minLength\": 1}, \"enum\": {\"items\": {\"pattern\": \"x\"}}}}";
+
+        var used = KeywordsUsed(text);
+
+        Assert.Contains("const", used);
+        Assert.Contains("if", used);
+        Assert.Equal(new[] { "const", "if", "items", "minLength", "pattern", "properties", "type" }, used.Order(StringComparer.Ordinal));
+        Assert.NotEmpty(used.Except(AllowedKeywords));
+    }
+
+    [Fact]
+    public void Every_validating_keyword_a_schema_uses_has_a_negative_row()
+    {
+        var used = SchemaSupport.AllSchemaFiles
+            .SelectMany(f => KeywordsUsed(SchemaSupport.ReadText(f)))
+            .Except(NotValidating)
+            .ToHashSet(StringComparer.Ordinal);
+        var covered = Negatives.Values.Select(r => r.Keyword).ToHashSet(StringComparer.Ordinal);
+
+        var missing = used.Except(covered).Order(StringComparer.Ordinal).ToList();
+
+        Assert.True(missing.Count == 0, "keywords with no negative row: " + string.Join(", ", missing));
+        Assert.NotEmpty(used);
+    }
+
+    [Theory]
+    [MemberData(nameof(NegativeRowNames))]
+    public void A_document_that_breaks_the_keyword_is_rejected(string row)
+    {
+        var (_, schemaFile, sample, breakIt, errorKind) = Negatives[row];
+        var document = sample();
+        Assert.Empty(SchemaSupport.Errors(schemaFile, document.ToJsonString()));
+
+        breakIt(document);
+        var errors = SchemaSupport.Errors(schemaFile, document.ToJsonString());
+
+        Assert.NotEmpty(errors);
+        Assert.Contains(errors, e => e.StartsWith(errorKind + " at ", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void The_full_samples_with_every_optional_property_set_validate()
+    {
+        Assert.Empty(SchemaSupport.Errors(SchemaSupport.ModelSchemaFile, OutputWriter.Serialize(ContractSamples.FullModel())));
+        Assert.Empty(SchemaSupport.Errors(SchemaSupport.DiffSchemaFile, OutputWriter.Serialize(ContractSamples.FullDiff())));
+        Assert.Empty(SchemaSupport.Errors(SchemaSupport.RunMetaSchemaFile, OutputWriter.Serialize(ContractSamples.FullMeta())));
+    }
+
+    [Fact]
+    public void An_empty_model_and_an_empty_diff_validate()
+    {
+        Assert.Empty(SchemaSupport.Errors(SchemaSupport.ModelSchemaFile, OutputWriter.Serialize(ContractSamples.EmptyModel())));
+        Assert.Empty(SchemaSupport.Errors(SchemaSupport.DiffSchemaFile, OutputWriter.Serialize(ContractSamples.EmptyDiff())));
+    }
+
+    [Fact]
+    public void A_model_or_a_diff_with_the_types_list_omitted_is_rejected()
+    {
+        var model = JsonNode.Parse(OutputWriter.Serialize(ContractSamples.EmptyModel()))!;
+        var diff = JsonNode.Parse(OutputWriter.Serialize(ContractSamples.EmptyDiff()))!;
+        Assert.True(model.AsObject().Remove("types"));
+        Assert.True(diff.AsObject().Remove("types"));
+
+        Assert.Contains(SchemaSupport.Errors(SchemaSupport.ModelSchemaFile, model.ToJsonString()), e => e.StartsWith("PropertyRequired at ", StringComparison.Ordinal));
+        Assert.Contains(SchemaSupport.Errors(SchemaSupport.DiffSchemaFile, diff.ToJsonString()), e => e.StartsWith("PropertyRequired at ", StringComparison.Ordinal));
     }
 }
