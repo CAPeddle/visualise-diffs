@@ -68,7 +68,7 @@ roadmap) and have no counterpart in that file yet.
 ### Acceptance
 
 - [ ] **ACC-01**: Five synthetic public fixtures green in CI (small C++, C#, cross-stack with C++/CLI, extract-class refactor, rename)
-- [ ] **ACC-02**: Private-fixture recipe documented so five real PRs of the same shapes can be checked inside the target organisation (D15)
+- [x] **ACC-02**: Private-fixture recipe documented so five real PRs of the same shapes can be checked inside the target organisation (D15)
 - [ ] **ACC-03**: Over 10 consecutive target PR runs, no added PR-build wall-clock and P90 job time under 5 minutes
 
 ## v2 Requirements
@@ -107,7 +107,7 @@ Phases are defined in `.planning/ROADMAP.md`. Each requirement maps to exactly o
 | R-10 | Phase 2 | Complete |
 | R-23 | Phase 2 | Complete |
 | ACC-01 | Phase 2 | Pending |
-| ACC-02 | Phase 2 | Pending |
+| ACC-02 | Phase 2 | Complete |
 | R-01 | Phase 3 | Pending |
 | R-04 | Phase 3 | Pending |
 | R-02 | Phase 4 | Pending |
