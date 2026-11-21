@@ -7,18 +7,19 @@ namespace Vdiff.Tests.Diff;
 /// <summary>The differ on hand-built models: no repository, no sidecar, no process (D-07, TRC-02).</summary>
 public class ModelDifferTests
 {
-    static MemberModel M(string key, string access = "public", string? signature = null, int start = 0)
+    static MemberModel M(string key, string access = "public", string? signature = null, int start = 0, string[]? modifiers = null)
     {
         var name = key.Contains('(') ? key[..key.IndexOf('(', StringComparison.Ordinal)] : key;
-        return new MemberModel(key, name, key.Contains('(') ? "method" : "field", access, [], signature ?? "int " + key,
+        return new MemberModel(key, name, key.Contains('(') ? "method" : "field", access, modifiers ?? [], signature ?? "int " + key,
             new SourceSpan(start, start + 5, 1, 1));
     }
 
-    static TypeModel T(string fqn, string kind = "class", string file = "a.h", int start = 0, string[]? bases = null, IReadOnlyList<MemberModel>? members = null)
+    static TypeModel T(string fqn, string kind = "class", string file = "a.h", int start = 0, string[]? bases = null, IReadOnlyList<MemberModel>? members = null,
+        string language = Languages.Cpp)
     {
         var cut = fqn.LastIndexOf("::", StringComparison.Ordinal);
         return new TypeModel(
-            Languages.Cpp, kind + " " + fqn, fqn, kind, cut < 0 ? fqn : fqn[(cut + 2)..], cut < 0 ? "" : fqn[..cut],
+            language, kind + " " + fqn, fqn, kind, cut < 0 ? fqn : fqn[(cut + 2)..], cut < 0 ? "" : fqn[..cut],
             null, false, file, null, [], bases ?? [], new SourceSpan(start, start + 100, 1, 9), members ?? []);
     }
 
@@ -343,5 +344,56 @@ public class ModelDifferTests
         Assert.Equal(new UnmodelledCounts(Base: 2, Head: 1), diff.Summary.Unmodelled);
         Assert.Contains("base: 2 file(s) not modelled", diff.Warnings);
         Assert.Contains("head: 1 file(s) not modelled", diff.Warnings);
+    }
+
+    [Fact]
+    public void A_cpp_and_a_csharp_type_with_the_same_id_are_two_types_and_changing_one_leaves_the_other_unchanged()
+    {
+        // D-17, R-10 adjacency edge: the type key is (language, id).
+        var diff = Diff(
+            [
+                T("ns::Foo", members: [M("x", signature: "int x")], language: Languages.Cpp),
+                T("ns::Foo", members: [M("x", signature: "int x")], language: Languages.CSharp),
+            ],
+            [
+                T("ns::Foo", members: [M("x", signature: "int x")], language: Languages.Cpp),
+                T("ns::Foo", members: [M("x", signature: "long x")], language: Languages.CSharp),
+            ]);
+
+        using var json = System.Text.Json.JsonDocument.Parse(OutputWriter.Serialize(diff));
+        var listed = json.RootElement.GetProperty("types");
+        Assert.Equal(1, listed.GetArrayLength());
+        Assert.True(listed[0].TryGetProperty("language", out var language));
+        Assert.Equal("csharp", language.GetString());
+        Assert.Equal(1, diff.Summary.Types.Unchanged);
+        Assert.Equal(1, diff.Summary.Types.Modified);
+    }
+
+    [Fact]
+    public void A_member_whose_only_change_is_its_modifiers_is_modified()
+    {
+        var diff = Diff(
+            [T("ns::A", members: [M("f()", signature: "int f()", modifiers: [])])],
+            [T("ns::A", members: [M("f()", signature: "int f()", modifiers: ["static"])])]);
+
+        var member = Assert.Single(Assert.Single(diff.Types).Members);
+        Assert.Equal(("f()", "modified"), (member.Key, member.State));
+    }
+
+    [Fact]
+    public void Warnings_come_out_in_ordinal_order_across_both_sides_and_all_kinds()
+    {
+        var baseModel = Model([], files: [Entry("a.h", 2)], unmodelled: [new UnmodelledEntry("b.h", "too-large")]);
+        var headModel = Model([], duplicates: ["class shop::Z (2 definitions)"]);
+
+        var diff = ModelDiffer.Diff(baseModel, headModel);
+
+        Assert.Equal(
+            [
+                "base: 1 file(s) not modelled",
+                "base: 1 file(s) with parse errors",
+                "head: duplicate class shop::Z (2 definitions)",
+            ],
+            diff.Warnings);
     }
 }
