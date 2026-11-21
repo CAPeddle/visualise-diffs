@@ -209,6 +209,11 @@ public class TracerEndToEndTests
 
         var diff = ReadJson<DiffFile>(Path.Combine(repo.OutDir, "diff.json"));
         AssertFixtureADiff(diff);
+        using (var diffJson = JsonDocument.Parse(File.ReadAllText(Path.Combine(repo.OutDir, "diff.json"))))
+        {
+            Assert.False(diffJson.RootElement.TryGetProperty("base", out _));
+            Assert.False(diffJson.RootElement.TryGetProperty("head", out _));
+        }
 
         var head = ReadJson<ModelFile>(Path.Combine(repo.OutDir, "head.model.json"));
         AssertExtractionMetadata(head, "include/shop/gadget.h", "include/shop/widget.h");

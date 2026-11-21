@@ -13,10 +13,11 @@ namespace Vdiff.Core.Output;
 /// </summary>
 public static class HtmlWriter
 {
-    // Placeholder for the RED step: accepts the run metadata but still reads the diff.
-    public static string Render(DiffFile diff, string mermaid, RunMeta meta) => Render(diff, mermaid);
-
-    public static string Render(DiffFile diff, string mermaid)
+    /// <summary>
+    /// The commit ids on the page come from <paramref name="meta"/>, so the page is not a canonical
+    /// output: it differs between two runs over identical trees under different commits.
+    /// </summary>
+    public static string Render(DiffFile diff, string mermaid, RunMeta meta)
     {
         var html = new StringBuilder();
         html.Append("<!DOCTYPE html>\n");
@@ -36,7 +37,7 @@ public static class HtmlWriter
 
         var types = diff.Summary.Types;
         var members = diff.Summary.Members;
-        html.Append("<p>Base <code>").Append(Enc(diff.Base)).Append("</code>, head <code>").Append(Enc(diff.Head)).Append("</code></p>\n");
+        html.Append("<p>Base <code>").Append(Enc(meta.BaseCommit)).Append("</code>, head <code>").Append(Enc(meta.HeadCommit)).Append("</code></p>\n");
         html.Append("<p>")
             .Append(string.Create(
                 CultureInfo.InvariantCulture,

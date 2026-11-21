@@ -80,8 +80,6 @@ public sealed record TypeDiff(
 /// <summary>Exactly the content of diff.json: the summary and the changed types only.</summary>
 public sealed record DiffFile(
     string Schema,
-    string Base,
-    string Head,
     DiffSummary Summary,
     IReadOnlyList<string> Warnings,
     IReadOnlyList<TypeDiff> Types)

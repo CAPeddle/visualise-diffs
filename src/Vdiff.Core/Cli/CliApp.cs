@@ -94,7 +94,7 @@ public static class CliApp
                 reader, baseId, headId, new ScopeFilter(options.Include), options.Blank, command, SidecarLimits.Default);
 
             var mermaid = MermaidWriter.Render(result.Diff);
-            var html = HtmlWriter.Render(result.Diff, mermaid);
+            var html = HtmlWriter.Render(result.Diff, mermaid, result.Meta);
 
             // Test seam for the swap between the check and the write (WR-02); null in production.
             hooks?.AfterPipeline?.Invoke();

@@ -58,7 +58,7 @@ public static class ModelDiffer
         AddWarnings(warnings, "base", baseModel);
         AddWarnings(warnings, "head", headModel);
 
-        return new DiffFile(DiffFile.SchemaName, baseModel.Commit, headModel.Commit, summary, warnings, changed);
+        return new DiffFile(DiffFile.SchemaName, summary, warnings, changed);
     }
 
     static TypeDiff DiffType(TypeModel? before, TypeModel? after)

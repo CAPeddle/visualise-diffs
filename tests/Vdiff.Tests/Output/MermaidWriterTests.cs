@@ -25,8 +25,6 @@ public class MermaidWriterTests
     static DiffFile Diff(params TypeDiff[] types) =>
         new(
             DiffFile.SchemaName,
-            "base",
-            "head",
             new DiffSummary(new TypeCounts(0, 0, 0, 0), new MemberCounts(0, 0, 0), new UnmodelledCounts(0, 0)),
             [],
             types);

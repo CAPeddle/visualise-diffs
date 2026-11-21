@@ -19,8 +19,6 @@ public class HtmlWriterTests
         DiffSummary? summary = null) =>
         new(
             DiffFile.SchemaName,
-            "1111111111111111111111111111111111111111",
-            "2222222222222222222222222222222222222222",
             summary ?? new DiffSummary(new TypeCounts(0, 0, 0, 0), new MemberCounts(0, 0, 0), new UnmodelledCounts(0, 0)),
             warnings ?? [],
             types);
@@ -31,7 +29,9 @@ public class HtmlWriterTests
     static MemberDiff Member(string key, string state, string? before, string? after, string? accessBefore = null, string? accessAfter = null) =>
         new(key, "m", state, accessBefore, accessAfter, before, after);
 
-    static string Page(DiffFile diff) => HtmlWriter.Render(diff, MermaidWriter.Render(diff));
+    static readonly RunMeta DefaultMeta = Meta("1111111111111111111111111111111111111111", "2222222222222222222222222222222222222222");
+
+    static string Page(DiffFile diff) => HtmlWriter.Render(diff, MermaidWriter.Render(diff), DefaultMeta);
 
     static RunMeta Meta(string baseCommit, string headCommit) =>
         new(
@@ -123,8 +123,8 @@ public class HtmlWriterTests
         var html = HtmlWriter.Render(diff, MermaidWriter.Render(diff), meta);
 
         Assert.Contains("<p>Base <code>aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</code>, head <code>bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb</code></p>", html);
-        Assert.DoesNotContain("1111111111111111111111111111111111111111", html);
-        Assert.DoesNotContain("2222222222222222222222222222222222222222", html);
+        Assert.DoesNotContain(DefaultMeta.BaseCommit, html);
+        Assert.DoesNotContain(DefaultMeta.HeadCommit, html);
     }
 
     [Fact]
@@ -150,7 +150,7 @@ public class HtmlWriterTests
         var diff = Typical();
         var mermaid = MermaidWriter.Render(diff);
 
-        var html = HtmlWriter.Render(diff, mermaid);
+        var html = HtmlWriter.Render(diff, mermaid, DefaultMeta);
 
         var pre = Regex.Match(html, "<pre>(.*?)</pre>", RegexOptions.Singleline);
         Assert.True(pre.Success);

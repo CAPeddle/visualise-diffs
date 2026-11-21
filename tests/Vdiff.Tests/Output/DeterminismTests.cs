@@ -128,8 +128,9 @@ public class DeterminismTests
         Assert.Equal(new TypeCounts(0, 0, 0, 0), diff.Summary.Types);
         Assert.Equal(new MemberCounts(0, 0, 0), diff.Summary.Members);
         Assert.Equal(new UnmodelledCounts(0, 0), diff.Summary.Unmodelled);
-        Assert.Equal(headId, diff.Base);
-        Assert.Equal(headId, diff.Head);
+        var meta = JsonSerializer.Deserialize<RunMeta>(File.ReadAllText(Path.Combine(first, OutputWriter.MetaFile)), ReadOptions)!;
+        Assert.Equal(headId, meta.BaseCommit);
+        Assert.Equal(headId, meta.HeadCommit);
 
         var mermaid = File.ReadAllText(Path.Combine(first, "summary.mmd"));
         Assert.Empty(MermaidLint.Check(mermaid));
@@ -172,8 +173,6 @@ public class DeterminismTests
         var type = new TypeDiff("class a\"b\\c", "a\"b\\c", "class", "added", null, "f.h", new BaseChanges([], []), [member]);
         var diff = new DiffFile(
             DiffFile.SchemaName,
-            "b",
-            "h",
             new DiffSummary(new TypeCounts(1, 0, 0, 0), new MemberCounts(1, 0, 0), new UnmodelledCounts(0, 0)),
             [],
             [type]);
