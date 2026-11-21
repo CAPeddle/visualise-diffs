@@ -229,7 +229,21 @@ public partial class RepoHygieneTests
     /// The reasons one file's bytes break the fixture rule: a CR changes spans and commit ids when the
     /// file is copied into a repository, and a BOM changes the first token.
     /// </summary>
-    public static IReadOnlyList<string> TextFileProblems(string path, byte[] bytes) => [];
+    public static IReadOnlyList<string> TextFileProblems(string path, byte[] bytes)
+    {
+        var problems = new List<string>();
+        if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+        {
+            problems.Add($"{path}: starts with a UTF-8 byte-order mark");
+        }
+
+        if (Array.IndexOf(bytes, (byte)'\r') >= 0)
+        {
+            problems.Add($"{path}: contains a carriage return");
+        }
+
+        return problems;
+    }
 
     [Fact]
     public void Fixture_and_schema_files_have_no_carriage_return_or_bom()

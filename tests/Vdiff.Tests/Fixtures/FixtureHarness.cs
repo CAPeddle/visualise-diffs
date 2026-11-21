@@ -145,7 +145,26 @@ public static class FixtureHarness
         {
             var outDir = Path.Combine(repo.Root, "fixture-out");
             var run = RunCli(CliArguments(f, repo.RepoDir, baseId, headId, outDir), outDir);
-            return new SyntheticResult(Evaluate(f, run), [], run);
+            var outcomes = Evaluate(f, run);
+
+            IReadOnlyList<string> accepted = [];
+            if (accept)
+            {
+                // Accept mode copies only from a run that proved something: the tool succeeded, both goldens'
+                // outputs exist and every schema-bearing output validates.
+                var sound = run.ExitCode == 0
+                    && run.Stderr.Length == 0
+                    && f.Outputs.All(o => File.Exists(Path.Combine(run.OutDir, o.FileName)))
+                    && SchemaGate(run.OutDir);
+                if (!sound)
+                {
+                    throw new InvalidOperationException("accept mode writes only from a successful, schema-valid run");
+                }
+
+                accepted = AcceptMode.Apply(f.Directory, run.OutDir);
+            }
+
+            return new SyntheticResult(outcomes, accepted, run);
         }
     }
 
@@ -226,12 +245,21 @@ public static class FixtureHarness
     public static IReadOnlyList<FixtureOutcome> RunAll(
         string fixturesRoot, Action<string> log, Func<string, string?> getEnvironmentVariable)
     {
+        // Accept mode is judged first, so a refusal means nothing runs and nothing is written.
+        if (AcceptMode.Refusal(getEnvironmentVariable) is { } refusal)
+        {
+            throw new XunitException(refusal);
+        }
+
+        var acceptShape = AcceptMode.RequestedShape(getEnvironmentVariable);
+
         if (!Directory.Exists(fixturesRoot))
         {
             throw new XunitException("fixtures root not found");
         }
 
         var outcomes = new List<FixtureOutcome>();
+        var accepted = new List<string>();
         foreach (var directory in Directory.EnumerateDirectories(fixturesRoot)
             .OrderBy(d => Path.GetFileName(d), StringComparer.Ordinal))
         {
@@ -259,7 +287,8 @@ public static class FixtureHarness
                 continue;
             }
 
-            var result = RunSynthetic(loaded, accept: false);
+            var result = RunSynthetic(loaded, accept: acceptShape is not null && string.Equals(acceptShape, name, StringComparison.Ordinal));
+            accepted.AddRange(result.Accepted.Select(path => name + "/" + path));
             if (result.Run is { } run && (run.ExitCode != 0 || run.Stderr.Length > 0))
             {
                 log($"{name}: the CLI exited with exit code {run.ExitCode}");
@@ -282,6 +311,15 @@ public static class FixtureHarness
         }
 
         FixtureReport.WriteIfRequested(outcomes.Select(o => o.Row), getEnvironmentVariable);
+
+        // A run with accept mode on never passes: the rewritten goldens must be reviewed first (D-06).
+        if (acceptShape is not null)
+        {
+            throw new XunitException(accepted.Count == 0
+                ? "accept mode named a fixture that was not found or did not run; nothing was rewritten"
+                : $"accept mode rewrote {string.Join(", ", accepted)}; review them with git diff, then rerun without {AcceptMode.Variable}");
+        }
+
         return outcomes;
     }
 }
