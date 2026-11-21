@@ -121,12 +121,12 @@ Plans:
   3. Five synthetic fixtures (small C++, C#, cross-stack with C++/CLI, extract-class refactor, rename) are in the repository, and the CI harness reports each as failing against its expected output, as intended before any extractor exists.
   4. Serialising the same model twice, with collections supplied in any order, yields byte-identical JSON.
   5. A documented private-fixture recipe lets five real PRs of the same shapes be checked inside the target organisation without their content entering this repository.
-**Plans**: 12 plans in 8 waves
+**Plans**: 1/12 plans executed in 8 waves
 **Note**: ACC-01 ("green in CI") is owned here but only reaches green in later phases; see the coverage note in the Overview.
 
 Plans:
 **Wave 1**
-- [ ] 02-01-PLAN.md — Wave 1: one shared output-file-name constant; every test reads it (pure refactor)
+- [x] 02-01-PLAN.md — Wave 1: one shared output-file-name constant; every test reads it (pure refactor)
 - [ ] 02-02-PLAN.md — Wave 1: NuGet legitimacy checkpoint and pins, two-leg `azure-pipelines.yml` with its static guard, LF rules
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -253,7 +253,7 @@ pending O4. The gates are listed in the Overview.
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Offline Tracer | 18/18 | Complete    | 2026-11-19 |
-| 2. Model Contract and Fixture Harness | 0/TBD | Not started | - |
+| 2. Model Contract and Fixture Harness | 1/12 | In Progress | - |
 | 3. Git Layer | 0/TBD | Not started | - |
 | 4. Extractors | 0/TBD | Not started | - |
 | 5. Differ | 0/TBD | Not started | - |
