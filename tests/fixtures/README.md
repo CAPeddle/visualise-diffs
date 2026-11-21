@@ -134,6 +134,7 @@ Goldens describe the finished tool, not today's tracer:
     (P2).
 - Fixtures avoid the keywords `static`, `virtual`, `override`, `inline`, `explicit` and `constexpr`, so every
   `modifiers` list is empty whether or not an extractor fills modifiers.
+- Both outputs are pending in every fixture: `diff` due 5 and `summary` due 7.
 - Every golden is also checked by `FixtureGoldenTests`: it validates against the frozen schema in
   `docs/schema/`, keeps the presence rules and equals `OutputWriter.Serialize` of its own content, so key
   order, canonical order, indentation and the final line feed are exactly what the tool will write.
