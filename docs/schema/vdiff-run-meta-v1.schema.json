@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "vdiff-run-meta/v1",
+  "description": "The facts that vary between runs over identical trees (run.meta.json): the commit ids, the vdiff version and the tool versions each extractor reported. They are kept out of the canonical files so that identical trees give identical bytes there.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "vdiff_version", "base_commit", "head_commit", "extractors"],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "enum": ["vdiff-run-meta/v1"]
+    },
+    "vdiff_version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The vdiff tool version, without build metadata."
+    },
+    "base_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+      "description": "The full object id of the base commit, 40 hex digits (SHA-1) or 64 (SHA-256)."
+    },
+    "head_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+      "description": "The full object id of the head commit, 40 hex digits (SHA-1) or 64 (SHA-256)."
+    },
+    "extractors": {
+      "type": "array",
+      "description": "The extractors that contributed to the run, ordered by name.",
+      "items": {
+        "$ref": "#/definitions/ExtractorRun"
+      }
+    }
+  },
+  "definitions": {
+    "ExtractorRun": {
+      "type": "object",
+      "description": "One extractor that contributed to the run and the tool versions it reported.",
+      "additionalProperties": false,
+      "required": ["name", "tools"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tools": {
+          "type": "array",
+          "description": "The tools the extractor ran on, ordered by tool.",
+          "items": {
+            "$ref": "#/definitions/ToolVersion"
+          }
+        }
+      }
+    },
+    "ToolVersion": {
+      "type": "object",
+      "description": "One tool and the version it reported.",
+      "additionalProperties": false,
+      "required": ["tool", "version"],
+      "properties": {
+        "tool": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}
