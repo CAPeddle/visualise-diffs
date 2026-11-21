@@ -57,8 +57,9 @@ The subset cannot express these, so the descriptions state them and tests enforc
   exists on the base side, and its `*_after` field exactly when it exists on the head side.
 - `base_file` is present when a type exists on the base side (states removed, modified, renamed)
   and `head_file` when it exists on the head side (added, modified, renamed).
-- `renamed_from` and `rename` are present only for state `renamed`; a member's `renamed_from_key`
-  is present only for member state `renamed`.
+- `renamed_from` and `rename` are present exactly for state `renamed` (present when the type is
+  renamed, absent in every other state); a member's `renamed_from_key` is present exactly for
+  member state `renamed`, and absent otherwise.
 - A package's `old_version` is present exactly for states `updated` and `removed`, and its
   `new_version` exactly for `updated` and `added`.
 - `via` is present exactly on association edges, in the model and in the diff.
