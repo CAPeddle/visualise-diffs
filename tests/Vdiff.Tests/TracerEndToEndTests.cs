@@ -152,6 +152,11 @@ public class TracerEndToEndTests
         AssertFixtureADiff(result.Diff);
         AssertExtractionMetadata(result.Base, "include/shop/gadget.h", "include/shop/legacy.h");
         AssertExtractionMetadata(result.Head, "include/shop/gadget.h", "include/shop/widget.h");
+        Assert.Equal(
+            [new EdgeModel(
+                EdgeKinds.Base, new TypeRef("cpp", "class shop::Widget"), new TypeRef("cpp", "class shop::Gadget"), "Gadget", null)],
+            result.Head.Edges);
+        Assert.Empty(result.Base.Edges);
         Assert.Equal(baseId, result.Meta.BaseCommit);
         Assert.Equal(headId, result.Meta.HeadCommit);
     }

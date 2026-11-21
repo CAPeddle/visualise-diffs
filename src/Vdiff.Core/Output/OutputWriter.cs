@@ -35,7 +35,7 @@ public static class OutputWriter
     // The default NewLine on Windows is CRLF. UnsafeRelaxedJsonEscaping keeps operator<< readable;
     // that is safe because this JSON is never embedded in HTML (the page embeds Mermaid text only,
     // through HtmlEncode, C21).
-    static readonly JsonSerializerOptions JsonOptions = new()
+    internal static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
         NewLine = "\n",
@@ -44,8 +44,19 @@ public static class OutputWriter
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
-    /// <summary>Indented snake_case JSON with LF line ends, nulls omitted and a trailing LF.</summary>
-    public static string Serialize<T>(T value) => JsonSerializer.Serialize(value, JsonOptions) + "\n";
+    /// <summary>
+    /// Indented snake_case JSON with LF line ends, nulls omitted and a trailing LF. A model, a diff or a run
+    /// meta is put in canonical order first (R-23), so this is the one entry point and no caller can skip it.
+    /// </summary>
+    public static string Serialize<T>(T value) => value switch
+    {
+        ModelFile model => Json(Canonical.Canonicalise(model)),
+        DiffFile diff => Json(Canonical.Canonicalise(diff)),
+        RunMeta meta => Json(Canonical.Canonicalise(meta)),
+        _ => Json(value),
+    };
+
+    static string Json<TValue>(TValue value) => JsonSerializer.Serialize(value, JsonOptions) + "\n";
 
     /// <summary>
     /// Writes every file in <see cref="FileNames"/> into <paramref name="held"/> as UTF-8 without a byte-order mark

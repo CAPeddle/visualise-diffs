@@ -5,9 +5,10 @@ using Vdiff.Core.Git;
 namespace Vdiff.Core.Model;
 
 /// <summary>
-/// Turns one sidecar answer into a model file. Everything is ordered with stable
-/// <c>OrderBy</c> and total ordinal comparers, never <c>List.Sort</c> (C39, C22), so the same
-/// input always gives the same bytes.
+/// Turns one sidecar answer into a model file. The result is returned in canonical order
+/// (<see cref="Canonical"/>), so the same input always gives the same bytes (C39, C22). The
+/// ordering inside this class is only the source order that decides which repeated definition
+/// takes <c>@2</c>.
 /// </summary>
 public static class ModelBuilder
 {
@@ -38,8 +39,6 @@ public static class ModelBuilder
                     break;
             }
         }
-
-        parsed = parsed.OrderBy(f => f.Path, StringComparer.Ordinal).ToList();
 
         // Repeated ids (D-21, T-01-17): a repeated definition never crashes a run. An id that occurs once
         // stays plain. Once it occurs more than once, every definition of it carries "#<path>", and the
@@ -81,10 +80,19 @@ public static class ModelBuilder
             .Where(pair => pair.Value > 1)
             .Select(pair => Describe(pair.Key, pair.Value))
             .Concat(memberDuplicates)
-            .OrderBy(d => d, StringComparer.Ordinal)
             .ToList();
 
-        return new ModelFile(
+        // One base edge per written base (D-16), resolved by the syntax-only C++ rule.
+        var edges = types
+            .SelectMany(type => type.Bases.Select(written => new EdgeModel(
+                EdgeKinds.Base,
+                new TypeRef(type.Language, type.Id),
+                BaseResolver.Resolve(written, type, types),
+                written,
+                null)))
+            .ToList();
+
+        return Canonical.Canonicalise(new ModelFile(
             ModelFile.SchemaName,
             new ExtractionInfo(
             [
@@ -94,17 +102,13 @@ public static class ModelBuilder
                     Modes.SyntaxOnly,
                     null,
                     null,
-                    response.MacrosBlanked.Concat(macros).Distinct(StringComparer.Ordinal).OrderBy(m => m, StringComparer.Ordinal).ToList()),
+                    response.MacrosBlanked.Concat(macros).Distinct(StringComparer.Ordinal).ToList()),
             ]),
             parsed.Select(f => new ModelFileEntry(f.Path, Languages.Cpp, Modes.SyntaxOnly, null, f.ErrorNodes)).ToList(),
-            skipped.OrderBy(u => u.Path, StringComparer.Ordinal).ThenBy(u => u.Reason, StringComparer.Ordinal).ToList(),
-            types
-                .OrderBy(t => t.Id, StringComparer.Ordinal)
-                .ThenBy(t => t.File, StringComparer.Ordinal)
-                .ThenBy(t => t.Span.StartByte)
-                .ToList(),
-            [],
-            duplicates);
+            skipped,
+            types,
+            edges,
+            duplicates));
     }
 
     static string Fqn(SidecarType type) => type.Scope.Length == 0 ? type.Name : type.Scope + "::" + type.Name;
@@ -140,10 +144,7 @@ public static class ModelBuilder
             duplicates.Add("member " + Describe(key, count, typeId));
         }
 
-        return members
-            .OrderBy(m => m.Key, StringComparer.Ordinal)
-            .ThenBy(m => m.Span.StartByte)
-            .ToList();
+        return members;
     }
 
     /// <summary>One <c>duplicates</c> entry: <c>class shop::X (2 definitions)</c>, or a member of a named type.</summary>

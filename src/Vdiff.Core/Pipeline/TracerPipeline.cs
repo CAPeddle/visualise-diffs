@@ -32,12 +32,16 @@ public static class TracerPipeline
         // A path git could not give as UTF-8 cannot be told apart by side, so it is unmodelled on both.
         var pathLevel = changes.Unmodelled.Where(u => scope.IsInScope(u.Path)).ToList();
 
-        var (baseModel, _) = BuildSide(
+        var (builtBase, _) = BuildSide(
             reader, inScope.Where(f => f.BaseBlob is not null).Select(f => new BlobRequest(f.Path, f.BaseBlob!)),
             pathLevel, blank, command, limits);
-        var (headModel, headResponse) = BuildSide(
+        var (builtHead, headResponse) = BuildSide(
             reader, inScope.Where(f => f.HeadBlob is not null).Select(f => new BlobRequest(f.Path, f.HeadBlob!)),
             pathLevel, blank, command, limits);
+
+        // Every writer and the differ read canonical order (R-23).
+        var baseModel = Canonical.Canonicalise(builtBase);
+        var headModel = Canonical.Canonicalise(builtHead);
 
         // Versions come from the sidecar response, not from the model, so the model can drop them
         // without this code changing.
