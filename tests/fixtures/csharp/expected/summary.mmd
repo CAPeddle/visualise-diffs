@@ -1,0 +1,26 @@
+classDiagram
+  class C_Synthetic_Orders_Foo["Synthetic.Orders.Foo"]:::modified {
+    +void Reset(int to) [added]
+  }
+  class C_Synthetic_Orders_Foo__["Synthetic.Orders.Foo<>"]:::modified {
+    +T Value [added]
+  }
+  class C_Synthetic_Orders_Invoice["Synthetic.Orders.Invoice"]:::added {
+    +decimal Total [added]
+  }
+  class C_Synthetic_Orders_OrderService["Synthetic.Orders.OrderService"]:::modified {
+    +void Cancel(int id) [removed]
+    +void Refund(int id) [added]
+    #int RetryCount [modified]
+    +bool Submit(Order order) [body-changed]
+  }
+  class C_Synthetic_Orders_OrderService_Receipt["Synthetic.Orders.OrderService.Receipt"]:::added {
+    +int Number [added]
+  }
+  class C_Synthetic_Orders_Document["Synthetic.Orders.Document"]:::context
+  C_Synthetic_Orders_Document <|-- C_Synthetic_Orders_Invoice
+  classDef added fill:#d4f8d4,stroke:#2e7d32,color:#111
+  classDef removed fill:#fde0e0,stroke:#c62828,color:#111,stroke-dasharray:4 3
+  classDef modified fill:#fff4cc,stroke:#b58900,color:#111
+  classDef renamed fill:#e0ecff,stroke:#1565c0,color:#111
+  classDef context fill:#eeeeee,stroke:#9e9e9e,color:#666
