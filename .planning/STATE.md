@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: Model Contract and Fixture Harness
 status: executing
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-11-21T06:37:58.375Z"
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-11-21T06:56:44.541Z"
 last_activity: 2026-11-21
 last_activity_desc: Phase 02 execution started
-state_head: 8745669836b2cb64835e6b1cb77b09e92f54f17c
+state_head: 9eb850a705477ad522632e65c6fc4176660f3b26
 progress:
   total_phases: 9
   completed_phases: 1
   total_plans: 30
-  completed_plans: 20
+  completed_plans: 21
   percent: 11
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-19)
 ## Current Position
 
 Phase: 02 (Model Contract and Fixture Harness) — EXECUTING
-Plan: 3 of 12
+Plan: 4 of 12
 Status: Ready to execute
 Last activity: 2026-11-21 — Phase 02 execution started
 
@@ -74,6 +74,7 @@ Progress: [█░░░░░░░░░] 11%
 | Phase 01 P18 | 70 min | 3 tasks | 6 files |
 | Phase 02 P01 | 23 min | 1 tasks | 10 files |
 | Phase 02 P02 | 40 min | 2 tasks | 5 files |
+| Phase 02 P04 | 75 min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -110,6 +111,7 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-18: a drive-root --out is written as typed (or exit 1 with the existing could-not-write line); never trim below the root (Path.GetPathRoot), not a bare length test; scripts/trace-run.ps1 unchanged and pinned by a two-host parity test
 - [Phase 02]: 02-01: OutputWriter.FileNames names the output files once; sorted-listing tests use FileNames.Order(Ordinal); RepoHygieneTests.GeneratedFileNames left for 02-11 to decide
 - [Phase 02]: 02-02: PipelineProblems negative cases are single-defect mutations of a clean baseline, each asserting its own rule tag
+- [Phase 02]: 02-04: Ratchet.Evaluate branches on state alone (ordinal), broken runs are FAIL for every state, details are fixed text; FixtureReport takes the env getter as a parameter
 
 ### Pending Todos
 
@@ -133,6 +135,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-21T06:37:57.983Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-11-21T06:56:44.212Z
+Stopped at: Completed 02-04-PLAN.md
 Resume file: None

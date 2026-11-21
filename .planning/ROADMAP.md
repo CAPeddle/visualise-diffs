@@ -121,7 +121,7 @@ Plans:
   3. Five synthetic fixtures (small C++, C#, cross-stack with C++/CLI, extract-class refactor, rename) are in the repository, and the CI harness reports each as failing against its expected output, as intended before any extractor exists.
   4. Serialising the same model twice, with collections supplied in any order, yields byte-identical JSON.
   5. A documented private-fixture recipe lets five real PRs of the same shapes be checked inside the target organisation without their content entering this repository.
-**Plans**: 2/12 plans executed in 8 waves
+**Plans**: 3/12 plans executed in 8 waves
 **Note**: ACC-01 ("green in CI") is owned here but only reaches green in later phases; see the coverage note in the Overview.
 
 Plans:
@@ -131,7 +131,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 02-11-PLAN.md — Wave 2: volatile metadata in `run.meta.json`, added end to end; `report.html` reads `RunMeta`; the diff record drops its commit fields (tracer)
-- [ ] 02-04-PLAN.md — Wave 2: backlog 999.1 portability fixes; pure expected-failure ratchet, report table and shape names
+- [x] 02-04-PLAN.md — Wave 2: backlog 999.1 portability fixes; pure expected-failure ratchet, report table and shape names
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 02-03-PLAN.md — Wave 3: model records to `vdiff-model/v1` (no commit or tool version), one `Canonical` ordering module, base edges
@@ -253,7 +253,7 @@ pending O4. The gates are listed in the Overview.
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Offline Tracer | 18/18 | Complete    | 2026-11-19 |
-| 2. Model Contract and Fixture Harness | 2/12 | In Progress | - |
+| 2. Model Contract and Fixture Harness | 3/12 | In Progress | - |
 | 3. Git Layer | 0/TBD | Not started | - |
 | 4. Extractors | 0/TBD | Not started | - |
 | 5. Differ | 0/TBD | Not started | - |
