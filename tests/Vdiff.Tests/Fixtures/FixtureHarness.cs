@@ -1,6 +1,9 @@
+using Vdiff.Core;
 using Vdiff.Core.Cli;
+using Vdiff.Core.Process;
 using Vdiff.Tests.Contract;
 using Vdiff.Tests.Support;
+using Xunit.Sdk;
 
 namespace Vdiff.Tests.Fixtures;
 
@@ -10,8 +13,12 @@ public sealed record FixtureRun(int ExitCode, string Stdout, string Stderr, stri
 /// <summary>One fixture output's verdict: its report row, whether it passes, and the unified diff of a mismatch.</summary>
 public sealed record FixtureOutcome(ReportRow Row, bool Passed, string? MismatchDiff);
 
-/// <summary>The outcomes of one synthetic fixture and the expected files accept mode rewrote.</summary>
-public sealed record SyntheticResult(IReadOnlyList<FixtureOutcome> Outcomes, IReadOnlyList<string> Accepted);
+/// <summary>
+/// The outcomes of one synthetic fixture and the expected files accept mode rewrote. <see cref="Run"/> is the
+/// CLI run behind the outcomes, so a caller can log why a run failed; it is an addition to the two members the
+/// other plans use.
+/// </summary>
+public sealed record SyntheticResult(IReadOnlyList<FixtureOutcome> Outcomes, IReadOnlyList<string> Accepted, FixtureRun? Run = null);
 
 /// <summary>
 /// The golden-fixture harness (D-05, D-08, D-10, D-18). It builds the two-commit repository of a synthetic
@@ -110,12 +117,18 @@ public static class FixtureHarness
             var actualPath = Path.Combine(run.OutDir, output.FileName);
             var goldenPresent = File.Exists(goldenPath);
             var outputPresent = File.Exists(actualPath);
-            var matched = goldenPresent && outputPresent
-                && File.ReadAllBytes(goldenPath).AsSpan().SequenceEqual(File.ReadAllBytes(actualPath));
+            var golden = goldenPresent ? File.ReadAllBytes(goldenPath) : null;
+            var actual = outputPresent ? File.ReadAllBytes(actualPath) : null;
+            var matched = golden is not null && actual is not null && golden.AsSpan().SequenceEqual(actual);
             var check = new OutputCheck(toolSucceeded, goldenPresent, outputPresent, schemaValid, matched);
             var verdict = Ratchet.Evaluate(output.State, output.Due, check);
             var row = new ReportRow(f.Shape, output.Name, verdict.Status, output.Due, verdict.Detail);
-            outcomes.Add(new FixtureOutcome(row, verdict.Passed, null));
+
+            // The diff is target content in private mode: a private caller must never log it (D-13).
+            var mismatch = golden is not null && actual is not null && !matched
+                ? UnifiedDiff(golden, actual, output.FileName)
+                : null;
+            outcomes.Add(new FixtureOutcome(row, verdict.Passed, mismatch));
         }
 
         return outcomes;
@@ -132,13 +145,143 @@ public static class FixtureHarness
         {
             var outDir = Path.Combine(repo.Root, "fixture-out");
             var run = RunCli(CliArguments(f, repo.RepoDir, baseId, headId, outDir), outDir);
-            return new SyntheticResult(Evaluate(f, run), []);
+            return new SyntheticResult(Evaluate(f, run), [], run);
         }
     }
 
-    // RED-phase stubs (plan 02-07 task 2); replaced in the GREEN commit.
-    public static string UnifiedDiff(byte[] expected, byte[] actual, string fileName) => "";
+    const int MaxDiffLines = 200;
 
+    /// <summary>
+    /// The unified diff of two files, made by <c>git diff --no-index</c> on copies under fixed names in a
+    /// temporary directory, so no absolute path reaches the header. Git runs with the isolated configuration
+    /// of <see cref="SyntheticRepo"/>, so nobody's diff or colour settings change the bytes. Empty when the
+    /// files are equal; cut to 200 lines and a final count when longer.
+    /// </summary>
+    public static string UnifiedDiff(byte[] expected, byte[] actual, string fileName)
+    {
+        var temp = Path.Combine(Path.GetTempPath(), "vdiff-udiff-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(temp, "expected"));
+            Directory.CreateDirectory(Path.Combine(temp, "actual"));
+            File.WriteAllBytes(Path.Combine(temp, "expected", fileName), expected);
+            File.WriteAllBytes(Path.Combine(temp, "actual", fileName), actual);
+            var emptyConfig = Path.Combine(temp, "empty.gitconfig");
+            File.WriteAllBytes(emptyConfig, []);
+
+            var env = GitCommand.BuildEnvironment();
+            env["GIT_CONFIG_NOSYSTEM"] = "1";
+            env["GIT_CONFIG_GLOBAL"] = emptyConfig;
+            var args = new List<string>(GitCommand.Prefix)
+            {
+                "diff", "--no-index", "--no-color", "--no-ext-diff", "--no-textconv", "--",
+                "expected/" + fileName, "actual/" + fileName,
+            };
+            var limits = new ProcessLimits(TimeSpan.FromSeconds(30), 4L * 1024 * 1024, 1024 * 1024);
+            var result = BoundedProcess.Run("git", args, limits, null, env, temp);
+
+            return result.ExitCode switch
+            {
+                0 => "",
+                1 => CutLines(result.StdoutText),
+                _ => $"unified diff unavailable (git exit {result.ExitCode})",
+            };
+        }
+        catch (VdiffException)
+        {
+            return "unified diff unavailable (git could not be run within its limits)";
+        }
+        finally
+        {
+            try
+            {
+                if (Directory.Exists(temp))
+                {
+                    Directory.Delete(temp, recursive: true);
+                }
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                // a leftover temporary directory is not worth failing a comparison for
+            }
+        }
+    }
+
+    static string CutLines(string text)
+    {
+        var lines = text.Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd('\n').Split('\n');
+        return lines.Length <= MaxDiffLines
+            ? string.Join('\n', lines) + "\n"
+            : string.Join('\n', lines.Take(MaxDiffLines)) + $"\n... ({lines.Length - MaxDiffLines} more lines)\n";
+    }
+
+    static FixtureOutcome Failure(string fixture, string output, string detail) =>
+        new(new ReportRow(fixture, output, "FAIL", null, detail), false, null);
+
+    /// <summary>
+    /// Runs every fixture directory under <paramref name="fixturesRoot"/> in name order and writes the report.
+    /// A missing root fails the test; it never skips. A mismatch is logged with its unified diff (D-08), a
+    /// failed CLI run with its exit code and stderr, both of which are synthetic public content here.
+    /// </summary>
     public static IReadOnlyList<FixtureOutcome> RunAll(
-        string fixturesRoot, Action<string> log, Func<string, string?> getEnvironmentVariable) => [];
+        string fixturesRoot, Action<string> log, Func<string, string?> getEnvironmentVariable)
+    {
+        if (!Directory.Exists(fixturesRoot))
+        {
+            throw new XunitException("fixtures root not found");
+        }
+
+        var outcomes = new List<FixtureOutcome>();
+        foreach (var directory in Directory.EnumerateDirectories(fixturesRoot)
+            .OrderBy(d => Path.GetFileName(d), StringComparer.Ordinal))
+        {
+            var name = Path.GetFileName(directory);
+            if (!Shapes.IsShape(name))
+            {
+                outcomes.Add(Failure(name, "-", "not one of the five shape names"));
+                continue;
+            }
+
+            LoadedFixture loaded;
+            try
+            {
+                loaded = FixtureLoader.Load(directory, FixtureKind.Synthetic);
+            }
+            catch (FixtureException e)
+            {
+                if (e.Detail is not null)
+                {
+                    log($"{name}: {e.Message}: {e.Detail}");
+                }
+
+                outcomes.Add(Failure(name, DiffOutput, e.Message));
+                outcomes.Add(Failure(name, SummaryOutput, e.Message));
+                continue;
+            }
+
+            var result = RunSynthetic(loaded, accept: false);
+            if (result.Run is { } run && (run.ExitCode != 0 || run.Stderr.Length > 0))
+            {
+                log($"{name}: the CLI exited with exit code {run.ExitCode}");
+                if (run.Stderr.Length > 0)
+                {
+                    log(run.Stderr.TrimEnd('\n'));
+                }
+            }
+
+            foreach (var outcome in result.Outcomes)
+            {
+                if (outcome.MismatchDiff is { } diff)
+                {
+                    log($"--- {outcome.Row.Fixture}/{outcome.Row.Output} ({outcome.Row.Status}) ---");
+                    log(diff);
+                }
+            }
+
+            outcomes.AddRange(result.Outcomes);
+        }
+
+        FixtureReport.WriteIfRequested(outcomes.Select(o => o.Row), getEnvironmentVariable);
+        return outcomes;
+    }
 }

@@ -121,8 +121,8 @@ public static partial class FixtureLoader
             throw new FixtureException("a synthetic fixture needs base and head directories", null);
         }
 
-        var baseTree = ReadTree(baseDir);
-        var headTree = ReadTree(headDir);
+        var baseTree = ReadTree(baseDir, "base");
+        var headTree = ReadTree(headDir, "head");
         return new LoadedFixture(file.Shape, fixtureDir, FixtureKind.Synthetic, file, outputs, baseTree, headTree);
     }
 
@@ -152,47 +152,47 @@ public static partial class FixtureLoader
 
     /// <summary>
     /// Reads a tree by walking it directory by directory, so a link is seen and refused before anything
-    /// is entered (T-02-20). Files come back sorted ordinally by their '/'-separated relative path, with
+    /// is entered (T-02-20). The label ("base" or "head") only prefixes a failure's detail. Files come back sorted ordinally by their '/'-separated relative path, with
     /// the bytes exactly as stored.
     /// </summary>
-    static List<TreeFile> ReadTree(string root)
+    static List<TreeFile> ReadTree(string root, string label)
     {
         var files = new List<TreeFile>();
-        Walk(new DirectoryInfo(root), "", files);
+        Walk(new DirectoryInfo(root), "", label, files);
         files.Sort((a, b) => string.CompareOrdinal(a.RelativePath, b.RelativePath));
         return files;
     }
 
-    static void Walk(DirectoryInfo directory, string prefix, List<TreeFile> files)
+    static void Walk(DirectoryInfo directory, string prefix, string label, List<TreeFile> files)
     {
         foreach (var entry in directory.EnumerateFileSystemInfos())
         {
             var relative = prefix.Length == 0 ? entry.Name : prefix + "/" + entry.Name;
             if (IsLink(entry))
             {
-                throw new FixtureException("a fixture tree must not contain a link", relative);
+                throw new FixtureException("a fixture tree must not contain a link", label + "/" + relative);
             }
 
             if (BuildOutputSegments.Contains(entry.Name, StringComparer.OrdinalIgnoreCase))
             {
-                throw new FixtureException("a fixture tree must not contain a build output directory name", relative);
+                throw new FixtureException("a fixture tree must not contain a build output directory name", label + "/" + relative);
             }
 
             if (entry is DirectoryInfo child)
             {
-                Walk(child, relative, files);
+                Walk(child, relative, label, files);
                 continue;
             }
 
             var info = (FileInfo)entry;
             if (info.Length > MaxTreeFileBytes)
             {
-                throw new FixtureException("a fixture tree file is larger than 256 KiB", relative);
+                throw new FixtureException("a fixture tree file is larger than 256 KiB", label + "/" + relative);
             }
 
             if (files.Count >= MaxTreeFiles)
             {
-                throw new FixtureException("a fixture tree has more than 200 files", relative);
+                throw new FixtureException("a fixture tree has more than 200 files", label + "/" + relative);
             }
 
             files.Add(new TreeFile(relative, File.ReadAllBytes(info.FullName)));
