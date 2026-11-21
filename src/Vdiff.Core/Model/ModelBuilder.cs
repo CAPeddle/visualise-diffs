@@ -14,12 +14,11 @@ public static class ModelBuilder
     public const string ReasonParseTimeout = "parse-timeout";
     public const string ReasonParseError = "parse-error";
 
-    /// <param name="commit">The full commit id this model describes.</param>
     /// <param name="response">The sidecar's checked answer for that commit's in-scope files.</param>
     /// <param name="unmodelled">Files the read side could not model (too large, missing object and so on).</param>
     /// <param name="macros">The macro names requested for blanking; recorded together with what the sidecar reports.</param>
     public static ModelFile Build(
-        string commit, SidecarResponse response, IReadOnlyList<UnmodelledFile> unmodelled, IReadOnlyList<string> macros)
+        SidecarResponse response, IReadOnlyList<UnmodelledFile> unmodelled, IReadOnlyList<string> macros)
     {
         var skipped = unmodelled.Select(u => new UnmodelledEntry(u.Path, u.Reason)).ToList();
         var parsed = new List<SidecarFile>();
@@ -42,13 +41,25 @@ public static class ModelBuilder
 
         parsed = parsed.OrderBy(f => f.Path, StringComparer.Ordinal).ToList();
 
-        // Unique ids in source order (file ordinal, then start byte), so repeated definitions never
-        // crash a run: the first keeps the plain id, later ones get #2, #3 (T-01-17).
-        var seenTypeIds = new Dictionary<string, int>(StringComparer.Ordinal);
+        // Repeated ids (D-21, T-01-17): a repeated definition never crashes a run. An id that occurs once
+        // stays plain. Once it occurs more than once, every definition of it carries "#<path>", and the
+        // second and later definitions inside one file add "@2", "@3" in source order. The suffix names a
+        // file, never an ordinal counted across files, so adding an unrelated file renumbers nothing.
+        var typeIdCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var file in parsed)
+        {
+            foreach (var type in file.Types)
+            {
+                var plain = type.Kind + " " + Fqn(type);
+                typeIdCounts[plain] = typeIdCounts.GetValueOrDefault(plain) + 1;
+            }
+        }
+
         var memberDuplicates = new List<string>();
         var types = new List<TypeModel>();
         foreach (var file in parsed)
         {
+            var seenInFile = new Dictionary<string, int>(StringComparer.Ordinal);
             foreach (var type in file.Types
                          .OrderBy(t => t.StartByte)
                          .ThenBy(t => t.EndByte)
@@ -56,16 +67,17 @@ public static class ModelBuilder
                          .ThenBy(t => t.Scope, StringComparer.Ordinal)
                          .ThenBy(t => t.Name, StringComparer.Ordinal))
             {
-                var fqn = type.Scope.Length == 0 ? type.Name : type.Scope + "::" + type.Name;
-                var id = Unique(seenTypeIds, type.Kind + " " + fqn);
+                var fqn = Fqn(type);
+                var id = Suffixed(type.Kind + " " + fqn, typeIdCounts, seenInFile, file.Path);
                 types.Add(new TypeModel(
-                    id, fqn, type.Kind, type.Name, type.Scope, file.Path, [.. type.Bases],
+                    Languages.Cpp, id, fqn, type.Kind, type.Name, type.Scope, null, false, file.Path, null, [],
+                    [.. type.Bases],
                     new SourceSpan(type.StartByte, type.EndByte, type.StartLine, type.EndLine),
-                    BuildMembers(type, id, memberDuplicates)));
+                    BuildMembers(type, id, file.Path, memberDuplicates)));
             }
         }
 
-        var duplicates = seenTypeIds
+        var duplicates = typeIdCounts
             .Where(pair => pair.Value > 1)
             .Select(pair => Describe(pair.Key, pair.Value))
             .Concat(memberDuplicates)
@@ -74,28 +86,40 @@ public static class ModelBuilder
 
         return new ModelFile(
             ModelFile.SchemaName,
-            commit,
             new ExtractionInfo(
-                "cpp-ts",
-                "syntax-only",
-                response.TreeSitter,
-                response.TreeSitterCpp,
-                response.MacrosBlanked.Concat(macros).Distinct(StringComparer.Ordinal).OrderBy(m => m, StringComparer.Ordinal).ToList()),
-            parsed.Select(f => new ModelFileEntry(f.Path, f.ErrorNodes)).ToList(),
+            [
+                new LanguageExtraction(
+                    Languages.Cpp,
+                    "cpp-ts",
+                    Modes.SyntaxOnly,
+                    null,
+                    null,
+                    response.MacrosBlanked.Concat(macros).Distinct(StringComparer.Ordinal).OrderBy(m => m, StringComparer.Ordinal).ToList()),
+            ]),
+            parsed.Select(f => new ModelFileEntry(f.Path, Languages.Cpp, Modes.SyntaxOnly, null, f.ErrorNodes)).ToList(),
             skipped.OrderBy(u => u.Path, StringComparer.Ordinal).ThenBy(u => u.Reason, StringComparer.Ordinal).ToList(),
             types
                 .OrderBy(t => t.Id, StringComparer.Ordinal)
                 .ThenBy(t => t.File, StringComparer.Ordinal)
                 .ThenBy(t => t.Span.StartByte)
-                .ToList())
-        {
-            Duplicates = duplicates,
-        };
+                .ToList(),
+            [],
+            duplicates);
     }
 
-    static List<MemberModel> BuildMembers(SidecarType type, string typeId, List<string> duplicates)
+    static string Fqn(SidecarType type) => type.Scope.Length == 0 ? type.Name : type.Scope + "::" + type.Name;
+
+    static List<MemberModel> BuildMembers(SidecarType type, string typeId, string file, List<string> duplicates)
     {
-        var seenKeys = new Dictionary<string, int>(StringComparer.Ordinal);
+        // Member keys follow the same rule as type ids, with the path of the file that declares the member
+        // (for the tracer, always the type's file).
+        var keyCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var member in type.Members)
+        {
+            keyCounts[member.Key] = keyCounts.GetValueOrDefault(member.Key) + 1;
+        }
+
+        var seenInFile = new Dictionary<string, int>(StringComparer.Ordinal);
         var members = new List<MemberModel>();
         // Total order, so two members that start at the same byte are never left to input order (C39).
         foreach (var member in type.Members
@@ -107,11 +131,11 @@ public static class ModelBuilder
                      .ThenBy(m => m.Access, StringComparer.Ordinal))
         {
             members.Add(new MemberModel(
-                Unique(seenKeys, member.Key), member.Name, member.Kind, member.Access, member.Signature,
+                Suffixed(member.Key, keyCounts, seenInFile, file), member.Name, member.Kind, member.Access, [], member.Signature,
                 new SourceSpan(member.StartByte, member.EndByte, member.StartLine, member.EndLine)));
         }
 
-        foreach (var (key, count) in seenKeys.Where(pair => pair.Value > 1))
+        foreach (var (key, count) in keyCounts.Where(pair => pair.Value > 1))
         {
             duplicates.Add("member " + Describe(key, count, typeId));
         }
@@ -127,11 +151,18 @@ public static class ModelBuilder
         (ownerId is null ? name : name + " of " + ownerId)
         + " (" + count.ToString(CultureInfo.InvariantCulture) + " definitions)";
 
-    /// <summary>The first use of a name is the name itself; later uses get <c>#2</c>, <c>#3</c>.</summary>
-    static string Unique(Dictionary<string, int> seen, string name)
+    /// <summary>
+    /// D-21: <paramref name="name"/> itself when it occurs once; otherwise <c>name#path</c>, with <c>@2</c>,
+    /// <c>@3</c> added from the second occurrence inside the same file.
+    /// </summary>
+    static string Suffixed(string name, Dictionary<string, int> counts, Dictionary<string, int> seenInFile, string file)
     {
-        seen[name] = seen.GetValueOrDefault(name) + 1;
-        var count = seen[name];
-        return count == 1 ? name : name + "#" + count.ToString(CultureInfo.InvariantCulture);
+        if (counts[name] == 1)
+        {
+            return name;
+        }
+
+        var n = seenInFile[name] = seenInFile.GetValueOrDefault(name) + 1;
+        return name + "#" + file + (n == 1 ? "" : "@" + n.ToString(CultureInfo.InvariantCulture));
     }
 }

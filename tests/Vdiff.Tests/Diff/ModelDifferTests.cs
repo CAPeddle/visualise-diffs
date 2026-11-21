@@ -10,7 +10,7 @@ public class ModelDifferTests
     static MemberModel M(string key, string access = "public", string? signature = null, int start = 0)
     {
         var name = key.Contains('(') ? key[..key.IndexOf('(', StringComparison.Ordinal)] : key;
-        return new MemberModel(key, name, key.Contains('(') ? "method" : "field", access, signature ?? "int " + key,
+        return new MemberModel(key, name, key.Contains('(') ? "method" : "field", access, [], signature ?? "int " + key,
             new SourceSpan(start, start + 5, 1, 1));
     }
 
@@ -18,19 +18,22 @@ public class ModelDifferTests
     {
         var cut = fqn.LastIndexOf("::", StringComparison.Ordinal);
         return new TypeModel(
-            kind + " " + fqn, fqn, kind, cut < 0 ? fqn : fqn[(cut + 2)..], cut < 0 ? "" : fqn[..cut], file,
-            bases ?? [], new SourceSpan(start, start + 100, 1, 9), members ?? []);
+            Languages.Cpp, kind + " " + fqn, fqn, kind, cut < 0 ? fqn : fqn[(cut + 2)..], cut < 0 ? "" : fqn[..cut],
+            null, false, file, null, [], bases ?? [], new SourceSpan(start, start + 100, 1, 9), members ?? []);
     }
 
-    static ModelFile Model(string commit, IEnumerable<TypeModel> types, IReadOnlyList<UnmodelledEntry>? unmodelled = null,
+    static ModelFileEntry Entry(string path, int errorNodes) =>
+        new(path, Languages.Cpp, Modes.SyntaxOnly, null, errorNodes);
+
+    static ModelFile Model(IEnumerable<TypeModel> types, IReadOnlyList<UnmodelledEntry>? unmodelled = null,
         IReadOnlyList<ModelFileEntry>? files = null, IReadOnlyList<string>? duplicates = null) =>
         new(
-            ModelFile.SchemaName, commit,
-            new ExtractionInfo("cpp-ts", "syntax-only", "0.27.0", "0.23.4", []),
-            files ?? [], unmodelled ?? [], [.. types]) { Duplicates = duplicates ?? [] };
+            ModelFile.SchemaName,
+            new ExtractionInfo([new LanguageExtraction(Languages.Cpp, "cpp-ts", Modes.SyntaxOnly, null, null, [])]),
+            files ?? [], unmodelled ?? [], [.. types], [], duplicates ?? []);
 
     static DiffFile Diff(IEnumerable<TypeModel> before, IEnumerable<TypeModel> after) =>
-        ModelDiffer.Diff(Model("1111111", before), Model("2222222", after));
+        ModelDiffer.Diff(Model(before), Model(after));
 
     static IEnumerable<IReadOnlyList<T>> Permutations<T>(IReadOnlyList<T> items)
     {
@@ -207,7 +210,7 @@ public class ModelDifferTests
     [Fact]
     public void Two_empty_models_give_zero_counts_and_no_types()
     {
-        var diff = ModelDiffer.Diff(Model("1111111", []), Model("2222222", []));
+        var diff = ModelDiffer.Diff(Model([]), Model([]));
 
         Assert.Empty(diff.Types);
         Assert.Empty(diff.Warnings);
@@ -291,8 +294,8 @@ public class ModelDifferTests
     public void No_warning_is_written_when_every_count_is_zero()
     {
         var diff = ModelDiffer.Diff(
-            Model("1111111", [], files: [new ModelFileEntry("a.h", 0)]),
-            Model("2222222", [], files: [new ModelFileEntry("a.h", 0)]));
+            Model([], files: [Entry("a.h", 0)]),
+            Model([], files: [Entry("a.h", 0)]));
 
         Assert.Empty(diff.Warnings);
     }
@@ -300,8 +303,8 @@ public class ModelDifferTests
     [Fact]
     public void Parse_errors_and_unmodelled_files_are_separate_warnings_prefixed_by_side()
     {
-        var baseModel = Model("1111111", [], files: [new ModelFileEntry("a.h", 2), new ModelFileEntry("b.h", 0), new ModelFileEntry("c.h", 1)]);
-        var headModel = Model("2222222", [], unmodelled: [new UnmodelledEntry("d.h", "too-large")]);
+        var baseModel = Model([], files: [Entry("a.h", 2), Entry("b.h", 0), Entry("c.h", 1)]);
+        var headModel = Model([], unmodelled: [new UnmodelledEntry("d.h", "too-large")]);
 
         var diff = ModelDiffer.Diff(baseModel, headModel);
 
@@ -311,8 +314,8 @@ public class ModelDifferTests
     [Fact]
     public void Each_duplicates_entry_becomes_a_warning_on_its_side()
     {
-        var baseModel = Model("1111111", [], duplicates: ["class shop::X (2 definitions)", "member f() of class shop::Y (3 definitions)"]);
-        var headModel = Model("2222222", [], duplicates: ["class shop::Z (2 definitions)"]);
+        var baseModel = Model([], duplicates: ["class shop::X (2 definitions)", "member f() of class shop::Y (3 definitions)"]);
+        var headModel = Model([], duplicates: ["class shop::Z (2 definitions)"]);
 
         var diff = ModelDiffer.Diff(baseModel, headModel);
 
@@ -335,7 +338,7 @@ public class ModelDifferTests
     public void Every_unmodelled_reason_is_counted_on_its_side(string reason)
     {
         var entries = new[] { new UnmodelledEntry("a.h", reason), new UnmodelledEntry("b.h", reason) };
-        var diff = ModelDiffer.Diff(Model("1111111", [], unmodelled: entries), Model("2222222", [], unmodelled: [entries[0]]));
+        var diff = ModelDiffer.Diff(Model([], unmodelled: entries), Model([], unmodelled: [entries[0]]));
 
         Assert.Equal(new UnmodelledCounts(Base: 2, Head: 1), diff.Summary.Unmodelled);
         Assert.Contains("base: 2 file(s) not modelled", diff.Warnings);

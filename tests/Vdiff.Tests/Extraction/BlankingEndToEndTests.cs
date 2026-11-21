@@ -87,7 +87,7 @@ public class BlankingEndToEndTests
 
         var head = ReadJson<ModelFile>(Path.Combine(repo.OutDir, "head.model.json"));
         Assert.DoesNotContain(head.Types, t => t.Id == "class shop::Foo");
-        Assert.Empty(head.Extraction.MacrosBlanked);
+        Assert.Empty(head.Extraction.Languages[0].MacrosBlanked);
         // Never hidden: the unparsed region shows as error nodes on the file and as a diff warning.
         Assert.True(head.Files.Single().ErrorNodes >= 1);
         var diff = ReadJson<DiffFile>(Path.Combine(repo.OutDir, "diff.json"));
@@ -112,8 +112,8 @@ public class BlankingEndToEndTests
         Assert.Equal(0, head.Files.Single().ErrorNodes);
 
         var baseModel = ReadJson<ModelFile>(Path.Combine(repo.OutDir, "base.model.json"));
-        Assert.Equal(["EXPORT_API", "LIB_CALL"], head.Extraction.MacrosBlanked);
-        Assert.Equal(["EXPORT_API", "LIB_CALL"], baseModel.Extraction.MacrosBlanked);
+        Assert.Equal(["EXPORT_API", "LIB_CALL"], head.Extraction.Languages[0].MacrosBlanked);
+        Assert.Equal(["EXPORT_API", "LIB_CALL"], baseModel.Extraction.Languages[0].MacrosBlanked);
         Assert.Equal(["class shop::Foo"], baseModel.Types.Select(t => t.Id));
 
         var diff = ReadJson<DiffFile>(Path.Combine(repo.OutDir, "diff.json"));
@@ -138,7 +138,7 @@ public class BlankingEndToEndTests
         foreach (var name in new[] { "head.model.json", "base.model.json" })
         {
             var model = ReadJson<ModelFile>(Path.Combine(repo.OutDir, name));
-            Assert.Equal(["EXPORT_API", "LIB_CALL"], model.Extraction.MacrosBlanked);
+            Assert.Equal(["EXPORT_API", "LIB_CALL"], model.Extraction.Languages[0].MacrosBlanked);
         }
     }
 

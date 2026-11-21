@@ -33,10 +33,10 @@ public static class TracerPipeline
         var pathLevel = changes.Unmodelled.Where(u => scope.IsInScope(u.Path)).ToList();
 
         var (baseModel, _) = BuildSide(
-            reader, baseId, inScope.Where(f => f.BaseBlob is not null).Select(f => new BlobRequest(f.Path, f.BaseBlob!)),
+            reader, inScope.Where(f => f.BaseBlob is not null).Select(f => new BlobRequest(f.Path, f.BaseBlob!)),
             pathLevel, blank, command, limits);
         var (headModel, headResponse) = BuildSide(
-            reader, headId, inScope.Where(f => f.HeadBlob is not null).Select(f => new BlobRequest(f.Path, f.HeadBlob!)),
+            reader, inScope.Where(f => f.HeadBlob is not null).Select(f => new BlobRequest(f.Path, f.HeadBlob!)),
             pathLevel, blank, command, limits);
 
         // Versions come from the sidecar response, not from the model, so the model can drop them
@@ -59,7 +59,6 @@ public static class TracerPipeline
 
     static (ModelFile Model, SidecarResponse Response) BuildSide(
         GitObjectReader reader,
-        string commit,
         IEnumerable<BlobRequest> requests,
         IReadOnlyList<UnmodelledFile> pathLevel,
         IReadOnlyList<string> blank,
@@ -73,6 +72,6 @@ public static class TracerPipeline
         var response = CppSidecar.Extract(
             read.Blobs.Select(b => new SidecarInput(b.Path, b.Bytes)).ToList(), blank, command, limits);
 
-        return (ModelBuilder.Build(commit, response, [.. pathLevel, .. read.Unmodelled], blank), response);
+        return (ModelBuilder.Build(response, [.. pathLevel, .. read.Unmodelled], blank), response);
     }
 }

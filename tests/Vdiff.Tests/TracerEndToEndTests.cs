@@ -121,11 +121,14 @@ public class TracerEndToEndTests
 
     static void AssertExtractionMetadata(ModelFile model, params string[] files)
     {
-        Assert.Equal("vdiff-model/v0-tracer", model.Schema);
-        Assert.Equal("cpp-ts", model.Extraction.Extractor);
-        Assert.Equal("syntax-only", model.Extraction.Mode);
-        Assert.Empty(model.Extraction.MacrosBlanked);
+        Assert.Equal("vdiff-model/v1", model.Schema);
+        var language = Assert.Single(model.Extraction.Languages);
+        Assert.Equal("cpp", language.Language);
+        Assert.Equal("cpp-ts", language.Extractor);
+        Assert.Equal("syntax-only", language.Mode);
+        Assert.Empty(language.MacrosBlanked);
         Assert.Equal(files, model.Files.Select(f => f.Path));
+        Assert.All(model.Files, f => Assert.Equal(("cpp", "syntax-only"), (f.Language, f.Mode)));
         Assert.All(model.Files, f => Assert.Equal(0, f.ErrorNodes));
         Assert.Empty(model.Unmodelled);
     }
@@ -219,6 +222,27 @@ public class TracerEndToEndTests
         AssertExtractionMetadata(head, "include/shop/gadget.h", "include/shop/widget.h");
         var baseModel = ReadJson<ModelFile>(Path.Combine(repo.OutDir, "base.model.json"));
         AssertExtractionMetadata(baseModel, "include/shop/gadget.h", "include/shop/legacy.h");
+
+        // The model holds no commit id and no tool version (D-04), and the tracer omits what it cannot
+        // fill at type level (D-19): partial is false, access and files are absent.
+        foreach (var name in new[] { "base.model.json", "head.model.json" })
+        {
+            using var modelJson = JsonDocument.Parse(File.ReadAllText(Path.Combine(repo.OutDir, name)));
+            var root = modelJson.RootElement;
+            Assert.Equal("vdiff-model/v1", root.GetProperty("schema").GetString());
+            Assert.False(root.TryGetProperty("commit", out _));
+            var extraction = root.GetProperty("extraction");
+            Assert.False(extraction.TryGetProperty("tree_sitter", out _));
+            Assert.False(extraction.TryGetProperty("tree_sitter_cpp", out _));
+            var types = root.GetProperty("types").EnumerateArray().ToList();
+            Assert.NotEmpty(types);
+            foreach (var type in types)
+            {
+                Assert.False(type.GetProperty("partial").GetBoolean());
+                Assert.False(type.TryGetProperty("access", out _));
+                Assert.False(type.TryGetProperty("files", out _));
+            }
+        }
 
         AssertRunMeta(ReadJson<RunMeta>(Path.Combine(repo.OutDir, OutputWriter.MetaFile)), baseId, headId);
 

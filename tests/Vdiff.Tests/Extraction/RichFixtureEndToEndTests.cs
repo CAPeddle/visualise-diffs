@@ -138,7 +138,7 @@ public class RichFixtureEndToEndTests
             ["class shop::Box", "enum shop::Box::Mode", "struct shop::Box::Slot"],
             head.Types.Select(t => t.Id));
         Assert.All(head.Types, t => Assert.Equal(HeaderPath, t.File));
-        Assert.Equal([new ModelFileEntry(HeaderPath, 0)], head.Files);
+        Assert.Equal([new ModelFileEntry(HeaderPath, Languages.Cpp, Modes.SyntaxOnly, null, 0)], head.Files);
 
         var box = head.Types[0];
         Assert.Equal("shop", box.Scope);

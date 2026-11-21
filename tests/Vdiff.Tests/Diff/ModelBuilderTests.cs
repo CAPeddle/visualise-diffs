@@ -24,7 +24,7 @@ public class ModelBuilderTests
     static SidecarFile File(string path, params SidecarType[] types) =>
         new() { Path = path, Status = "ok", Types = types };
 
-    static ModelFile Build(params SidecarFile[] files) => ModelBuilder.Build("1111111", Response(files), [], []);
+    static ModelFile Build(params SidecarFile[] files) => ModelBuilder.Build(Response(files), [], []);
 
     [Fact]
     public void Repeated_types_get_path_suffixed_ids_and_at_n_only_for_a_repeat_in_one_file()
@@ -129,7 +129,7 @@ public class ModelBuilderTests
             new SidecarFile { Path = "t.h", Status = "timeout" },
             new SidecarFile { Path = "e.h", Status = "error" });
 
-        var model = ModelBuilder.Build("1111111", response, read, []);
+        var model = ModelBuilder.Build(response, read, []);
 
         Assert.Equal(6, model.Unmodelled.Count);
         Assert.Equal(

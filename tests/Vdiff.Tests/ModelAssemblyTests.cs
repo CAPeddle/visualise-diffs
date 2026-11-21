@@ -25,7 +25,7 @@ public class ModelAssemblyTests
             new SidecarFile { Path = "b.h", Status = "timeout" },
             new SidecarFile { Path = "c.h", Status = "error", ErrorNodes = 4 });
 
-        var model = ModelBuilder.Build("1111111", response, [new UnmodelledFile("d.h", "too-large")], []);
+        var model = ModelBuilder.Build(response, [new UnmodelledFile("d.h", "too-large")], []);
 
         Assert.Equal(["a.h"], model.Files.Select(f => f.Path));
         Assert.Equal(
@@ -37,9 +37,8 @@ public class ModelAssemblyTests
     [Fact]
     public void Unmodelled_entries_are_counted_in_the_diff_summary_and_the_warnings()
     {
-        var baseModel = ModelBuilder.Build("1111111", Response(new SidecarFile { Path = "b.h", Status = "timeout" }), [], []);
+        var baseModel = ModelBuilder.Build(Response(new SidecarFile { Path = "b.h", Status = "timeout" }), [], []);
         var headModel = ModelBuilder.Build(
-            "2222222",
             Response(
                 new SidecarFile { Path = "b.h", Status = "error" },
                 new SidecarFile { Path = "c.h", Status = "timeout" }),
@@ -64,7 +63,7 @@ public class ModelAssemblyTests
             Types = [Type("A", 100, Member("x", 120), Member("x", 110)), Type("A", 0)],
         });
 
-        var model = ModelBuilder.Build("1111111", response, [], []);
+        var model = ModelBuilder.Build(response, [], []);
 
         Assert.Equal(["class ns::A#a.h", "class ns::A#a.h@2"], model.Types.Select(t => t.Id));
         // The definition earlier in the file takes the first suffix (D-21).
@@ -83,7 +82,7 @@ public class ModelAssemblyTests
             Types = [Type("b", 0), Type("B", 20), Type("a", 40), Type("_c", 60)],
         });
 
-        var model = ModelBuilder.Build("1111111", response, [], []);
+        var model = ModelBuilder.Build(response, [], []);
 
         Assert.Equal(["class ns::B", "class ns::_c", "class ns::a", "class ns::b"], model.Types.Select(t => t.Id));
     }
