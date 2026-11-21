@@ -173,6 +173,40 @@ public class ModelBuilderTests
         Assert.Equal(["class shop::X (4 definitions)"], two.Duplicates);
     }
 
+    [Fact]
+    public void The_tracer_labels_everything_as_syntax_only_cpp_and_omits_what_it_cannot_fill()
+    {
+        var response = new SidecarResponse
+        {
+            Schema = "vdiff-cpp-ts/v0",
+            TreeSitter = "0.27.0",
+            TreeSitterCpp = "0.23.4",
+            MacrosBlanked = ["MID"],
+            Files = [File("src/b.h", Type("B", 0)), File("src/a.h", Type("Box", 0, Member("f()", 10)), Derived("shop::Box", "Slot", 20))],
+        };
+
+        var model = ModelBuilder.Build(response, [], ["ZED", "ALPHA"]);
+
+        Assert.Equal(["class shop::B", "class shop::Box", "class shop::Box::Slot"], model.Types.Select(t => t.Id));
+        Assert.All(model.Types, t =>
+        {
+            Assert.Equal(Languages.Cpp, t.Language);
+            Assert.False(t.Partial);
+            Assert.Null(t.Access);
+            Assert.Null(t.Files);
+            Assert.Empty(t.Modifiers);
+        });
+        Assert.All(model.Types.SelectMany(t => t.Members), m => Assert.Empty(m.Modifiers));
+        Assert.Contains(model.Types, t => t.Id == "class shop::Box::Slot" && t.Scope == "shop::Box");
+        Assert.All(model.Files, f => Assert.Equal((Languages.Cpp, Modes.SyntaxOnly, null), (f.Language, f.Mode, f.FallbackReason)));
+        var language = Assert.Single(model.Extraction.Languages);
+        Assert.Equal(("cpp", "cpp-ts", "syntax-only"), (language.Language, language.Extractor, language.Mode));
+        Assert.Null(language.FallbackReason);
+        Assert.Null(language.UnresolvedSymbols);
+        Assert.Equal(["ALPHA", "MID", "ZED"], language.MacrosBlanked);
+        Assert.Empty(model.Edges);
+    }
+
     static SidecarType Derived(string scope, string name, int start, params string[] bases) =>
         new() { Kind = "class", Name = name, Scope = scope, StartByte = start, EndByte = start + 50, Bases = bases };
 
