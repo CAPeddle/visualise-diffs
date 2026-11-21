@@ -15,7 +15,13 @@ public static class Canonical
     public static readonly Comparer<TypeModel> Types = Comparer<TypeModel>.Create(CompareTypes);
     public static readonly Comparer<MemberModel> Members = Comparer<MemberModel>.Create(CompareMembers);
     public static readonly Comparer<EdgeModel> Edges = Comparer<EdgeModel>.Create(CompareEdges);
-    public static readonly Comparer<EdgeModel> EdgeIdentity = Edges; // RED placeholder, replaced in the GREEN commit
+
+    /// <summary>
+    /// The edge identity (D-23): kind, from.language, from.id, to_name and via (absent first), and nothing
+    /// else, so the resolved <c>to</c> is not part of it. Two edges that compare 0 here are the same edge
+    /// across two models; Phase 5's edge diffing keys on it.
+    /// </summary>
+    public static readonly Comparer<EdgeModel> EdgeIdentity = Comparer<EdgeModel>.Create(CompareEdgeIdentity);
 
     public static ModelFile Canonicalise(ModelFile model) => model with
     {
@@ -32,20 +38,16 @@ public static class Canonical
     };
 
     /// <summary>
-    /// Today's diff collections: types by id, members by key, <c>bases.added</c> and <c>bases.removed</c> by
-    /// value. Warnings keep the order given. Plan 02-12 extends this to the v1 diff rows.
+    /// Every v1 diff collection: warnings, <c>bases.added</c>, <c>bases.removed</c>, <c>modifiers_before</c>
+    /// and <c>modifiers_after</c> by value; packages by name then state; types by language then id; members by
+    /// key; edges by the D-23 identity, then the resolved target, then state.
     /// </summary>
     public static DiffFile Canonicalise(DiffFile diff) => diff with
     {
-        Types = diff.Types
-            .Select(t => t with
-            {
-                Bases = new BaseChanges(SortedValues(t.Bases.Added), SortedValues(t.Bases.Removed)),
-                Members = t.Members.OrderBy(m => m.Key, StringComparer.Ordinal).ToList(),
-            })
-            .OrderBy(t => t.Language, StringComparer.Ordinal)
-            .ThenBy(t => t.Id, StringComparer.Ordinal)
-            .ToList(),
+        Warnings = SortedValues(diff.Warnings),
+        Packages = diff.Packages.OrderBy(p => p, Comparer<PackageDiff>.Create(ComparePackages)).ToList(),
+        Types = diff.Types.Select(CanonicaliseTypeDiff).OrderBy(t => t, Comparer<TypeDiff>.Create(CompareTypeDiffs)).ToList(),
+        Edges = diff.Edges.OrderBy(e => e, Comparer<EdgeDiff>.Create(CompareEdgeDiffs)).ToList(),
     };
 
     public static RunMeta Canonicalise(RunMeta meta) => meta with
@@ -79,6 +81,21 @@ public static class Canonical
 
     static MemberModel CanonicaliseMember(MemberModel member) => member with { Modifiers = SortedValues(member.Modifiers) };
 
+    static TypeDiff CanonicaliseTypeDiff(TypeDiff type) => type with
+    {
+        Bases = new BaseChanges(SortedValues(type.Bases.Added), SortedValues(type.Bases.Removed)),
+        Members = type.Members
+            .Select(CanonicaliseMemberDiff)
+            .OrderBy(m => m, Comparer<MemberDiff>.Create(CompareMemberDiffs))
+            .ToList(),
+    };
+
+    static MemberDiff CanonicaliseMemberDiff(MemberDiff member) => member with
+    {
+        ModifiersBefore = member.ModifiersBefore is null ? null : SortedValues(member.ModifiersBefore),
+        ModifiersAfter = member.ModifiersAfter is null ? null : SortedValues(member.ModifiersAfter),
+    };
+
     static int CompareTypes(TypeModel x, TypeModel y)
     {
         var c = string.CompareOrdinal(x.Language, y.Language);
@@ -97,19 +114,55 @@ public static class Canonical
     }
 
     /// <summary>
-    /// The edge identity first (D-23: kind, from, to_name, via with an absent via first), then the resolved
-    /// target (absent first), which is not part of the identity.
+    /// The edge identity first (<see cref="EdgeIdentity"/>), then the resolved target (absent first), which is
+    /// not part of the identity.
     /// </summary>
     static int CompareEdges(EdgeModel x, EdgeModel y)
+    {
+        var c = CompareEdgeIdentity(x, y);
+        c = c != 0 ? c : CompareAbsentFirst(x.To?.Language, y.To?.Language);
+        c = c != 0 ? c : CompareAbsentFirst(x.To?.Id, y.To?.Id);
+        return c != 0 ? c : Tie(x, y);
+    }
+
+    static int CompareEdgeIdentity(EdgeModel x, EdgeModel y)
     {
         var c = string.CompareOrdinal(x.Kind, y.Kind);
         c = c != 0 ? c : string.CompareOrdinal(x.From.Language, y.From.Language);
         c = c != 0 ? c : string.CompareOrdinal(x.From.Id, y.From.Id);
         c = c != 0 ? c : string.CompareOrdinal(x.ToName, y.ToName);
-        c = c != 0 ? c : CompareAbsentFirst(x.Via, y.Via);
+        return c != 0 ? c : CompareAbsentFirst(x.Via, y.Via);
+    }
+
+    static int CompareEdgeDiffs(EdgeDiff x, EdgeDiff y)
+    {
+        var c = CompareEdgeIdentity(Project(x), Project(y));
         c = c != 0 ? c : CompareAbsentFirst(x.To?.Language, y.To?.Language);
         c = c != 0 ? c : CompareAbsentFirst(x.To?.Id, y.To?.Id);
+        c = c != 0 ? c : string.CompareOrdinal(x.State, y.State);
         return c != 0 ? c : Tie(x, y);
+    }
+
+    static EdgeModel Project(EdgeDiff edge) => new(edge.Kind, edge.From, edge.To, edge.ToName, edge.Via);
+
+    static int ComparePackages(PackageDiff x, PackageDiff y)
+    {
+        var c = string.CompareOrdinal(x.Name, y.Name);
+        c = c != 0 ? c : string.CompareOrdinal(x.State, y.State);
+        return c != 0 ? c : Tie(x, y);
+    }
+
+    static int CompareTypeDiffs(TypeDiff x, TypeDiff y)
+    {
+        var c = string.CompareOrdinal(x.Language, y.Language);
+        c = c != 0 ? c : string.CompareOrdinal(x.Id, y.Id);
+        return c != 0 ? c : Tie(CanonicaliseTypeDiff(x), CanonicaliseTypeDiff(y));
+    }
+
+    static int CompareMemberDiffs(MemberDiff x, MemberDiff y)
+    {
+        var c = string.CompareOrdinal(x.Key, y.Key);
+        return c != 0 ? c : Tie(CanonicaliseMemberDiff(x), CanonicaliseMemberDiff(y));
     }
 
     static int CompareLanguages(LanguageExtraction x, LanguageExtraction y)

@@ -35,8 +35,8 @@ public static class ModelDiffer
 {
     public static DiffFile Diff(ModelFile baseModel, ModelFile headModel)
     {
-        var baseTypes = Index(baseModel.Types, TypeKey, CompareTypes);
-        var headTypes = Index(headModel.Types, TypeKey, CompareTypes);
+        var baseTypes = Index(baseModel.Types, TypeKey, Canonical.Types);
+        var headTypes = Index(headModel.Types, TypeKey, Canonical.Types);
         var keys = baseTypes.Keys.Concat(headTypes.Keys).Distinct(StringComparer.Ordinal).OrderBy(k => k, StringComparer.Ordinal);
 
         var changed = new List<TypeDiff>();
@@ -76,9 +76,8 @@ public static class ModelDiffer
         var warnings = new List<string>();
         AddWarnings(warnings, "base", baseModel);
         AddWarnings(warnings, "head", headModel);
-        warnings.Sort(StringComparer.Ordinal);
 
-        return new DiffFile(DiffFile.SchemaName, summary, warnings, [], changed, []);
+        return Canonical.Canonicalise(new DiffFile(DiffFile.SchemaName, summary, warnings, [], changed, []));
     }
 
     static string TypeKey(TypeModel type) => type.Language + '\u0000' + type.Id;
@@ -90,7 +89,7 @@ public static class ModelDiffer
             return new TypeDiff(
                 after.Language, after.Id, after.Fqn, after.Kind, States.Added, null, after.File, null, null,
                 new BaseChanges(Sorted(after.Bases), []),
-                after.Members.OrderBy(m => m, MemberOrder).Select(Added).ToList());
+                after.Members.OrderBy(m => m, Canonical.Members).Select(Added).ToList());
         }
 
         if (before is not null && after is null)
@@ -98,7 +97,7 @@ public static class ModelDiffer
             return new TypeDiff(
                 before.Language, before.Id, before.Fqn, before.Kind, States.Removed, before.File, null, null, null,
                 new BaseChanges([], Sorted(before.Bases)),
-                before.Members.OrderBy(m => m, MemberOrder).Select(Removed).ToList());
+                before.Members.OrderBy(m => m, Canonical.Members).Select(Removed).ToList());
         }
 
         var b = before!;
@@ -106,8 +105,8 @@ public static class ModelDiffer
         var basesAdded = Sorted(a.Bases.Except(b.Bases, StringComparer.Ordinal));
         var basesRemoved = Sorted(b.Bases.Except(a.Bases, StringComparer.Ordinal));
 
-        var beforeMembers = Index(b.Members, m => m.Key, CompareMembers);
-        var afterMembers = Index(a.Members, m => m.Key, CompareMembers);
+        var beforeMembers = Index(b.Members, m => m.Key, Canonical.Members);
+        var afterMembers = Index(a.Members, m => m.Key, Canonical.Members);
         var memberKeys = beforeMembers.Keys.Concat(afterMembers.Keys).Distinct(StringComparer.Ordinal).OrderBy(k => k, StringComparer.Ordinal);
         var memberDiffs = new List<MemberDiff>();
         foreach (var key in memberKeys)
@@ -152,7 +151,7 @@ public static class ModelDiffer
 
     /// <summary>
     /// Per side, in a fixed order: files with parse errors, files not modelled, then each repeated
-    /// definition. Nothing is written for a zero count. The caller sorts the whole list ordinally.
+    /// definition. Nothing is written for a zero count. <see cref="Canonical"/> sorts the whole list ordinally.
     /// </summary>
     static void AddWarnings(List<string> warnings, string side, ModelFile model)
     {
@@ -177,48 +176,14 @@ public static class ModelDiffer
     /// Keyed lookup in canonical order in which the first entry wins, so a repeated key can neither
     /// throw nor depend on the order of the input.
     /// </summary>
-    static Dictionary<string, T> Index<T>(IEnumerable<T> items, Func<T, string> key, Comparison<T> order)
+    static Dictionary<string, T> Index<T>(IEnumerable<T> items, Func<T, string> key, IComparer<T> order)
     {
         var index = new Dictionary<string, T>(StringComparer.Ordinal);
-        foreach (var item in items.OrderBy(i => i, Comparer<T>.Create(order)))
+        foreach (var item in items.OrderBy(i => i, order))
         {
             index.TryAdd(key(item), item);
         }
 
         return index;
     }
-
-    static readonly Comparer<MemberModel> MemberOrder = Comparer<MemberModel>.Create(CompareMembers);
-
-    /// <summary>
-    /// Total order on members: key, then start byte, end byte and the remaining fields, all ordinal.
-    /// Two members that compare equal here are identical in everything the diff reads.
-    /// </summary>
-    static int CompareMembers(MemberModel x, MemberModel y)
-    {
-        var c = string.CompareOrdinal(x.Key, y.Key);
-        c = c != 0 ? c : x.Span.StartByte.CompareTo(y.Span.StartByte);
-        c = c != 0 ? c : x.Span.EndByte.CompareTo(y.Span.EndByte);
-        c = c != 0 ? c : string.CompareOrdinal(x.Signature, y.Signature);
-        c = c != 0 ? c : string.CompareOrdinal(x.Access, y.Access);
-        c = c != 0 ? c : string.CompareOrdinal(Joined(Sorted(x.Modifiers)), Joined(Sorted(y.Modifiers)));
-        return c != 0 ? c : string.CompareOrdinal(x.Kind, y.Kind);
-    }
-
-    /// <summary>Total order on types: language, id, then file, start byte, end byte, bases and member keys, all ordinal.</summary>
-    static int CompareTypes(TypeModel x, TypeModel y)
-    {
-        var c = string.CompareOrdinal(x.Language, y.Language);
-        c = c != 0 ? c : string.CompareOrdinal(x.Id, y.Id);
-        c = c != 0 ? c : string.CompareOrdinal(x.File, y.File);
-        c = c != 0 ? c : x.Span.StartByte.CompareTo(y.Span.StartByte);
-        c = c != 0 ? c : x.Span.EndByte.CompareTo(y.Span.EndByte);
-        c = c != 0 ? c : string.CompareOrdinal(Joined(x.Bases.OrderBy(v => v, StringComparer.Ordinal)), Joined(y.Bases.OrderBy(v => v, StringComparer.Ordinal)));
-        return c != 0 ? c : string.CompareOrdinal(Joined(x.Members.OrderBy(m => m, MemberOrder).Select(Fingerprint)), Joined(y.Members.OrderBy(m => m, MemberOrder).Select(Fingerprint)));
-    }
-
-    static string Joined(IEnumerable<string> values) => string.Join('\u0001', values);
-
-    static string Fingerprint(MemberModel m) =>
-        m.Key + '\u0002' + m.Signature + '\u0002' + m.Access + '\u0002' + Joined(Sorted(m.Modifiers));
 }

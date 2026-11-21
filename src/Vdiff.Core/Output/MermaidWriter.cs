@@ -22,10 +22,11 @@ public static class MermaidWriter
 
     public static string Render(DiffFile diff)
     {
-        // Canonical order is the type id, ordinal; class ids are made unique in that order.
+        // Canonical order is the language, then the type id, ordinal; class ids are made unique in that order.
         var shown = diff.Types
             .Where(t => t.State != States.Unchanged)
-            .OrderBy(t => t.Id, StringComparer.Ordinal)
+            .OrderBy(t => t.Language, StringComparer.Ordinal)
+            .ThenBy(t => t.Id, StringComparer.Ordinal)
             .ToList();
         var used = new HashSet<string>(StringComparer.Ordinal);
         var ids = shown.Select(t => ClassId(t.Fqn, used)).ToList();
@@ -132,7 +133,7 @@ public static class MermaidWriter
         {
             foreach (var written in shown[derived].Bases.Added.Concat(shown[derived].Bases.Removed))
             {
-                var name = BaseName(written);
+                var name = BaseResolver.Strip(written);
                 if (name.Length == 0)
                 {
                     continue;
@@ -161,31 +162,6 @@ public static class MermaidWriter
         }
 
         return edges;
-    }
-
-    /// <summary>A written base without template arguments (balanced angle brackets), a leading <c>::</c> and surrounding space.</summary>
-    static string BaseName(string written)
-    {
-        var builder = new StringBuilder(written.Length);
-        var depth = 0;
-        foreach (var c in written)
-        {
-            if (c == '<')
-            {
-                depth++;
-            }
-            else if (c == '>' && depth > 0)
-            {
-                depth--;
-            }
-            else if (depth == 0)
-            {
-                builder.Append(c);
-            }
-        }
-
-        var name = builder.ToString().Trim();
-        return name.StartsWith("::", StringComparison.Ordinal) ? name[2..] : name;
     }
 
     /// <summary>
