@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Vdiff.Core.Output;
 using Vdiff.Core.Process;
+using Vdiff.Tests.Fixtures;
 
 namespace Vdiff.Tests.Safety;
 
@@ -101,7 +102,7 @@ public partial class RepoHygieneTests
 
         Assert.True(
             offenders.Count == 0,
-            "tracked paths that look like generated output (T-01-11); a later phase that adds golden files with these names must change this guard in the same commit:\n"
+            "tracked paths that look like generated output (T-01-11); a golden is allowed only as tests/fixtures/<shape>/expected/diff.json or summary.mmd:\n"
             + string.Join('\n', offenders));
     }
 
@@ -110,7 +111,16 @@ public partial class RepoHygieneTests
     {
         var problems = new List<string>();
         var segments = path.Replace('\\', '/').Split('/');
-        if (GeneratedFileNames.Contains(segments[^1], StringComparer.Ordinal))
+
+        // A golden is exactly tests/fixtures/<one of the five shapes>/expected/diff.json or summary.mmd; any
+        // other generated name, here or anywhere else, is still output that must not be tracked (RESEARCH Pitfall 1).
+        var isGolden = segments.Length == 5
+            && segments[0] == "tests"
+            && segments[1] == "fixtures"
+            && Shapes.IsShape(segments[2])
+            && segments[3] == "expected"
+            && segments[4] is "diff.json" or "summary.mmd";
+        if (!isGolden && GeneratedFileNames.Contains(segments[^1], StringComparer.Ordinal))
         {
             problems.Add($"{path}: generated file name '{segments[^1]}'");
         }
@@ -333,6 +343,13 @@ public partial class RepoHygieneTests
     [InlineData("src/Vdiff.Core/obj/x.cs")]
     [InlineData("extractors/cpp-ts/target/release/x")]
     [InlineData("tools/mermaid-check/node_modules/pkg/index.js")]
+    [InlineData("tests/fixtures/small-cpp/head/diff.json")]
+    [InlineData("tests/fixtures/small-cpp/expected/report.html")]
+    [InlineData("tests/fixtures/small-cpp/expected/head.model.json")]
+    [InlineData("tests/fixtures/small-cpp/expected/run.meta.json")]
+    [InlineData("tests/fixtures/unknown-shape/expected/diff.json")]
+    [InlineData("tests/fixtures/small-cpp/expected/nested/diff.json")]
+    [InlineData("out/run.meta.json")]
     public void The_tracked_file_guard_flags_generated_output(string path)
     {
         Assert.NotEmpty(TrackedPathProblems(path));
@@ -343,6 +360,9 @@ public partial class RepoHygieneTests
     [InlineData("tests/Vdiff.Tests/Safety/RepoHygieneTests.cs")]
     [InlineData("README.md")]
     [InlineData("docs/outline.md")]
+    [InlineData("tests/fixtures/small-cpp/expected/diff.json")]
+    [InlineData("tests/fixtures/rename/expected/summary.mmd")]
+    [InlineData("tests/fixtures/cross-stack/expected/diff.json")]
     public void The_tracked_file_guard_accepts_ordinary_sources(string path)
     {
         Assert.Empty(TrackedPathProblems(path));

@@ -1,0 +1,12 @@
+shape: small-cpp
+description: "Small C++ change: added, removed and modified types and members, a body-only change and an unchanged base shown as context"
+config:
+  blank:
+    - SYNTH_API
+expected:
+  diff:
+    state: pending
+    due: 5
+  summary:
+    state: pending
+    due: 7

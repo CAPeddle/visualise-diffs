@@ -11,21 +11,33 @@ namespace Vdiff.Tests.Output;
 /// 01-09 runs the real parser). It also checks the class-id prefix: every class id and edge
 /// endpoint must start with <c>C_</c>, because a bare fqn-derived id can equal a Mermaid keyword
 /// (link, note, click ...) and make the whole diagram unparseable (review finding CR-01, plan 01-11).
+/// Beyond the lines the writer emits today it accepts the extra lines of the provisional v1 summary format
+/// from <c>tests/fixtures/README.md</c>: the <c>renamed</c> and <c>context</c> classDefs, the
+/// <c>renamed</c> and <c>body-changed</c> member tags, the two stereotype lines and the association
+/// edge lines. Every one is a proposal until Phase 7 and the pinned Mermaid parse confirm it.
 /// </summary>
 public static class MermaidLint
 {
     const string Id = "C_[A-Za-z0-9_]*";
 
+    // The label between the quotes holds any character but a double quote, so a generic type's angle
+    // brackets (Foo<>) are accepted; the writer's escape keeps braces and quotes out of real labels.
     static readonly Regex ClassLine = new(
-        "^  class (" + Id + ")\\[\"[^\"{}]*\"\\]:::(\\w+)( \\{)?$", RegexOptions.CultureInvariant);
+        "^  class (" + Id + ")\\[\"[^\"]*\"\\]:::(\\w+)( \\{)?$", RegexOptions.CultureInvariant);
 
     static readonly Regex MemberLine = new(
-        "^    [+#\\-][^{}\"]* \\[(added|removed|modified)\\]$", RegexOptions.CultureInvariant);
+        "^    [+#\\-][^{}\"]* \\[(added|removed|modified|renamed|body-changed)\\]$", RegexOptions.CultureInvariant);
+
+    static readonly Regex StereotypeLine = new(
+        "^    <<(managed wrapper|renamed from [^{}\"<>]+)>>$", RegexOptions.CultureInvariant);
 
     static readonly Regex EdgeLine = new("^  (" + Id + ") <\\|-- (" + Id + ")$", RegexOptions.CultureInvariant);
 
+    static readonly Regex AssociationLine = new(
+        "^  (" + Id + ") (?:-->|\\.\\.>) (" + Id + ") : uses(?: \\[(?:added|removed)\\])?$", RegexOptions.CultureInvariant);
+
     static readonly Regex ClassDefLine = new(
-        "^  classDef (added|removed|modified) fill:#[0-9a-f]{6},stroke:#[0-9a-f]{6},color:#[0-9a-f]{3,6}(,stroke-dasharray:\\d+ \\d+)?$",
+        "^  classDef (added|removed|modified|renamed|context) fill:#[0-9a-f]{6},stroke:#[0-9a-f]{6},color:#[0-9a-f]{3,6}(,stroke-dasharray:\\d+ \\d+)?$",
         RegexOptions.CultureInvariant);
 
     /// <summary>Returns the problems found; an empty list means the structure is sound.</summary>
@@ -60,9 +72,10 @@ public static class MermaidLint
 
         var classIds = new HashSet<string>(StringComparer.Ordinal);
         var classStates = new List<(string Id, string State)>();
-        var edges = new List<(int Line, string Base, string Derived)>();
+        var edges = new List<(int Line, string From, string To, string What)>();
         var defined = new HashSet<string>(StringComparer.Ordinal);
         var inBlock = false;
+        var seenMember = false;
 
         for (var i = 1; i < lines.Length; i++)
         {
@@ -74,9 +87,20 @@ public static class MermaidLint
                 {
                     inBlock = false;
                 }
-                else if (!MemberLine.IsMatch(line))
+                else if (MemberLine.IsMatch(line))
                 {
-                    problems.Add($"line {number}: not a member line ending in a state tag, or it holds a brace or a quote");
+                    seenMember = true;
+                }
+                else if (StereotypeLine.IsMatch(line))
+                {
+                    if (seenMember)
+                    {
+                        problems.Add($"line {number}: a stereotype line must come before the first member line of its class");
+                    }
+                }
+                else
+                {
+                    problems.Add($"line {number}: not a member line ending in a state tag, a stereotype line, or it holds a brace or a quote");
                 }
 
                 continue;
@@ -93,13 +117,21 @@ public static class MermaidLint
 
                 classStates.Add((id, classMatch.Groups[2].Value));
                 inBlock = classMatch.Groups[3].Success;
+                seenMember = false;
                 continue;
             }
 
             var edge = EdgeLine.Match(line);
             if (edge.Success)
             {
-                edges.Add((number, edge.Groups[1].Value, edge.Groups[2].Value));
+                edges.Add((number, edge.Groups[1].Value, edge.Groups[2].Value, "an inheritance"));
+                continue;
+            }
+
+            var association = AssociationLine.Match(line);
+            if (association.Success)
+            {
+                edges.Add((number, association.Groups[1].Value, association.Groups[2].Value, "an association"));
                 continue;
             }
 
@@ -135,11 +167,11 @@ public static class MermaidLint
             }
         }
 
-        foreach (var (line, baseId, derivedId) in edges)
+        foreach (var (line, fromId, toId, what) in edges)
         {
-            if (!classIds.Contains(baseId) || !classIds.Contains(derivedId))
+            if (!classIds.Contains(fromId) || !classIds.Contains(toId))
             {
-                problems.Add($"line {line}: an inheritance edge names a class that is not declared");
+                problems.Add($"line {line}: {what} edge names a class that is not declared");
             }
         }
 
