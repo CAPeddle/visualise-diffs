@@ -7,7 +7,7 @@ using Vdiff.Core.Model;
 namespace Vdiff.Core.Output;
 
 /// <summary>
-/// Canonical JSON serialisation and the five fixed output files (D-08). File names are
+/// Canonical JSON serialisation and the fixed output files (D-08). File names are
 /// constants: a path from the analysed repository is never used as a file name (T-01-28).
 /// </summary>
 public static class OutputWriter
@@ -17,6 +17,10 @@ public static class OutputWriter
     public const string DiffJsonFile = "diff.json";
     public const string MermaidFile = "summary.mmd";
     public const string HtmlFile = "report.html";
+
+    /// <summary>Every file a run writes, in write order; tests read this list instead of naming files.</summary>
+    public static readonly IReadOnlyList<string> FileNames =
+        [BaseModelFile, HeadModelFile, DiffJsonFile, MermaidFile, HtmlFile];
 
     static readonly UTF8Encoding Utf8NoBom = new(false);
 
@@ -36,7 +40,7 @@ public static class OutputWriter
     public static string Serialize<T>(T value) => JsonSerializer.Serialize(value, JsonOptions) + "\n";
 
     /// <summary>
-    /// Writes the five files into <paramref name="held"/> as UTF-8 without a byte-order mark
+    /// Writes every file in <see cref="FileNames"/> into <paramref name="held"/> as UTF-8 without a byte-order mark
     /// and with LF line ends, every one by <see cref="HeldDirectory.Path"/> and never by the path
     /// the operator typed. The directory is created and held by the caller, so this method creates
     /// no directory. Callers build every model and the diff first, so a failure before the

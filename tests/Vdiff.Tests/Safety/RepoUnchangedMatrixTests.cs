@@ -1,4 +1,5 @@
 using Vdiff.Core.Cli;
+using Vdiff.Core.Output;
 using Vdiff.Core.Process;
 using Vdiff.Tests.Support;
 
@@ -14,7 +15,7 @@ namespace Vdiff.Tests.Safety;
 [Collection("sidecar")]
 public class RepoUnchangedMatrixTests
 {
-    static readonly string[] FiveFiles = ["base.model.json", "diff.json", "head.model.json", "report.html", "summary.mmd"];
+    static readonly string[] ExpectedFiles = [.. OutputWriter.FileNames.Order(StringComparer.Ordinal)];
 
     readonly SidecarFixture _sidecar;
 
@@ -88,7 +89,7 @@ public class RepoUnchangedMatrixTests
         Assert.Equal("", stderr);
         Assert.Equal(0, exit);
         AssertSameSnapshot(before, RepoSnapshot.Take(repo.Root, repo.OutDir, gitDirs));
-        Assert.Equal(FiveFiles, Directory.GetFiles(repo.OutDir).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+        Assert.Equal(ExpectedFiles, Directory.GetFiles(repo.OutDir).Select(Path.GetFileName).Order(StringComparer.Ordinal));
     }
 
     [Fact]
@@ -165,7 +166,7 @@ public class RepoUnchangedMatrixTests
         }
 
         AssertSameSnapshot(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
-        Assert.Equal(FiveFiles, Directory.GetFiles(repo.OutDir).Select(Path.GetFileName).Order(StringComparer.Ordinal));
+        Assert.Equal(ExpectedFiles, Directory.GetFiles(repo.OutDir).Select(Path.GetFileName).Order(StringComparer.Ordinal));
         Assert.Empty(Directory.GetDirectories(repo.OutDir));
     }
 

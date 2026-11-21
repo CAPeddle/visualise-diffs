@@ -5,7 +5,7 @@ using Vdiff.Core.Cli;
 namespace Vdiff.Core.Output;
 
 /// <summary>
-/// The output directory, opened and held while the five files are written. On Windows the
+/// The output directory, opened and held while the output files are written. On Windows the
 /// directory is opened without delete sharing, so the operating system refuses to rename or
 /// delete it or any of its ancestors until <see cref="Dispose"/>; its final path is read from the
 /// open handle, judged by the caller's function, and is the only path any file operation uses.

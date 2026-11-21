@@ -3,6 +3,7 @@ using Vdiff.Core.Cli;
 using Vdiff.Core.Extraction;
 using Vdiff.Core.Git;
 using Vdiff.Core.Model;
+using Vdiff.Core.Output;
 using Vdiff.Core.Pipeline;
 using Vdiff.Core.Scope;
 using Vdiff.Tests.Support;
@@ -184,7 +185,7 @@ public class TracerEndToEndTests
         Assert.Equal("", stderr);
         Assert.Equal(0, exit);
         Assert.Equal(
-            ["base.model.json", "diff.json", "head.model.json", "report.html", "summary.mmd"],
+            OutputWriter.FileNames.Order(StringComparer.Ordinal),
             Directory.GetFiles(repo.OutDir).Select(Path.GetFileName).Order(StringComparer.Ordinal));
 
         // Written as UTF-8 without a byte-order mark and with LF line ends only.

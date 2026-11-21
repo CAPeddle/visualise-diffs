@@ -16,8 +16,7 @@ namespace Vdiff.Tests.Output;
 [Collection("sidecar")]
 public class DeterminismTests
 {
-    static readonly string[] FileNames =
-        ["base.model.json", "diff.json", "head.model.json", "report.html", "summary.mmd"];
+    static readonly string[] FileNames = [.. OutputWriter.FileNames.Order(StringComparer.Ordinal)];
 
     static readonly JsonSerializerOptions ReadOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
 

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Vdiff.Core.Cli;
 using Vdiff.Core.Model;
+using Vdiff.Core.Output;
 using Vdiff.Tests.Support;
 
 namespace Vdiff.Tests.Scope;
@@ -15,7 +16,7 @@ public class IncludeGlobEndToEndTests
 {
     static readonly JsonSerializerOptions ReadOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
 
-    static readonly string[] OutputFiles = ["base.model.json", "diff.json", "head.model.json", "report.html", "summary.mmd"];
+    static readonly string[] OutputFiles = [.. OutputWriter.FileNames.Order(StringComparer.Ordinal)];
 
     static string Header(string cls, params string[] fields) =>
         $"#pragma once\nclass {cls} {{\npublic:\n" + string.Concat(fields.Select(f => $"    int {f};\n")) + "};\n";

@@ -210,7 +210,9 @@ public class TraceRunScriptTests
     static string[] OutputFiles(string dir) =>
         Directory.GetFiles(dir).Select(f => Path.GetFileName(f)!).OrderBy(n => n, StringComparer.Ordinal).ToArray();
 
-    static readonly string[] FiveFiles = ["base.model.json", "diff.json", "head.model.json", "report.html", "summary.mmd"];
+    static readonly string[] ExpectedFiles = [.. OutputWriter.FileNames.Order(StringComparer.Ordinal)];
+
+    static readonly string WroteLine = "wrote " + OutputWriter.FileNames.Count + " files";
 
     // ---- (a) healthy runs ----
 
@@ -229,7 +231,7 @@ public class TraceRunScriptTests
         AssertPassed(result, values);
         Assert.Equal("skipped", values[5]);
         AssertNothingLeaks(result, repo.RepoDir, repo.OutDir, c1, c2);
-        Assert.Equal(FiveFiles, OutputFiles(repo.OutDir));
+        Assert.Equal(ExpectedFiles, OutputFiles(repo.OutDir));
         Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
     }
 
@@ -247,7 +249,7 @@ public class TraceRunScriptTests
         var values = ParseSixLines(result.StdoutText);
         AssertPassed(result, values);
         AssertNothingLeaks(result, repo.RepoDir, repo.OutDir, c1, c2);
-        Assert.Equal(FiveFiles, OutputFiles(repo.OutDir));
+        Assert.Equal(ExpectedFiles, OutputFiles(repo.OutDir));
         Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
     }
 
@@ -488,7 +490,7 @@ public class TraceRunScriptTests
         {
             failures.Add("the log did not appear at the requested name in the held directory");
         }
-        else if (!File.ReadAllText(logFile).Contains("wrote 5 files", StringComparison.Ordinal))
+        else if (!File.ReadAllText(logFile).Contains(WroteLine, StringComparison.Ordinal))
         {
             failures.Add("the log does not hold vdiff's output");
         }
@@ -501,7 +503,7 @@ public class TraceRunScriptTests
         Assert.True(failures.Count == 0, string.Join("; ", failures));
         Assert.False(File.Exists(Path.Combine(repo.RepoDir, "vdiff.log")), "the script wrote its log into the analysed repository");
         Assert.Empty(Directory.GetFileSystemEntries(repo.RepoDir, "*.tmp-*", SearchOption.AllDirectories));
-        Assert.Equal(FiveFiles, OutputFiles(outRun));
+        Assert.Equal(ExpectedFiles, OutputFiles(outRun));
         Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
     }
 
@@ -524,9 +526,9 @@ public class TraceRunScriptTests
         AssertNothingLeaks(result, repo.RepoDir, repo.OutDir, logPath, c1, c2);
         Assert.True(Directory.Exists(Path.Combine(repo.OutDir, "logs")));
         Assert.True(Directory.Exists(logDirectory));
-        Assert.Contains("wrote 5 files", File.ReadAllText(logPath), StringComparison.Ordinal);
+        Assert.Contains(WroteLine, File.ReadAllText(logPath), StringComparison.Ordinal);
         Assert.Empty(Directory.GetFileSystemEntries(repo.OutDir, "*.tmp-*", SearchOption.AllDirectories));
-        Assert.Equal(FiveFiles, OutputFiles(repo.OutDir));
+        Assert.Equal(ExpectedFiles, OutputFiles(repo.OutDir));
         Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
     }
 
@@ -753,7 +755,7 @@ public class TraceRunScriptTests
         var values = ParseSixLines(result.StdoutText);
         AssertPassed(result, values);
         AssertNothingLeaks(result, repo.RepoDir, repo.OutDir, link, c1, c2);
-        Assert.Equal(FiveFiles, OutputFiles(Path.Combine(repo.OutDir, "run")));
+        Assert.Equal(ExpectedFiles, OutputFiles(Path.Combine(repo.OutDir, "run")));
         Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
     }
 
@@ -981,7 +983,7 @@ public class TraceRunScriptTests
         var values = ParseSixLines(result.StdoutText);
         AssertPassed(result, values);
         AssertNothingLeaks(result, repo.RepoDir, repo.OutDir, sibling, c1, c2);
-        Assert.Equal(FiveFiles, OutputFiles(sibling));
+        Assert.Equal(ExpectedFiles, OutputFiles(sibling));
         Assert.Equal(before, RepoSnapshot.Take(repo.Root, sibling));
     }
 
@@ -1036,8 +1038,8 @@ public class TraceRunScriptTests
         AssertPassed(result, values);
         AssertNothingLeaks(result, repo.RepoDir, repo.OutDir, outRun, log, c1, c2);
         Assert.Equal("# Sample\n", File.ReadAllText(readme));
-        Assert.Equal(FiveFiles, OutputFiles(outRun));
-        Assert.Contains("wrote 5 files", File.ReadAllText(log), StringComparison.Ordinal);
+        Assert.Equal(ExpectedFiles, OutputFiles(outRun));
+        Assert.Contains(WroteLine, File.ReadAllText(log), StringComparison.Ordinal);
         Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
     }
 

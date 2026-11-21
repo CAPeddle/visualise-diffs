@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Vdiff.Core.Cli;
 using Vdiff.Core.Model;
+using Vdiff.Core.Output;
 using Vdiff.Tests.Support;
 
 namespace Vdiff.Tests.Safety;
@@ -356,7 +357,7 @@ public class HostileInputTests
         Assert.Equal("", stderr);
         Assert.Equal(0, exit);
         Assert.Equal(
-            ["base.model.json", "diff.json", "head.model.json", "report.html", "summary.mmd"],
+            OutputWriter.FileNames.Order(StringComparer.Ordinal),
             Directory.GetFiles(repo.OutDir).Select(Path.GetFileName).Order(StringComparer.Ordinal));
         Assert.Empty(Directory.GetDirectories(repo.OutDir));
         Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));

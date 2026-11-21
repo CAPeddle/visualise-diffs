@@ -1,6 +1,7 @@
 using Vdiff.Core;
 using Vdiff.Core.Cli;
 using Vdiff.Core.Git;
+using Vdiff.Core.Output;
 using Vdiff.Tests.Support;
 
 namespace Vdiff.Tests.Safety;
@@ -16,8 +17,7 @@ public class AliasedOutTests
 {
     const string Refusal = "--out must not lie inside the analysed repository";
 
-    static readonly string[] FiveFiles =
-        ["base.model.json", "head.model.json", "diff.json", "summary.mmd", "report.html"];
+    static readonly IReadOnlyList<string> ExpectedFiles = OutputWriter.FileNames;
 
     readonly SidecarFixture _sidecar;
 
@@ -138,7 +138,7 @@ public class AliasedOutTests
 
         Assert.Equal(0, exit);
         Assert.Empty(stderr);
-        foreach (var name in FiveFiles)
+        foreach (var name in ExpectedFiles)
         {
             Assert.True(File.Exists(Path.Combine(repo.OutDir, "run", name)), name);
         }
@@ -252,7 +252,7 @@ public class AliasedOutTests
 
         Assert.Equal(0, exit);
         Assert.Empty(stderr);
-        foreach (var name in FiveFiles)
+        foreach (var name in ExpectedFiles)
         {
             Assert.True(File.Exists(Path.Combine(sibling, name)), name);
         }
@@ -260,8 +260,7 @@ public class AliasedOutTests
         Assert.Equal(before, RepoSnapshot.Take(repo.Root, sibling));
     }
 
-    static readonly string[] OutputNames =
-        ["base.model.json", "head.model.json", "diff.json", "summary.mmd", "report.html"];
+    static readonly IReadOnlyList<string> OutputNames = OutputWriter.FileNames;
 
     [Fact]
     public void A_hard_link_planted_at_every_output_name_is_replaced_and_the_repository_files_are_unchanged()
@@ -269,8 +268,8 @@ public class AliasedOutTests
         using var repo = new SyntheticRepo();
         using var links = new LinkScratch();
         var (baseId, headId) = BuildSmallHistory(repo);
-        var victims = new string[OutputNames.Length];
-        for (var i = 0; i < OutputNames.Length; i++)
+        var victims = new string[OutputNames.Count];
+        for (var i = 0; i < OutputNames.Count; i++)
         {
             victims[i] = Path.Combine(repo.RepoDir, $"victim-{i + 1}.txt");
             File.WriteAllText(victims[i], $"original {i + 1}");
@@ -283,7 +282,7 @@ public class AliasedOutTests
 
         Assert.Equal(0, exit);
         Assert.Empty(stderr);
-        for (var i = 0; i < OutputNames.Length; i++)
+        for (var i = 0; i < OutputNames.Count; i++)
         {
             Assert.Equal($"original {i + 1}", File.ReadAllText(victims[i]));
             Assert.NotEqual($"original {i + 1}", File.ReadAllText(Path.Combine(repo.OutDir, OutputNames[i])));
@@ -429,7 +428,7 @@ public class AliasedOutTests
         var allowed = outcomes.Where(o => !o.Refused).Select(o => o.Attempt).ToList();
         Assert.True(allowed.Count == 0, "the operating system did not refuse to: " + string.Join("; ", allowed));
 
-        foreach (var name in FiveFiles)
+        foreach (var name in ExpectedFiles)
         {
             Assert.True(File.Exists(Path.Combine(outPath, name)), name);
         }
@@ -471,7 +470,7 @@ public class AliasedOutTests
         var exit = CliApp.Run(Args(repo.RepoDir, baseId, headId, outPath), outWriter, errWriter, hooks);
 
         Assert.True(exit == 0, errWriter.ToString());
-        foreach (var name in FiveFiles)
+        foreach (var name in ExpectedFiles)
         {
             Assert.True(File.Exists(Path.Combine(real, "include", name)), name);
         }
@@ -649,7 +648,7 @@ public class AliasedOutTests
 
         Assert.True(exit == 0, errWriter.ToString());
         Assert.Empty(errWriter.ToString());
-        foreach (var name in FiveFiles)
+        foreach (var name in ExpectedFiles)
         {
             Assert.True(File.Exists(Path.Combine(outPath, name)), name);
         }
@@ -711,7 +710,7 @@ public class AliasedOutTests
         Assert.Empty(outWriter.ToString());
         Assert.Empty(Directory.GetFileSystemEntries(repo.OutDir));
         Assert.Equal(before, RepoSnapshot.Take(repo.Root, repo.OutDir));
-        foreach (var name in FiveFiles)
+        foreach (var name in ExpectedFiles)
         {
             Assert.False(File.Exists(Path.Combine(currentDirectory, name)), name);
         }

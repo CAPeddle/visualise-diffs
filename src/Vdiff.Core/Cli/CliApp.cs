@@ -107,7 +107,7 @@ public static class CliApp
             hooks?.AfterHeld?.Invoke(held.Path);
             OutputWriter.WriteAll(held, result.Base, result.Head, result.Diff, mermaid, html);
 
-            stdout.Write($"vdiff: wrote 5 files to {outPath}\n");
+            stdout.Write($"vdiff: wrote {OutputWriter.FileNames.Count} files to {outPath}\n");
             return 0;
         }
         catch (VdiffException e)
