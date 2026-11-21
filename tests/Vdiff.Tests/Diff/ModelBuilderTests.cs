@@ -323,4 +323,37 @@ public class ModelBuilderTests
         Assert.Equal(["class a::B", "class a::A", "class a::A"], model.Edges.Select(e => e.From.Id));
         Assert.Equal(["a.h", "b.h"], model.Types[1].Files);
     }
+
+    [Fact]
+    public void An_unrelated_type_with_the_same_suffix_changes_an_edges_target_but_not_its_identity()
+    {
+        // D-23: model one resolves `Base` to ns::Base; model two adds other::Base, so the written base now
+        // matches two types by suffix and the same edge loses its `to`. The identity must not move.
+        var one = Build(File("a.h", Derived("ns", "Base", 0), Derived("ns", "Derived", 100, "Base")));
+        var two = Build(
+            File("a.h", Derived("ns", "Base", 0), Derived("ns", "Derived", 100, "Base")),
+            File("b.h", Derived("other", "Base", 0)));
+
+        var before = Assert.Single(one.Edges, e => e.From.Id == "class ns::Derived");
+        var after = Assert.Single(two.Edges, e => e.From.Id == "class ns::Derived");
+
+        Assert.Equal(new TypeRef(Languages.Cpp, "class ns::Base"), before.To);
+        Assert.Null(after.To);
+        Assert.Equal(0, Canonical.EdgeIdentity.Compare(before, after));
+        Assert.NotEqual(0, Canonical.Edges.Compare(before, after));
+    }
+
+    [Fact]
+    public void EdgeIdentity_covers_kind_from_to_name_and_via_but_not_to()
+    {
+        var from = new TypeRef(Languages.Cpp, "class a::A");
+        var edge = new EdgeModel(EdgeKinds.Association, from, new TypeRef(Languages.Cpp, "class a::B"), "B", "f()");
+
+        Assert.Equal(0, Canonical.EdgeIdentity.Compare(edge, edge with { To = new TypeRef(Languages.Cpp, "class z::Other") }));
+        Assert.Equal(0, Canonical.EdgeIdentity.Compare(edge, edge with { To = null }));
+        Assert.NotEqual(0, Canonical.EdgeIdentity.Compare(edge, edge with { Kind = EdgeKinds.Base }));
+        Assert.NotEqual(0, Canonical.EdgeIdentity.Compare(edge, edge with { From = new TypeRef(Languages.Cpp, "class a::Z") }));
+        Assert.NotEqual(0, Canonical.EdgeIdentity.Compare(edge, edge with { ToName = "C" }));
+        Assert.NotEqual(0, Canonical.EdgeIdentity.Compare(edge, edge with { Via = null }));
+    }
 }

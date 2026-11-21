@@ -409,4 +409,17 @@ public class MermaidWriterTests
 
         Assert.Empty(MermaidLint.Check("classDiagram\n  class C_A[\"A\"]:::added {\n    +f() [added]\n  }\n" + defs));
     }
+
+    [Fact]
+    public void Types_are_ordered_by_language_then_id_so_a_cpp_type_is_listed_before_a_csharp_type_with_the_same_id()
+    {
+        var text = Render(Diff(
+            Type("ns::Foo", state: "removed", language: Languages.CSharp),
+            Type("ns::Foo", state: "added", language: Languages.Cpp)));
+
+        var classes = Lines(text).Where(l => l.StartsWith("  class ", StringComparison.Ordinal)).ToList();
+        Assert.Equal(2, classes.Count);
+        Assert.EndsWith(":::added", classes[0], StringComparison.Ordinal);
+        Assert.EndsWith(":::removed", classes[1], StringComparison.Ordinal);
+    }
 }

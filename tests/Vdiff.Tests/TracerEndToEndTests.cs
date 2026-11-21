@@ -297,4 +297,26 @@ public class TracerEndToEndTests
         Assert.False(Directory.Exists(Path.Combine(repo.RepoDir, "results")));
         Assert.Equal(before, RepoSnapshot.Take(repo.Root));
     }
+
+    [Fact]
+    public void The_canonical_files_hold_neither_commit_id_nor_a_tool_version()
+    {
+        using var repo = new SyntheticRepo();
+        var (baseId, headId) = BuildFixtureA(repo);
+
+        var exit = RunCli(
+            ["--repo", repo.RepoDir, "--base", baseId, "--head", headId, "--out", repo.OutDir],
+            out _, out var stderr);
+
+        Assert.Equal("", stderr);
+        Assert.Equal(0, exit);
+        Assert.Equal(4, OutputWriter.CanonicalFileNames.Count);
+        foreach (var name in OutputWriter.CanonicalFileNames)
+        {
+            var text = File.ReadAllText(Path.Combine(repo.OutDir, name));
+            Assert.DoesNotContain(baseId, text, StringComparison.Ordinal);
+            Assert.DoesNotContain(headId, text, StringComparison.Ordinal);
+            Assert.DoesNotContain("0.27.0", text, StringComparison.Ordinal);
+        }
+    }
 }

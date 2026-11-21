@@ -54,16 +54,16 @@ public class DeterminismTests
         "};\n" +
         "}\n";
 
-    static (string BaseId, string HeadId) Build(SyntheticRepo repo)
+    static (string BaseId, string HeadId) Build(SyntheticRepo repo, string baseMessage = "base", string headMessage = "head")
     {
         repo.Write("include/shop/gadget.h", BaseHeader);
         repo.Write("include/shop/legacy.h", "#pragma once\nnamespace shop {\nstruct Legacy {\n    int id;\n};\n}\n");
         repo.Write("README.md", "# Shop\n");
-        var baseId = repo.Commit("base");
+        var baseId = repo.Commit(baseMessage);
         repo.Write("include/shop/gadget.h", HeadHeader);
         repo.Delete("include/shop/legacy.h");
         repo.Write("README.md", "# Shop\n\nEdited.\n");
-        var headId = repo.Commit("head");
+        var headId = repo.Commit(headMessage);
         return (baseId, headId);
     }
 
@@ -259,5 +259,33 @@ public class DeterminismTests
         Assert.Contains("C_shop__Gadget <|-- C_shop__Widget", mermaid);
         var html = File.ReadAllText(Path.Combine(outDir, "report.html"));
         Assert.DoesNotMatch("(?i)<script|https?:", html);
+    }
+
+    [Fact]
+    public void Same_trees_committed_twice_give_identical_canonical_files_and_differ_only_in_run_meta()
+    {
+        // D-04: the commit ids live in run.meta.json only. Nothing is stripped before comparing.
+        using var one = new SyntheticRepo();
+        using var two = new SyntheticRepo();
+        var (baseOne, headOne) = Build(one, "base", "head");
+        var (baseTwo, headTwo) = Build(two, "base, second copy", "head, second copy");
+        Assert.NotEqual(baseOne, baseTwo);
+        Assert.NotEqual(headOne, headTwo);
+
+        var first = Run(one, baseOne, headOne, "out-a", BlankFlags);
+        var second = Run(two, baseTwo, headTwo, "out-b", BlankFlags);
+
+        Assert.NotEmpty(OutputWriter.CanonicalFileNames);
+        foreach (var name in OutputWriter.CanonicalFileNames)
+        {
+            Assert.Equal(File.ReadAllBytes(Path.Combine(first, name)), File.ReadAllBytes(Path.Combine(second, name)));
+        }
+
+        var metaOne = File.ReadAllText(Path.Combine(first, OutputWriter.MetaFile));
+        var metaTwo = File.ReadAllText(Path.Combine(second, OutputWriter.MetaFile));
+        Assert.NotEqual(metaOne, metaTwo);
+        Assert.Equal(
+            metaOne.Replace(baseOne, "<base>").Replace(headOne, "<head>"),
+            metaTwo.Replace(baseTwo, "<base>").Replace(headTwo, "<head>"));
     }
 }

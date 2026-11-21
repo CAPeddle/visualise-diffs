@@ -15,6 +15,7 @@ public static class Canonical
     public static readonly Comparer<TypeModel> Types = Comparer<TypeModel>.Create(CompareTypes);
     public static readonly Comparer<MemberModel> Members = Comparer<MemberModel>.Create(CompareMembers);
     public static readonly Comparer<EdgeModel> Edges = Comparer<EdgeModel>.Create(CompareEdges);
+    public static readonly Comparer<EdgeModel> EdgeIdentity = Edges; // RED placeholder, replaced in the GREEN commit
 
     public static ModelFile Canonicalise(ModelFile model) => model with
     {

@@ -474,4 +474,60 @@ public class ModelDifferTests
             Assert.Equal(Languages.Cpp, t.Language);
         });
     }
+
+    static IReadOnlyList<T> Rev<T>(bool reversed, params T[] forward) => reversed ? [.. forward.Reverse()] : forward;
+
+    /// <summary>One diff holding every collection the canonical order covers; <paramref name="reversed"/> lists each one backwards.</summary>
+    static DiffFile HandBuiltDiff(bool reversed)
+    {
+        MemberDiff Member(string key, string state) =>
+            new(key, key, state, "public", "private", "int " + key, "long " + key, Rev(reversed, "static", "const"), Rev(reversed, "virtual", "final"), null);
+
+        TypeDiff Type(string language, string id) =>
+            new(language, id, id, "class", "modified", "a.h", "a.h", null, null,
+                new BaseChanges(Rev(reversed, "Zed", "Alpha"), Rev(reversed, "Yak", "Beta")),
+                Rev(reversed, Member("b", "modified"), Member("a", "modified"), Member("c", "added")));
+
+        EdgeDiff Edge(string kind, string toName, string? via, string state, TypeRef? to, TypeRef? before = null, TypeRef? after = null) =>
+            new(kind, new TypeRef(Languages.Cpp, "class A"), to, before, after, toName, via, state);
+
+        return new DiffFile(
+            DiffFile.SchemaName,
+            new DiffSummary(new TypeCounts(0, 0, 3, 0, 0), new MemberCounts(0, 0, 0, 0, 0), new EdgeCounts(1, 1, 1, 0, 0), new UnmodelledCounts(0, 0)),
+            Rev(reversed, "head: 1 file(s) not modelled", "base: 1 file(s) with parse errors", "base: 1 file(s) not modelled"),
+            Rev(reversed,
+                new PackageDiff("zlib", "updated", "1.0", "1.1"),
+                new PackageDiff("abc", "removed", "2.0", null),
+                new PackageDiff("abc", "added", null, "3.0")),
+            Rev(reversed, Type(Languages.CSharp, "class A"), Type(Languages.Cpp, "class B"), Type(Languages.Cpp, "class A")),
+            Rev(reversed,
+                Edge(EdgeKinds.Association, "X", "f()", "added", new TypeRef(Languages.Cpp, "class C")),
+                Edge(EdgeKinds.Base, "X", null, "removed", new TypeRef(Languages.Cpp, "class D")),
+                Edge(EdgeKinds.Base, "X", null, "added", new TypeRef(Languages.Cpp, "class C")),
+                Edge(EdgeKinds.Base, "X", null, "modified", null, new TypeRef(Languages.Cpp, "class B"), null)));
+    }
+
+    [Fact]
+    public void Canonicalising_a_reverse_ordered_diff_gives_the_bytes_of_the_forward_ordered_one_and_orders_each_collection()
+    {
+        var forward = Canonical.Canonicalise(HandBuiltDiff(reversed: false));
+        var backward = Canonical.Canonicalise(HandBuiltDiff(reversed: true));
+
+        Assert.Equal(OutputWriter.Serialize(forward), OutputWriter.Serialize(backward));
+        Assert.Equal(
+            [("cpp", "class A"), ("cpp", "class B"), ("csharp", "class A")],
+            backward.Types.Select(t => (t.Language, t.Id)));
+        Assert.Equal(["a", "b", "c"], backward.Types[0].Members.Select(m => m.Key));
+        Assert.Equal(["Alpha", "Zed"], backward.Types[0].Bases.Added);
+        Assert.Equal(["Beta", "Yak"], backward.Types[0].Bases.Removed);
+        Assert.Equal(["const", "static"], backward.Types[0].Members[0].ModifiersBefore);
+        Assert.Equal(["final", "virtual"], backward.Types[0].Members[0].ModifiersAfter);
+        Assert.Equal([("abc", "added"), ("abc", "removed"), ("zlib", "updated")], backward.Packages.Select(p => (p.Name, p.State)));
+        Assert.Equal(
+            ["base: 1 file(s) not modelled", "base: 1 file(s) with parse errors", "head: 1 file(s) not modelled"],
+            backward.Warnings);
+        Assert.Equal(
+            [(EdgeKinds.Association, "added"), (EdgeKinds.Base, "modified"), (EdgeKinds.Base, "added"), (EdgeKinds.Base, "removed")],
+            backward.Edges.Select(e => (e.Kind, e.State)));
+    }
 }
