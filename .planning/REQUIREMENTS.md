@@ -25,8 +25,8 @@ roadmap) and have no counterpart in that file yet.
 
 ### Model and harness
 
-- [x] **R-10**: Every extractor emits one versioned model `vdiff-model/v1` (types, members, bases, derived edges, spans, extraction metadata)
-- [x] **R-23**: Identical inputs produce byte-identical outputs; canonical ordering, volatile metadata kept apart
+- [ ] **R-10**: Every extractor emits one versioned model `vdiff-model/v1` (types, members, bases, derived edges, spans, extraction metadata)
+- [ ] **R-23**: Identical inputs produce byte-identical outputs; canonical ordering, volatile metadata kept apart
 
 ### Inputs and scope
 
@@ -67,8 +67,8 @@ roadmap) and have no counterpart in that file yet.
 
 ### Acceptance
 
-- [x] **ACC-01**: Five synthetic public fixtures green in CI (small C++, C#, cross-stack with C++/CLI, extract-class refactor, rename)
-- [x] **ACC-02**: Private-fixture recipe documented so five real PRs of the same shapes can be checked inside the target organisation (D15)
+- [ ] **ACC-01**: Five synthetic public fixtures green in CI (small C++, C#, cross-stack with C++/CLI, extract-class refactor, rename)
+- [ ] **ACC-02**: Private-fixture recipe documented so five real PRs of the same shapes can be checked inside the target organisation (D15)
 - [ ] **ACC-03**: Over 10 consecutive target PR runs, no added PR-build wall-clock and P90 job time under 5 minutes
 
 ## v2 Requirements
@@ -104,10 +104,10 @@ Phases are defined in `.planning/ROADMAP.md`. Each requirement maps to exactly o
 | TRC-02 | Phase 1 | Complete |
 | TRC-03 | Phase 1 | Complete |
 | SPK-02 | Phase 1 | Complete |
-| R-10 | Phase 2 | Complete |
-| R-23 | Phase 2 | Complete |
-| ACC-01 | Phase 2 | Complete |
-| ACC-02 | Phase 2 | Complete |
+| R-10 | Phase 2 | Gaps Found |
+| R-23 | Phase 2 | Gaps Found |
+| ACC-01 | Phase 2 | Gaps Found |
+| ACC-02 | Phase 2 | Gaps Found |
 | R-01 | Phase 3 | Pending |
 | R-04 | Phase 3 | Pending |
 | R-02 | Phase 4 | Pending |
