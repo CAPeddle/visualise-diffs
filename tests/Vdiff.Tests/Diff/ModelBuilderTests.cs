@@ -172,4 +172,121 @@ public class ModelBuilderTests
         Assert.Equal(["class shop::X (3 definitions)"], one.Duplicates);
         Assert.Equal(["class shop::X (4 definitions)"], two.Duplicates);
     }
+
+    static SidecarType Derived(string scope, string name, int start, params string[] bases) =>
+        new() { Kind = "class", Name = name, Scope = scope, StartByte = start, EndByte = start + 50, Bases = bases };
+
+    static EdgeModel BaseEdge(string fromId, string? toId, string written) =>
+        new(EdgeKinds.Base, new TypeRef(Languages.Cpp, fromId), toId is null ? null : new TypeRef(Languages.Cpp, toId), written, null);
+
+    [Fact]
+    public void A_base_naming_one_type_by_its_stripped_name_gets_a_resolved_edge()
+    {
+        var model = Build(File("a.h", Derived("ns", "Base", 0), Derived("ns", "Derived", 100, "Base<int>")));
+
+        Assert.Equal(
+            [BaseEdge("class ns::Derived", "class ns::Base", "Base<int>")],
+            model.Edges);
+    }
+
+    [Fact]
+    public void A_base_matching_two_types_by_suffix_gets_an_edge_without_a_target()
+    {
+        var model = Build(File("a.h", Derived("one", "Base", 0), Derived("two", "Base", 60), Derived("ns", "Derived", 120, "Base")));
+
+        Assert.Equal([BaseEdge("class ns::Derived", null, "Base")], model.Edges);
+    }
+
+    [Fact]
+    public void A_base_naming_no_modelled_type_gets_an_edge_without_a_target()
+    {
+        var model = Build(File("a.h", Derived("ns", "Derived", 0, "std::exception", "Missing")));
+
+        Assert.Equal(
+            [BaseEdge("class ns::Derived", null, "Missing"), BaseEdge("class ns::Derived", null, "std::exception")],
+            model.Edges);
+    }
+
+    [Fact]
+    public void Two_exact_fqn_matches_from_a_duplicate_definition_give_an_edge_without_a_target()
+    {
+        var model = Build(
+            File("a.h", Derived("ns", "Base", 0)),
+            File("b.h", Derived("ns", "Base", 0)),
+            File("c.h", Derived("app", "Derived", 0, "ns::Base")));
+
+        Assert.Equal([BaseEdge("class app::Derived", null, "ns::Base")], model.Edges);
+    }
+
+    [Fact]
+    public void A_base_that_resolves_to_the_type_itself_gets_an_edge_without_a_target()
+    {
+        var model = Build(File("a.h", Derived("ns", "Self", 0, "Self")));
+
+        Assert.Equal([BaseEdge("class ns::Self", null, "Self")], model.Edges);
+    }
+
+    static IReadOnlyList<T> Order<T>(bool reversed, params T[] forward) => reversed ? [.. forward.Reverse()] : forward;
+
+    static SourceSpan Span(int start) => new(start, start + 10, 1, 2);
+
+    /// <summary>One model holding every kind of collection; <paramref name="reversed"/> lists each one in the opposite order.</summary>
+    static ModelFile HandBuilt(bool reversed)
+    {
+        MemberModel Member(string key, params string[] modifiers) =>
+            new(key, key, "method", "public", Order(reversed, modifiers), "int " + key, Span(5));
+
+        TypeModel Type(string language, string id, string file, bool partial, string[]? files, params MemberModel[] members) =>
+            new(language, id, id, "class", id, "", null, partial, file, files is null ? null : Order(reversed, files),
+                Order(reversed, "virtual", "final"), Order(reversed, "Alpha", "Beta"), Span(0), Order(reversed, members));
+
+        return new ModelFile(
+            ModelFile.SchemaName,
+            new ExtractionInfo(Order(reversed,
+                new LanguageExtraction(Languages.Cpp, "cpp-ts", Modes.SyntaxOnly, null, null, Order(reversed, "A_MACRO", "B_MACRO")),
+                new LanguageExtraction(Languages.CSharp, "roslyn", Modes.Semantic, null, 0, []))),
+            Order(reversed,
+                new ModelFileEntry("a.h", Languages.Cpp, Modes.SyntaxOnly, null, 0),
+                new ModelFileEntry("b.h", Languages.Cpp, Modes.SyntaxOnly, null, 0),
+                new ModelFileEntry("c.cs", Languages.CSharp, Modes.Semantic, null, 0)),
+            Order(reversed, new UnmodelledEntry("x.h", "parse-error"), new UnmodelledEntry("y.h", "too-large")),
+            Order(reversed,
+                Type(Languages.Cpp, "class a::A", "a.h", false, null, Member("f()", "const", "virtual"), Member("g()")),
+                Type(Languages.Cpp, "class a::B", "a.h", true, ["a.h", "b.h"]),
+                Type(Languages.CSharp, "class N.C", "c.cs", false, null)),
+            Order(reversed,
+                new EdgeModel(EdgeKinds.Association, new TypeRef(Languages.Cpp, "class a::B"), null, "A", "f()"),
+                new EdgeModel(EdgeKinds.Base, new TypeRef(Languages.Cpp, "class a::A"), null, "Alpha", null),
+                new EdgeModel(EdgeKinds.Base, new TypeRef(Languages.Cpp, "class a::A"), new TypeRef(Languages.Cpp, "class a::C"), "Beta", null)),
+            Order(reversed, "class a::A (2 definitions)", "class a::Z (2 definitions)"));
+    }
+
+    [Fact]
+    public void Canonicalising_a_reverse_ordered_model_gives_the_bytes_of_the_forward_ordered_one()
+    {
+        var expected = OutputWriter.Serialize(Canonical.Canonicalise(HandBuilt(reversed: false)));
+
+        Assert.Equal(expected, OutputWriter.Serialize(Canonical.Canonicalise(HandBuilt(reversed: true))));
+    }
+
+    [Fact]
+    public void The_serialiser_is_the_single_entry_point_and_writes_canonical_order_by_itself()
+    {
+        Assert.Equal(
+            OutputWriter.Serialize(HandBuilt(reversed: false)),
+            OutputWriter.Serialize(HandBuilt(reversed: true)));
+    }
+
+    [Fact]
+    public void Edges_sort_by_their_identity_before_the_resolved_target()
+    {
+        var model = Canonical.Canonicalise(HandBuilt(reversed: true));
+
+        Assert.Equal(
+            [EdgeKinds.Association, EdgeKinds.Base, EdgeKinds.Base],
+            model.Edges.Select(e => e.Kind));
+        Assert.Equal(["A", "Alpha", "Beta"], model.Edges.Select(e => e.ToName));
+        Assert.Equal(["class a::B", "class a::A", "class a::A"], model.Edges.Select(e => e.From.Id));
+        Assert.Equal(["a.h", "b.h"], model.Types[1].Files);
+    }
 }
