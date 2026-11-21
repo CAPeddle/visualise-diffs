@@ -98,6 +98,28 @@ public class FixtureGoldenTests
         Assert.True(problems.Count == 0, $"{shape}: the golden summary fails the lint:\n" + string.Join('\n', problems));
     }
 
+    [Fact]
+    public void The_rename_fixture_moves_its_header_as_a_git_rename_pair()
+    {
+        var rename = Path.Combine(FixturesRoot(), "rename");
+        Assert.True(Directory.Exists(rename), "tests/fixtures/rename is missing");
+        var loaded = FixtureLoader.Load(rename, FixtureKind.Synthetic);
+
+        var (repo, baseId, headId) = FixtureHarness.BuildSyntheticRepo(loaded);
+        using (repo)
+        {
+            // same_file_or_rename_pair is true by construction only if git itself pairs the two files.
+            var listing = repo.Git("diff", "--find-renames", "--name-status", baseId, headId);
+            var lines = listing.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+            Assert.Contains(
+                lines,
+                l => l.StartsWith('R')
+                    && l.Contains("include/synthetic/circle.h", StringComparison.Ordinal)
+                    && l.Contains("include/synthetic/disc.h", StringComparison.Ordinal));
+        }
+    }
+
     static int FirstDifference(string a, string b)
     {
         var n = Math.Min(a.Length, b.Length);

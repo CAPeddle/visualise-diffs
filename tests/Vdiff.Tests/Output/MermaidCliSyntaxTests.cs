@@ -152,6 +152,40 @@ public class MermaidCliSyntaxTests
         return text.ToString();
     }
 
+    /// <summary>The shape directories under tests/fixtures that hold a golden summary.</summary>
+    public static TheoryData<string> GoldenSummaries()
+    {
+        var data = new TheoryData<string>();
+        var fixtures = Path.Combine(RepositoryRoot(), "tests", "fixtures");
+        if (Directory.Exists(fixtures))
+        {
+            foreach (var directory in Directory.EnumerateDirectories(fixtures)
+                .OrderBy(d => Path.GetFileName(d), StringComparer.Ordinal))
+            {
+                if (File.Exists(Path.Combine(directory, "expected", "summary.mmd")))
+                {
+                    data.Add(Path.GetFileName(directory));
+                }
+            }
+        }
+
+        return data;
+    }
+
+    // The proof that the provisional summary lines (renamed-from stereotype, labelled association, context
+    // class) are real Mermaid: the pinned parser reads each golden. Local runs only in Phase 2; the pipeline
+    // step that runs this category is advisory (RESEARCH Pitfall 12).
+    [Theory]
+    [MemberData(nameof(GoldenSummaries))]
+    public void Golden_summary_passes_the_real_syntax_check(string shape)
+    {
+        var text = File.ReadAllText(Path.Combine(RepositoryRoot(), "tests", "fixtures", shape, "expected", "summary.mmd"));
+
+        Assert.Empty(MermaidLint.Check(text));
+        var (exit, _, stderr) = Check(text);
+        Assert.True(exit == 0, $"mermaid-check exited {exit} for the {shape} golden: {stderr}\n--- diagram ---\n{text}");
+    }
+
     [Fact]
     public void Writer_output_for_a_header_of_hard_cases_passes_the_real_syntax_check()
     {

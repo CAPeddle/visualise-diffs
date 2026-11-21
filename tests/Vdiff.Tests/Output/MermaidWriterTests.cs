@@ -22,6 +22,11 @@ public class MermaidWriterTests
     const string ClassDefModified = "  classDef modified fill:#fff4cc,stroke:#b58900,color:#111\n";
     const string ClassDefs = ClassDefAdded + ClassDefRemoved + ClassDefModified;
 
+    // The five classDef lines of the provisional v1 summary format (tests/fixtures/README.md).
+    const string AllDefs = ClassDefs
+        + "  classDef renamed fill:#e0ecff,stroke:#1565c0,color:#111\n"
+        + "  classDef context fill:#eeeeee,stroke:#9e9e9e,color:#666\n";
+
     static DiffFile Diff(params TypeDiff[] types) =>
         new(
             DiffFile.SchemaName,
@@ -400,6 +405,18 @@ public class MermaidWriterTests
             ["bare keyword class id"] = "classDiagram\n  class link[\"link\"]:::added\n" + defs,
             ["unprefixed edge endpoint"] =
                 "classDiagram\n  class C_A[\"A\"]:::added\n  class C_B[\"B\"]:::added\n  A <|-- C_B\n" + defs,
+            ["unknown stereotype"] =
+                "classDiagram\n  class C_A[\"A\"]:::added {\n    <<sealed>>\n    +f() [added]\n  }\n" + defs,
+            ["association with an unknown label"] =
+                "classDiagram\n  class C_A[\"A\"]:::added\n  class C_B[\"B\"]:::added\n  C_A --> C_B : owns\n" + defs,
+            ["member tag unchanged"] =
+                "classDiagram\n  class C_A[\"A\"]:::added {\n    +f() [unchanged]\n  }\n" + defs,
+            ["classDef named weird"] =
+                "classDiagram\n  class C_A[\"A\"]:::added\n  classDef weird fill:#d4f8d4,stroke:#2e7d32,color:#111\n" + defs,
+            ["stereotype after a member line"] =
+                "classDiagram\n  class C_A[\"A\"]:::renamed {\n    +f() [added]\n    <<renamed from B>>\n  }\n" + AllDefs,
+            ["association naming an undeclared class"] =
+                "classDiagram\n  class C_A[\"A\"]:::added\n  C_A --> C_Z : uses [added]\n" + defs,
         };
 
         foreach (var (name, text) in broken)
@@ -408,6 +425,32 @@ public class MermaidWriterTests
         }
 
         Assert.Empty(MermaidLint.Check("classDiagram\n  class C_A[\"A\"]:::added {\n    +f() [added]\n  }\n" + defs));
+    }
+
+    [Fact]
+    public void The_lint_accepts_every_line_kind_of_the_provisional_v1_summary_format()
+    {
+        const string sample =
+            "classDiagram\n" +
+            "  class C_N__Foo[\"N::Foo<>\"]:::added {\n" +
+            "    +void make() [added]\n" +
+            "  }\n" +
+            "  class C_N__Disc[\"N::Disc\"]:::renamed {\n" +
+            "    <<renamed from Circle>>\n" +
+            "    +Disc(double r) [renamed]\n" +
+            "    +int area() const [body-changed]\n" +
+            "  }\n" +
+            "  class C_N__Wrap[\"N::Wrap\"]:::context {\n" +
+            "    <<managed wrapper>>\n" +
+            "  }\n" +
+            "  class C_N__Shape[\"N::Shape\"]:::context\n" +
+            "  C_N__Shape <|-- C_N__Disc\n" +
+            "  C_N__Disc --> C_N__Foo : uses [added]\n" +
+            "  C_N__Disc ..> C_N__Shape : uses [removed]\n" +
+            "  C_N__Disc --> C_N__Shape : uses\n" +
+            AllDefs;
+
+        Assert.Empty(MermaidLint.Check(sample));
     }
 
     [Fact]
