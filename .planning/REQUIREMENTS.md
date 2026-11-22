@@ -25,8 +25,8 @@ roadmap) and have no counterpart in that file yet.
 
 ### Model and harness
 
-- [ ] **R-10**: Every extractor emits one versioned model `vdiff-model/v1` (types, members, bases, derived edges, spans, extraction metadata)
-- [ ] **R-23**: Identical inputs produce byte-identical outputs; canonical ordering, volatile metadata kept apart
+- [x] **R-10**: Every extractor emits one versioned model `vdiff-model/v1` (types, members, bases, derived edges, spans, extraction metadata)
+- [x] **R-23**: Identical inputs produce byte-identical outputs; canonical ordering, volatile metadata kept apart
 
 ### Inputs and scope
 
@@ -68,7 +68,7 @@ roadmap) and have no counterpart in that file yet.
 ### Acceptance
 
 - [ ] **ACC-01**: Five synthetic public fixtures green in CI (small C++, C#, cross-stack with C++/CLI, extract-class refactor, rename)
-- [ ] **ACC-02**: Private-fixture recipe documented so five real PRs of the same shapes can be checked inside the target organisation (D15)
+- [x] **ACC-02**: Private-fixture recipe documented so five real PRs of the same shapes can be checked inside the target organisation (D15)
 - [ ] **ACC-03**: Over 10 consecutive target PR runs, no added PR-build wall-clock and P90 job time under 5 minutes
 
 ## v2 Requirements
@@ -104,10 +104,10 @@ Phases are defined in `.planning/ROADMAP.md`. Each requirement maps to exactly o
 | TRC-02 | Phase 1 | Complete |
 | TRC-03 | Phase 1 | Complete |
 | SPK-02 | Phase 1 | Complete |
-| R-10 | Phase 2 | Gaps Found |
-| R-23 | Phase 2 | Gaps Found |
-| ACC-01 | Phase 2 | Gaps Found |
-| ACC-02 | Phase 2 | Gaps Found |
+| R-10 | Phase 2 | Complete |
+| R-23 | Phase 2 | Complete |
+| ACC-01 | Phase 2 | Partial (Phase 2: harness and five fixtures delivered, all outputs red by design; green progressively in Phases 5 to 7; tick at Phase 7) |
+| ACC-02 | Phase 2 | Complete |
 | R-01 | Phase 3 | Pending |
 | R-04 | Phase 3 | Pending |
 | R-02 | Phase 4 | Pending |
@@ -137,6 +137,10 @@ Phases are defined in `.planning/ROADMAP.md`. Each requirement maps to exactly o
 **Notes:**
 - ACC-01 is owned by Phase 2 (harness and fixtures) but is only satisfied once all five
   fixtures are green, which happens progressively in Phases 5 to 7.
+- ACC-01's traceability status stays Partial until Phase 7. `requirements mark-complete`
+  and `phase complete` advance only a Pending, In Progress or Gaps Found row, so they
+  leave a Partial row and its checkbox alone; whoever ticks ACC-01 in Phase 7 sets the
+  row to Complete and the checkbox to [x] directly.
 - R-01 is owned by Phase 3 (head/base resolution and both trees); extraction of both
   commits happens in Phase 4.
 - R-09 spans the plan's U3 and U4 and is owned once, by Phase 4.
@@ -157,4 +161,4 @@ Phases are defined in `.planning/ROADMAP.md`. Each requirement maps to exactly o
 
 ---
 *Requirements defined: 2026-11-16*
-*Last updated: 2026-11-16 after roadmap revision (tracer-first)*
+*Last updated: 2026-11-22 after Phase 2 gap closure (ACC-01 Partial; R-10, R-23, ACC-02 Complete)*
