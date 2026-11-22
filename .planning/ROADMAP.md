@@ -121,7 +121,7 @@ Plans:
   3. Five synthetic fixtures (small C++, C#, cross-stack with C++/CLI, extract-class refactor, rename) are in the repository, and the CI harness reports each as failing against its expected output, as intended before any extractor exists.
   4. Serialising the same model twice, with collections supplied in any order, yields byte-identical JSON.
   5. A documented private-fixture recipe lets five real PRs of the same shapes be checked inside the target organisation without their content entering this repository.
-**Plans**: 12/13 plans executed in 8 waves; gap-closure plan 02-13 pending
+**Plans**: 13/13 plans executed in 8 waves; gap-closure plan 02-13 pending
 **Note**: ACC-01 ("green in CI") is owned here but only reaches green in later phases; see the coverage note in the Overview.
 
 Plans:
@@ -154,7 +154,7 @@ Plans:
 - [x] 02-10-PLAN.md — Wave 8: csharp and cross-stack fixtures, five-shape assertion, all ten outputs RED, all five summary goldens parsed locally
 
 **Gap closure** *(from 02-VERIFICATION.md)*
-- [ ] 02-13-PLAN.md — ACC-01 back to Partial (ticked at Phase 7); R-10, R-23, ACC-02 re-marked Complete; ACC-01 moved out of five SUMMARY `requirements-completed` lists
+- [x] 02-13-PLAN.md — ACC-01 back to Partial (ticked at Phase 7); R-10, R-23, ACC-02 re-marked Complete; ACC-01 moved out of five SUMMARY `requirements-completed` lists
 
 ### Phase 3: Git Layer
 **Goal**: Given an Azure DevOps PR context, the tool knows exactly what to compare and which PRs to leave alone.
@@ -256,7 +256,7 @@ pending O4. The gates are listed in the Overview.
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Offline Tracer | 18/18 | Complete    | 2026-11-19 |
-| 2. Model Contract and Fixture Harness | 12/13 | In Progress | - |
+| 2. Model Contract and Fixture Harness | 13/13 | In Progress | - |
 | 3. Git Layer | 0/TBD | Not started | - |
 | 4. Extractors | 0/TBD | Not started | - |
 | 5. Differ | 0/TBD | Not started | - |
