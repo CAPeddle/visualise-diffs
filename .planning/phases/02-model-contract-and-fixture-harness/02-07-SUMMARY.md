@@ -50,7 +50,8 @@ patterns-established:
   - "Loader negative rows: one clean baseline Yaml(...) with a single mutation per row, each asserting its own fixed message"
   - "Fixture text in tests is built by concatenation, never a multi-line literal, so line endings never change golden bytes"
 
-requirements-completed: [ACC-01]
+requirements-completed: []
+requirements-advanced: [ACC-01]
 
 coverage:
   - id: D1

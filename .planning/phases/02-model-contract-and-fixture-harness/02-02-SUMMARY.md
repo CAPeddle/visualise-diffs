@@ -46,7 +46,8 @@ key-decisions:
 patterns-established:
   - "Tests locate the checkout through RepoRoot.Find(), which throws instead of skipping"
 
-requirements-completed: [ACC-01]
+requirements-completed: []
+requirements-advanced: [ACC-01]
 
 coverage:
   - id: D1

@@ -67,7 +67,8 @@ key-decisions:
 patterns-established:
   - "A fixture directory is written complete before its first test run (carried over from 02-08)"
 
-requirements-completed: [ACC-01]
+requirements-completed: []
+requirements-advanced: [ACC-01]
 
 coverage:
   - id: D1

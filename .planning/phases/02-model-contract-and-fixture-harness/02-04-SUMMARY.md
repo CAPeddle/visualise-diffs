@@ -48,7 +48,8 @@ key-decisions:
 patterns-established:
   - "FixtureReport.WriteIfRequested takes the environment getter as a parameter; callers pass Environment.GetEnvironmentVariable"
 
-requirements-completed: [ACC-01]
+requirements-completed: []
+requirements-advanced: [ACC-01]
 
 coverage:
   - id: D1

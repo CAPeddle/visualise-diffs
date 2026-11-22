@@ -71,7 +71,8 @@ patterns-established:
   - "Golden review loop: write by hand from the rules, run CommittedFixtureTests with detailed logging, and check that every RED hunk is the intended tracer-impossible feature"
   - "A fixture directory must be complete before the first test run: an empty fixture directory turns its harness rows FAIL"
 
-requirements-completed: [ACC-01]
+requirements-completed: []
+requirements-advanced: [ACC-01]
 
 coverage:
   - id: D1
