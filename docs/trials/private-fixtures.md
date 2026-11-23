@@ -7,3 +7,8 @@ private run has actually produced a result; see `docs/how-to/private-fixtures.md
 
 | shape | status | date |
 | --- | --- | --- |
+| cross-stack | PENDING | 2026-11-23 |
+| csharp | PENDING | 2026-11-23 |
+| extract-class | PENDING | 2026-11-23 |
+| rename | PENDING | 2026-11-23 |
+| small-cpp | PENDING | 2026-11-23 |
