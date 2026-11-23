@@ -165,6 +165,7 @@ Plans:
   1. From the Azure DevOps PR variables the tool resolves head and base, where base is `merge-base(target branch tip, head)` (the same comparison Azure DevOps shows for the PR), and provides a worktree of the base commit beside head so both trees are available for whole-repository extraction.
   2. The tool lists changed files, finds rename pairs with a similarity score, and maps diff hunks to source spans; unit tests on a scripted repo pass.
   3. A draft PR and a PR from a fork are each skipped: no thread is posted and the run exits 0.
+**Input from Phase 2 UAT (2026-11-23)**: an offline run of the Phase 1 tracer on three merged PRs of a private target clone showed that reading the base side from git objects fails silently on a partial (`blob:none`) clone: base files come back `object-missing`, and their types then show as `added` instead of `modified`. Product-owner direction: git only establishes what to compare (branch against target branch); extraction runs on the code of the branch and of the target, two checked-out trees, and a compare step highlights the differences. Criterion 1 above already takes this route. A file that cannot be read on one side must never turn its types into `added`. The pipeline checkout must also fetch enough history for the merge-base (Azure DevOps fetches shallow by default).
 **Plans**: TBD
 
 ### Phase 4: Extractors
@@ -217,6 +218,7 @@ Plans:
   2. A PNG render (via mermaid-cli) is produced, the default between Mermaid and PNG follows the S1 result, and the config can switch it.
   3. The HTML report opens in a browser with no network access, has no node cap, offers per-language tabs and search, and shows a banner stating the extraction mode.
   4. All five synthetic fixtures are green in CI against their expected summaries (completes ACC-01).
+**Input from Phase 2 UAT (2026-11-23)**: in the same offline run, a data member whose type contains parentheses (a `std::function<void()>` field) made `summary.mmd` unparseable; Mermaid read it as a method and its member parser threw. Member text needs escaping for Mermaid, with a fixture for function-typed fields. A `[modified]` tag alone also left the reviewer unable to see what changed (the before and after signatures were only in `diff.json`); the summary or the report should show them.
 **Plans**: TBD
 **UI hint**: yes
 

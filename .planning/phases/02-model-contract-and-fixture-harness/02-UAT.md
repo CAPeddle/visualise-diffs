@@ -3,7 +3,7 @@ status: testing
 phase: 02-model-contract-and-fixture-harness
 source: [02-VERIFICATION.md]
 started: 2026-11-22T12:30:00Z
-updated: 2026-11-22T12:30:00Z
+updated: 2026-11-23T10:00:00Z
 ---
 
 ## Current Test
@@ -42,3 +42,15 @@ skipped: 0
 blocked: 0
 
 ## Gaps
+
+## Deferred Follow-Ups
+
+<!-- Found in an offline run of the Phase 1 tracer on three merged PRs of a private target clone, done before test 1 at the product owner's request. Test 1 stays pending: the Azure DevOps run has not happened. -->
+- test: 1
+  idea: "Partial clone: base files unreadable from git objects show their types as added, not modified. Owner: Phase 3 (two checked-out trees, git only decides what to compare)."
+  target_phase: 3
+  deferred_at: 2026-11-23
+- test: 1
+  idea: "A data member typed std::function<void()> makes summary.mmd unparseable; [modified] tags do not show what changed. Owner: Phase 7."
+  target_phase: 7
+  deferred_at: 2026-11-23
