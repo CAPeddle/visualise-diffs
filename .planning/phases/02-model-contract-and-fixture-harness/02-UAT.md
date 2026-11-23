@@ -15,6 +15,7 @@ updated: 2026-11-23T14:33:11.999Z
 ### 1. Connect azure-pipelines.yml to an Azure DevOps organisation and run it once on both legs
 expected: Both the windows-2025 and ubuntu-24.04 legs build, run dotnet test with Category!=MermaidCli, publish the trx results and a fixture-report artifact showing the ten RED rows; the advisory Mermaid step may fail without turning the leg red
 result: pass
+note: "Owner-accepted 2026-11-23 without a connected Azure DevOps run: accepted on the local test suite, PipelineYamlTests and the offline demo run. The first connected run is still to happen."
 
 ### 2. Run the private-fixture recipe (docs/how-to/private-fixtures.md) once on a real clone inside the target organisation
 expected: One '<shape>: PASS|FAIL|PENDING <date>' line per shape, details only under VDIFF_PRIVATE_OUT, then a row added to docs/trials/private-fixtures.md
@@ -43,7 +44,7 @@ blocked: 0
 
 ## Deferred Follow-Ups
 
-<!-- Found in an offline run of the Phase 1 tracer on three merged PRs of a private target clone, done before test 1 at the product owner's request. Test 1 stays pending: the Azure DevOps run has not happened. -->
+<!-- Found in an offline run of the Phase 1 tracer on three merged PRs of a private target clone, done before test 1 at the product owner's request. Test 1 was later owner-accepted without a connected Azure DevOps run (see its note). -->
 - test: 1
   idea: "Partial clone: base files unreadable from git objects show their types as added, not modified. Owner: Phase 3 (two checked-out trees, git only decides what to compare)."
   target_phase: 3
