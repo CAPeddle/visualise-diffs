@@ -1,7 +1,7 @@
 ---
 phase: 02-model-contract-and-fixture-harness
 verified: 2026-11-24T18:00:00Z
-status: human_needed
+status: passed
 score: 5/5 roadmap success criteria verified in the codebase (criterion 2 locally only, criterion 5 recipe and one PENDING-only run)
 covered_files:
   - .planning/phases/02-model-contract-and-fixture-harness/02-01-PLAN.md
@@ -70,7 +70,9 @@ human_verification:
 
 **Phase Goal:** Every later phase works against one fixed `vdiff-model/v1` contract and a golden-fixture harness that proves determinism, so each stage can be turned from red to green.
 **Verified:** 2026-11-24
-**Status:** human_needed (no gaps; two items need an Azure DevOps organisation or an owner-reviewed private run)
+**Status:** passed on owner acceptance (verifier verdict: human_needed, no gaps)
+
+**Owner acceptance, 2026-11-24:** the owner chose to close Phase 2 with both human items accepted but **not run**: the pipeline has never run on Azure DevOps, and no real PR has been checked against reviewed expected files. Both stay as follow-ups. The verifier's text below is unchanged and still describes them as open.
 **Re-verification:** Yes. The previous report (2026-11-22) was stale: `docs/trials/private-fixtures.md` changed, `DiffPresenceTests` gained 33 rows, and the planning documents (UAT, SECURITY, VALIDATION, REVIEW, REVIEW-DISPOSITION) were added or rewritten. Git history was rewritten for author emails only, so hashes in older text differ from the history.
 
 ## Re-verification scope
