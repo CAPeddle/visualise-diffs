@@ -41,7 +41,7 @@ them: each requirement stays with the phase that hardens it.
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Offline Tracer** - Run `vdiff` offline against a local git repository, commit to commit, and write C++ model, diff, Mermaid and HTML outputs (completed 2026-11-19)
-- [ ] **Phase 2: Model Contract and Fixture Harness** - Fix `vdiff-model/v1` and a golden-fixture harness with five synthetic fixtures
+- [x] **Phase 2: Model Contract and Fixture Harness** - Fix `vdiff-model/v1` and a golden-fixture harness with five synthetic fixtures (completed 2026-11-24)
 - [ ] **Phase 3: Git Layer** - Resolve head and merge-base from PR variables, list changes, skip draft and fork PRs
 - [ ] **Phase 4: Extractors** - Extract C++ (tree-sitter), C# (Roslyn) and C++/CLI (scanner) into the model with honest mode labels, and record the C# runner decision (S3, on hold)
 - [ ] **Phase 5: Differ** - Turn two models into tagged type, member and edge states with scored rename matching
@@ -121,7 +121,7 @@ Plans:
   3. Five synthetic fixtures (small C++, C#, cross-stack with C++/CLI, extract-class refactor, rename) are in the repository, and the CI harness reports each as failing against its expected output, as intended before any extractor exists.
   4. Serialising the same model twice, with collections supplied in any order, yields byte-identical JSON.
   5. A documented private-fixture recipe lets five real PRs of the same shapes be checked inside the target organisation without their content entering this repository.
-**Plans**: 13/13 plans executed in 8 waves; gap-closure plan 02-13 pending
+**Plans**: 13/13 plans complete in 8 waves, including gap-closure plan 02-13
 **Note**: ACC-01 ("green in CI") is owned here but only reaches green in later phases; see the coverage note in the Overview.
 
 Plans:
@@ -258,7 +258,7 @@ pending O4. The gates are listed in the Overview.
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Offline Tracer | 18/18 | Complete    | 2026-11-19 |
-| 2. Model Contract and Fixture Harness | 13/13 | In Progress | - |
+| 2. Model Contract and Fixture Harness | 13/13 | Complete    | 2026-11-24 |
 | 3. Git Layer | 0/TBD | Not started | - |
 | 4. Extractors | 0/TBD | Not started | - |
 | 5. Differ | 0/TBD | Not started | - |

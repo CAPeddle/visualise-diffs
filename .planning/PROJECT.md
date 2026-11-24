@@ -23,6 +23,8 @@ traceability; where they differ, `docs/requirements/requirements.md` wins.
 ### Validated
 
 - ✓ Offline tracer: `vdiff` against a local repo from git objects, C++ diff to model/diff JSON, Mermaid and HTML, no ADO (TRC-01..03, SPK-02) — Phase 1 (verified 2026-11-19, incl. Linux and macOS test runs and a private-clone trial)
+- ✓ One versioned model, `vdiff-model/v1`, frozen and hash-pinned (R10) — Phase 2; only the C++ extractor exists so far, so Phase 4 must validate the C# and C++/CLI extractors against it
+- ✓ Byte-identical output for identical inputs (R23) — Phase 2
 
 ### Active
 
@@ -33,12 +35,10 @@ traceability; where they differ, `docs/requirements/requirements.md` wins.
 - [ ] C# extracted semantically with Roslyn from `.csproj` + reference assemblies, falling back to syntax-only (R6, R7)
 - [ ] C++/CLI extracted by a header scanner into a "managed wrapper" lane (R8)
 - [ ] Every file and language labelled `semantic` / `syntax-only` / `scanner`, fallbacks explained (R9)
-- [ ] One versioned model, `vdiff-model/v1`, from every extractor (R10)
 - [ ] Type/member/edge diff states including `body-changed` and scored rename matching (R13, R14)
 - [ ] Package-pin change shown as one node (R15)
 - [ ] Node selection: changed types + greyed 1-hop neighbours, cap 25 including neighbours, overflow summary, text degrade (R18, R19)
 - [ ] Mermaid `classDiagram` with `classDef` per state and trailing member tags; PNG fallback; offline HTML artifact (R20–R22)
-- [ ] Byte-identical output for identical inputs (R23)
 - [ ] One sticky PR thread found by marker and updated in place; nothing posted for no structural change (R24, R25)
 - [ ] Separate non-blocking job, 20-minute limit, P90 under 5 minutes (R26, R27)
 - [ ] Dry-run mode writing everything locally (R28)
@@ -107,6 +107,10 @@ traceability; where they differ, `docs/requirements/requirements.md` wins.
 | C++ tree-sitter extractor is a Rust sidecar (ADR-001, accepted by PO 2026-11-16) | Exact byte spans, pinned versions, process isolation | ✓ Good — Phase 1 tracer built on it; private-clone trial passed twice |
 | Offline tracer first, against a local clone (PO pivot 2026-11-16) | Prove the pipeline on real code before any ADO work | ✓ Good — Phase 1 complete 2026-11-19 |
 | --out and -LogPath held by directory handle and written by final path on Windows; Linux and macOS bounded by statement (plans 01-16 to 01-18) | Close the check-to-write swap window the PO scoped (G-01-1) | ✓ Good — verified end to end in UAT 2026-11-19; subst, mapped drives and 8.3 names stay accepted (AR-04) |
+| v1 schemas frozen with SHA-256 pins (owner approval 2026-11-21) | Later phases build on one fixed contract | ✓ Good — Phase 2 |
+| Expected-failure ratchet over five synthetic fixtures | Each stage can be turned from red to green | ✓ Good — ten outputs RED by design; diff due Phase 5, summary due Phase 7 |
+| Git only establishes what to compare; extraction runs on two checked-out trees (owner, 2026-11-23) | Avoids partial-clone false `added` types | — Pending Phase 3 |
+| Phase 2 closed on owner acceptance (2026-11-24) | No Azure DevOps organisation connected; private fixtures provisional | — Pending: pipeline run and reviewed private fixtures |
 
 ## Evolution
 
@@ -126,4 +130,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-19 after Phase 1*
+*Last updated: 2026-11-24 after Phase 2*

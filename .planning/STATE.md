@@ -1,43 +1,43 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 02
-current_phase_name: Model Contract and Fixture Harness
-status: verifying
-stopped_at: Completed 02-13-PLAN.md
-last_updated: "2026-11-22T07:43:25.614Z"
-last_activity: 2026-11-22
-last_activity_desc: Phase 02 execution started
-state_head: a317b2eabf1633d6899f177219c89fbbd07678c3
+current_phase: 3
+current_phase_name: Git Layer
+status: planning
+stopped_at: Phase 02 complete, ready to plan Phase 3
+last_updated: "2026-11-24T20:14:34.398Z"
+last_activity: 2026-11-24
+last_activity_desc: Phase 02 complete, transitioned to Phase 3
+state_head: 94015d764c7c9c6d707f6dbae39920cec04fe39d
 progress:
   total_phases: 9
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 31
   completed_plans: 31
-  percent: 11
+  percent: 22
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-19)
+See: .planning/PROJECT.md (updated 2026-11-24)
 
 **Core value:** A reviewer understands a PR's structural change (which types, members and edges changed shape) from the diagram, without reading every file.
-**Current focus:** Phase 02 — Model Contract and Fixture Harness
+**Current focus:** Phase 3 — Git Layer
 
 ## Current Position
 
-Phase: 02 (Model Contract and Fixture Harness) — EXECUTING
-Plan: 13 of 13
-Status: Phase complete — ready for verification
-Last activity: 2026-11-22 — Phase 02 execution started
+Phase: 3 — Git Layer
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-24 — Phase 02 complete, transitioned to Phase 3
 
-Progress: [█░░░░░░░░░] 11%
+Progress: [██░░░░░░░░] 22%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18
+- Total plans completed: 31
 - Average duration: - min
 - Total execution time: 0.0 hours
 
@@ -46,6 +46,7 @@ Progress: [█░░░░░░░░░] 11%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01 | 18 | - | - |
+| 02 | 13 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -143,8 +144,12 @@ None yet.
 
 - [Phase 4] SPK-03 (S3) is on hold pending PO decision O4. The PO said S3's premise came from a mis-report and that the target C# is built on Windows; what that means for S3 has not been confirmed. It blocks the C# plan in Phase 4 and the runner choice in Phase 9. It does not block Phases 1 to 3, or the C++ and C++/CLI plans in Phase 4. Update 2026-11-16: the PO named a local Windows clone as the first-pass test repository; the orchestrator reads that as the first pass running locally on Windows, with the Ubuntu-runner question deferred until after it.
 - [Phase 8] SPK-01 (S1) is prepared but not run: `docs/spikes/S1-mermaid-in-ado-pr.md` is "ready to run (manual)" and needs the PO or an agent in the target organisation. It has no code dependency and can run any time; it must be recorded before Phase 7 closes, and it gates the PR-thread renderer default in Phase 8. It does not gate local Mermaid rendering.
-- [Phase 1] Off-Windows test portability (backlog 999.1): the two fsmonitor tests cannot run their hook on Linux or macOS, so C47 is unverified on the default Ubuntu runner; fix before a Linux CI leg is added. GitObjectReaderTests.SamePath fails on macOS (/var link).
+- [Phase 1] Off-Windows test portability (backlog 999.1): the two fsmonitor tests cannot run their hook on Linux or macOS, so C47 is unverified on the default Ubuntu runner; fix before a Linux CI leg is added. GitObjectReaderTests.SamePath fails on macOS (/var link). Code fixes landed in 02-04; not yet run on Linux or macOS.
 - [Phase 1] Open code-review advisories carried forward (01-REVIEW-DISPOSITION.md): WR-01..WR-06 (WR-03 asks for a repository test of the protected verdict, checked by hand in UAT test 11; WR-02 the I/O error branch prints the held path) and IN-01..IN-08.
+- [Phase 2] azure-pipelines.yml has never run on Azure DevOps (owner-accepted 2026-11-24); hosted Windows and Linux legs are unproven.
+- [Phase 2] Private fixtures are provisional (agent-picked, unreviewed, extract-class likely wrong); replace with owner-chosen PRs as soon as feasible, or when other work is blocked.
+- [Phase 2] 15 code-review findings open (02-REVIEW-DISPOSITION.md). WR-04 and WR-05 are best fixed before the pipeline connects or the next private run; WR-06 affects `--blank`.
+- [Phase 2] DiffPresence does not flag base_file/head_file on a side that does not exist; decide before Phase 5. The quick test run takes 56 s against a 30 s target (02-VALIDATION.md).
 - [All] Repository is public (D15): no target names, identifiers or target-measured figures may be committed. Private results are recorded here without identifiers.
 
 ## Deferred Items
@@ -157,6 +162,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-22T07:43:25.102Z
-Stopped at: Completed 02-13-PLAN.md
+Last session: 2026-11-24
+Stopped at: Phase 02 complete, ready to plan Phase 3
 Resume file: None
