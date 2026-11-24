@@ -23,6 +23,10 @@ findings:
     severity: warning
     disposition: open
     title: "Private mode leaves stale diagnostic files from earlier runs in VDIFF_PRIVATE_OUT"
+  - id: WR-06
+    severity: warning
+    disposition: open
+    title: "The `--blank` identifier check accepts a trailing line feed, which the sidecar never matches but the model records"
   - id: IN-01
     severity: info
     disposition: open
@@ -51,9 +55,17 @@ findings:
     severity: info
     disposition: open
     title: "PrivateFixtures.RunShape overwrites VDIFF_PROTECTED_DIRS and mishandles two path shapes"
-open: 12
-total: 12
-recorded: 2026-11-21T11:42:56.707Z
+  - id: IN-08
+    severity: info
+    disposition: open
+    title: "Neither writer shows a modifier-only change, though the differ lists it as a modified member"
+  - id: IN-09
+    severity: info
+    disposition: open
+    title: "CliApp summary still says five output files"
+open: 15
+total: 15
+recorded: 2026-11-24T14:37:48.538Z
 ---
 
 # Phase 02: Code Review Disposition
@@ -65,6 +77,7 @@ recorded: 2026-11-21T11:42:56.707Z
 | WR-03 | warning | open | - |
 | WR-04 | warning | open | - |
 | WR-05 | warning | open | - |
+| WR-06 | warning | open | - |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
@@ -72,6 +85,8 @@ recorded: 2026-11-21T11:42:56.707Z
 | IN-05 | info | open | - |
 | IN-06 | info | open | - |
 | IN-07 | info | open | - |
+| IN-08 | info | open | - |
+| IN-09 | info | open | - |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
