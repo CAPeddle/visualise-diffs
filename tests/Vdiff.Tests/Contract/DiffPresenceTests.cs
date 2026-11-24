@@ -100,6 +100,83 @@ public class DiffPresenceTests
                 var added = Assert.Single(d.Edges, e => e.State == States.Added);
                 return MapEdge(d, States.Modified, e => e with { From = added.From, ToName = added.ToName });
             }, "edge-shared-identity"),
+        ["listed_edge_in_state_unchanged"] =
+            (d => d with
+            {
+                Edges = [.. d.Edges, new EdgeDiff(EdgeKinds.Base, new TypeRef(Languages.Cpp, "class synthetic::Same"), null, null, null, "Same", null, States.Unchanged)],
+            }, "edge-unchanged-listed"),
+
+        // type-files: each side that exists must name its file.
+        ["modified_type_without_head_file"] =
+            (d => MapType(d, ModA, t => t with { HeadFile = null }), "type-files"),
+        ["removed_type_without_base_file"] =
+            (d => MapType(d, "class synthetic::Removed", t => t with { BaseFile = null }), "type-files"),
+        ["added_type_without_head_file"] =
+            (d => MapType(d, "class synthetic::Added", t => t with { HeadFile = null }), "type-files"),
+        ["renamed_type_without_base_file"] =
+            (d => MapType(d, Disc, t => t with { BaseFile = null }), "type-files"),
+        ["renamed_type_without_head_file"] =
+            (d => MapType(d, Disc, t => t with { HeadFile = null }), "type-files"),
+
+        // type-rename-fields: renamed_from and rename are both present exactly on a renamed type.
+        ["renamed_type_without_renamed_from"] =
+            (d => MapType(d, Disc, t => t with { RenamedFrom = null }), "type-rename-fields"),
+        ["renamed_type_without_rename"] =
+            (d => MapType(d, Disc, t => t with { Rename = null }), "type-rename-fields"),
+        ["rename_on_a_modified_type"] =
+            (d => MapType(d, ModB, t => t with { Rename = new RenameScore(775, new MemberJaccard(3, 4), true, true, false) }), "type-rename-fields"),
+
+        // member-presence: the before fields exist unless added, the after fields unless removed.
+        ["added_member_carrying_signature_before"] =
+            (d => MapMember(d, ModA, "show()", m => m with { SignatureBefore = "void show()" }), "member-presence"),
+        ["added_member_carrying_modifiers_before"] =
+            (d => MapMember(d, ModA, "show()", m => m with { ModifiersBefore = [] }), "member-presence"),
+        ["added_member_without_access_after"] =
+            (d => MapMember(d, ModA, "show()", m => m with { AccessAfter = null }), "member-presence"),
+        ["added_member_without_signature_after"] =
+            (d => MapMember(d, ModA, "show()", m => m with { SignatureAfter = null }), "member-presence"),
+        ["added_member_without_modifiers_after"] =
+            (d => MapMember(d, ModA, "show()", m => m with { ModifiersAfter = null }), "member-presence"),
+        ["removed_member_carrying_access_after"] =
+            (d => MapMember(d, ModA, "paint()", m => m with { AccessAfter = "public" }), "member-presence"),
+        ["removed_member_carrying_modifiers_after"] =
+            (d => MapMember(d, ModA, "paint()", m => m with { ModifiersAfter = [] }), "member-presence"),
+        ["removed_member_without_access_before"] =
+            (d => MapMember(d, ModA, "paint()", m => m with { AccessBefore = null }), "member-presence"),
+        ["removed_member_without_signature_before"] =
+            (d => MapMember(d, ModA, "paint()", m => m with { SignatureBefore = null }), "member-presence"),
+        ["removed_member_without_modifiers_before"] =
+            (d => MapMember(d, ModA, "paint()", m => m with { ModifiersBefore = null }), "member-presence"),
+        ["modified_member_without_access_before"] =
+            (d => MapMember(d, ModA, "width() const", m => m with { AccessBefore = null }), "member-presence"),
+        ["modified_member_without_signature_after"] =
+            (d => MapMember(d, ModA, "width() const", m => m with { SignatureAfter = null }), "member-presence"),
+        ["modified_member_without_modifiers_before"] =
+            (d => MapMember(d, ModA, "width() const", m => m with { ModifiersBefore = null }), "member-presence"),
+        ["renamed_member_without_modifiers_after"] =
+            (d => MapMember(d, ModA, "Disc(double r)", m => m with { ModifiersAfter = null }), "member-presence"),
+
+        // count-*: every summary counter must equal the listed entries of that state.
+        ["summary_types_removed_off_by_one"] =
+            (d => d with { Summary = d.Summary with { Types = d.Summary.Types with { Removed = d.Summary.Types.Removed + 1 } } }, "count-types-removed"),
+        ["summary_types_modified_off_by_one"] =
+            (d => d with { Summary = d.Summary with { Types = d.Summary.Types with { Modified = d.Summary.Types.Modified + 1 } } }, "count-types-modified"),
+        ["summary_types_renamed_off_by_one"] =
+            (d => d with { Summary = d.Summary with { Types = d.Summary.Types with { Renamed = d.Summary.Types.Renamed + 1 } } }, "count-types-renamed"),
+        ["summary_members_added_off_by_one"] =
+            (d => d with { Summary = d.Summary with { Members = d.Summary.Members with { Added = d.Summary.Members.Added + 1 } } }, "count-members-added"),
+        ["summary_members_removed_off_by_one"] =
+            (d => d with { Summary = d.Summary with { Members = d.Summary.Members with { Removed = d.Summary.Members.Removed + 1 } } }, "count-members-removed"),
+        ["summary_members_modified_off_by_one"] =
+            (d => d with { Summary = d.Summary with { Members = d.Summary.Members with { Modified = d.Summary.Members.Modified + 1 } } }, "count-members-modified"),
+        ["summary_members_renamed_off_by_one"] =
+            (d => d with { Summary = d.Summary with { Members = d.Summary.Members with { Renamed = d.Summary.Members.Renamed + 1 } } }, "count-members-renamed"),
+        ["summary_edges_added_off_by_one"] =
+            (d => d with { Summary = d.Summary with { Edges = d.Summary.Edges with { Added = d.Summary.Edges.Added + 1 } } }, "count-edges-added"),
+        ["summary_edges_removed_off_by_one"] =
+            (d => d with { Summary = d.Summary with { Edges = d.Summary.Edges with { Removed = d.Summary.Edges.Removed + 1 } } }, "count-edges-removed"),
+        ["summary_edges_renamed_off_by_one"] =
+            (d => d with { Summary = d.Summary with { Edges = d.Summary.Edges with { Renamed = d.Summary.Edges.Renamed + 1 } } }, "count-edges-renamed"),
     };
 
     public static TheoryData<string> RowNames() => [.. Rows.Keys];
