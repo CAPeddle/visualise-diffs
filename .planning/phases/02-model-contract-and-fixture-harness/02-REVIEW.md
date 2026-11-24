@@ -1,6 +1,6 @@
 ---
 phase: 02-model-contract-and-fixture-harness
-reviewed: 2026-11-21T00:00:00Z
+reviewed: 2026-11-24T00:00:00Z
 depth: standard
 files_reviewed: 113
 files_reviewed_list:
@@ -119,31 +119,39 @@ files_reviewed_list:
   - tests/fixtures/small-cpp/head/include/synthetic/widget.h
 findings:
   critical: 0
-  warning: 5
-  info: 7
-  total: 12
+  warning: 6
+  info: 9
+  total: 15
   necessity: 0
 status: issues_found
 ---
 
 # Phase 02: Code Review Report
 
-**Reviewed:** 2026-11-21
+**Reviewed:** 2026-11-24
 **Depth:** standard
 **Files Reviewed:** 113
 **Status:** issues_found
 
 ## Summary
 
-Reviewed the model contract (records, schemas, canonical order), the builder and differ, the writers, the
-CLI/output-safety path, the fixture harness (loader, ratchet, accept mode, private mode, report), the CI
-pipeline and its static test, and the contract and fixture tests. The three schema files hash to the pins in
-`SchemaFreezeTests` (checked outside the test run; all three match). The schema, the records and the
-serialiser agree on property names, key order, canonical order and required lists. I found no security
-defect and no data-loss bug in the CLI/output path; the hardening code (`CliApp`, `HeldDirectory`,
-`OutputWriter`) is consistent with its documented bounds.
+Re-review of the full Phase 02 scope after the UAT. No source or test file changed since the 2026-11-21
+review; the only change in scope is `docs/trials/private-fixtures.md` (five PENDING rows, one per shape,
+dated 2026-11-23), which carries only shape names, a status and a date and so leaks nothing about a private
+target. All 113 files in the previous list still exist.
 
-The defects are in places the unit tests do not reach:
+I formed the findings from the code first (records, canonical order, builder, differ, resolver, both writers,
+CLI, output and held-directory path, pipeline, schemas, harness, loader, ratchet, accept and private mode,
+report, pipeline YAML guard, contract checkers), then reconciled them with the earlier report. All twelve
+earlier findings (WR-01 to WR-05, IN-01 to IN-07) reproduce against the current code and keep their IDs; none
+is withdrawn. One earlier claim is narrowed (WR-01 point 3, see its note). Three findings are new (WR-06,
+IN-08, IN-09).
+
+The security-relevant path (`CliApp`, `HeldDirectory`, `OutputWriter`, `FinalPath` use) is consistent with
+its documented bounds; I found no injection, traversal or data-loss defect there. The one new warning is an
+input-validation gap in the `--blank` check. The remaining defects are where the earlier report put them: the
+Mermaid writer re-derives rules the model owns, and the harness and private mode do not handle failure and
+re-run cases.
 
 - `MermaidWriter` resolves bases with its own copy of the rule, and that copy has drifted from
   `BaseResolver` (language, duplicate fqns, separator), and it draws removed bases as live edges.
@@ -151,12 +159,16 @@ The defects are in places the unit tests do not reach:
 - The harness lets a malformed output file crash the run instead of producing the FAIL row its own
   contract promises.
 - Private mode leaves stale diagnostic files behind in `VDIFF_PRIVATE_OUT`.
+- The `--blank` identifier check accepts a name with a trailing line feed, which the sidecar then never
+  matches but the model records as blanked.
 
 Review limits: the hand-written fixture sources and goldens were checked for internal consistency only
-(rename score arithmetic, language ordering, member ordering, summary class ids); they are data. The large
-test files `AliasedOutTests`, `TraceRunScriptTests`, `RepoUnchangedMatrixTests`, `HostileInputTests`,
-`TracerEndToEndTests` and the end-to-end extraction tests were skimmed for reliability patterns, not read
-line by line. No code was built or run.
+(rename score arithmetic re-checked for `rename`: 500 * 3 / 6 + 200 + 200 + 100 = 750). The large test
+files `AliasedOutTests`, `TraceRunScriptTests`, `RepoUnchangedMatrixTests`, `HostileInputTests`,
+`TracerEndToEndTests`, `FixtureHarnessTests`, `PrivateFixtureTests` and the end-to-end extraction tests were
+skimmed for reliability patterns, not read line by line. No code was built or run, so WR-04 rests on reading
+the harness and on NJsonSchema parsing its input as JSON before validating (the library's documented
+behaviour, not exercised here).
 
 ## Warnings
 
@@ -175,8 +187,10 @@ reviewer sees:
    `BaseResolver` calls that ambiguous and returns null; the model edge for the same base has no `to`, but
    the diagram draws an edge to whichever type sorts first.
 3. The suffix test is hard-coded to `"::"`. A C# base written `Document` never matches
-   `Synthetic.Orders.Document`. The committed `tests/fixtures/csharp/expected/summary.mmd:21` expects exactly
-   that edge, so the writer and its own golden already disagree on the rule.
+   `Synthetic.Orders.Document`. The committed `tests/fixtures/csharp/expected/summary.mmd:21` draws exactly
+   that edge, so the writer and its own golden already disagree on the rule. (Note: that golden edge also
+   points at a `:::context` class, which the writer cannot emit yet, so the golden is pending for more than
+   this reason; the separator mismatch stands on its own.)
 
 Points 1 and 2 are reachable with the C++ tracer today (point 2) or as soon as a second language lands
 (point 1). The result is an edge in the PR summary that the model says does not exist.
@@ -223,7 +237,8 @@ limitation in the README, because it contradicts the "removed" colouring the wri
 that goes from `public` to `internal` or to `private-protected` is a `[modified]` member whose line shows the
 same `+` before and after (only `AccessAfter` is drawn), so the reviewer sees a change with nothing that
 explains it, and a narrowing is drawn as public. Latent today (the tracer emits `public`, `protected`,
-`private`), reachable as soon as the C# extractor lands in Phase 4.
+`private`), reachable as soon as the C# extractor lands in Phase 4. `MermaidWriterTests.cs:263-264` pins only
+the three current markers.
 **Fix:** Map every value explicitly and fail loudly on an unknown one in tests:
 
 ```csharp
@@ -246,8 +261,10 @@ three markers), and extend `MermaidLint.MemberLine` (`[+#\-]`) to accept `~`.
 **Issue:** `Evaluate` documents that "a run that failed, a missing golden, a missing output or an output that
 fails its schema is FAIL in every state". `SchemaGate` calls `SchemaSupport.ValidateOutputs`, which calls
 `JsonSchema.Validate(string)`. NJsonSchema parses the text first, so an output file that is not JSON (a
-truncated write, a serialiser regression) throws a `JsonReaderException` out of `Evaluate`. In `RunAll` that
-exception is not caught, so the run aborts without a report row, without the report file
+truncated write, a serialiser regression) throws a `JsonReaderException` out of `Evaluate`. Nothing on the
+path catches it (`SchemaSupport.Errors`, `ValidateOutputs`, `SchemaGate`, `Evaluate`), and no test writes a
+non-JSON output (searched `tests/` for malformed/truncated output cases; the hits are all sidecar-protocol
+tests). In `RunAll` the exception aborts the run without a report row, without the report file
 (`FixtureReport.WriteIfRequested` is after the loop) and without judging the remaining fixtures. In private
 mode it is caught per shape, but the shape then reports only `the shape could not be run`, losing the
 schema reason. `RunSynthetic`'s accept-mode `sound` check calls the same gate, so accept mode can also throw
@@ -273,7 +290,8 @@ written only when the current run produces that condition. After a shape goes fr
 the old diff, stderr text and `error.txt` stay next to the new `out/`, and the how-to tells the maintainer
 to "read these files to find out why a shape is FAIL or what makes it PENDING"
 (`docs/how-to/private-fixtures.md:123`). They will read a previous run's content as the current reason. The
-stale files also keep target content on disk longer than the run that produced them.
+stale files also keep target content on disk longer than the run that produced them. No test covers a
+FAIL-then-PASS sequence (`PrivateFixtureTests.cs:203` and `:360` only assert the files exist).
 **Fix:** Clear the per-shape diagnostics before each shape runs (not `out/`, which the CLI overwrites by
 design):
 
@@ -285,6 +303,31 @@ foreach (var stale in new[] { "diff.diff", "summary.diff", "cli-stderr.txt", "er
 ```
 
 Add a `PrivateFixtureTests` case that runs a FAIL, then a PASS, and asserts those files are gone.
+
+### WR-06: The `--blank` identifier check accepts a trailing line feed, which the sidecar never matches but the model records
+
+**File:** `src/Vdiff.Core/Cli/CliOptions.cs:136` (used at `:107`); same pattern in `tests/Vdiff.Tests/Fixtures/FixtureLoader.cs:32`
+**Issue:** `IdentifierPattern` is `^[A-Za-z_][A-Za-z0-9_]*$` without `RegexOptions.Multiline`. In .NET `$`
+also matches before a final `\n`, so `--blank $'EXPORT_API\n'` passes the "ASCII identifier" check that
+`CliOptions` documents as checking every value before anything touches git (T-01-01). The name is sent to the
+sidecar unchanged. `extractors/cpp-ts/src/blank.rs:21-62` scans one line at a time with the newline
+excluded, so a name ending in `\n` can never match: the macro is silently not blanked and the parse is
+degraded. The sidecar then echoes the name back (`extractors/cpp-ts/src/main.rs:89-95` does no filtering) and
+`ModelBuilder.cs:105` merges it, so `macros_blanked` in `base.model.json` and `head.model.json` lists
+`"EXPORT_API\n"` as a blanked macro next to (or instead of) `"EXPORT_API"`. The tests cover `1ABC`, `A-B`
+and `ÄX` (`CliOptionsTests.cs:83-85`) but no trailing line feed. `FixtureLoader.CommitIdPattern` has the
+same flaw (`40 hex + "\n"` passes the loader); the CLI rejects it later, so there only the message differs.
+**Fix:** Anchor with `\A` and `\z`, and add the trailing-newline cases:
+
+```csharp
+[GeneratedRegex(@"\A[A-Za-z_][A-Za-z0-9_]*\z", RegexOptions.CultureInvariant)]
+private static partial Regex IdentifierPattern();
+// FixtureLoader: @"\A[0-9a-f]{40}([0-9a-f]{24})?\z"
+```
+
+```csharp
+Assert.Throws<VdiffException>(() => CliOptions.Parse(Valid("--blank", "EXPORT_API\n")));
+```
 
 ## Info
 
@@ -350,14 +393,14 @@ never written", or fix it now by updating the pinned hash in `SchemaFreezeTests`
 ### IN-06: Test hygiene: a literal invisible character, a stale name, a username-dependent assertion
 
 **File:** `tests/Vdiff.Tests/Output/DeterminismTests.cs:245`, `:92`, `:209-215`
-**Issue:** (a) Line 245 asserts `DoesNotContain('﻿', ...)` with a literal U+FEFF embedded in the source,
+**Issue:** (a) Line 245 asserts `DoesNotContain('<U+FEFF literal>', ...)` with a literal U+FEFF embedded in the source,
 which is invisible in review and trips content scanners. (b) `Two_runs_on_the_same_input_give_five_byte_identical_files`
 checks six files (`OutputWriter.FileNames`). (c) `No_output_file_contains_...` adds `Environment.UserName` and
 `MachineName` of three or more characters and does a case-insensitive substring search over outputs that hold
 words like `operator`, `Gadget`, `Widget`, `Legacy`; a user or host named `ope`, `gad`, `leg`, `tab` or similar
 fails the test with a message about a "local identity". CI agents use fixed names, but a developer machine
 does not.
-**Fix:** (a) `'﻿'`. (b) Rename to `..._give_byte_identical_files`. (c) Search for the names only with
+**Fix:** (a) write the character as the escape sequence for U+FEFF (backslash, u, FEFF). (b) Rename to `..._give_byte_identical_files`. (c) Search for the names only with
 word boundaries or at path-like positions (`\\name\\`, `/name/`, `name@`), and skip any name that occurs in
 the baseline output.
 
@@ -375,8 +418,37 @@ outside this repository", which is not the reason.
 refuse a `repoRoot` that contains the separator with its own fixed message, and have `Refusal` distinguish an
 unresolvable path from an inside path with a second fixed message that names only the variable.
 
+### IN-08: Neither writer shows a modifier-only change, though the differ lists it as a modified member
+
+**File:** `src/Vdiff.Core/Output/MermaidWriter.cs:54-79`, `src/Vdiff.Core/Output/HtmlWriter.cs:101-130`,
+`src/Vdiff.Core/Diff/ModelDiffer.cs:124-127`
+**Issue:** `ModelDiffer` marks a member `modified` when its sorted modifier list differs (R-13), and fills
+`modifiers_before` and `modifiers_after`. `MermaidWriter.AppendClass` draws only the access marker and the
+signature, and `HtmlWriter.MemberDetail` shows only signature and access. When the modifiers sit outside the
+signature text (a C# `static`, `readonly` or `sealed` that the extractor keeps in `modifiers`), the member is
+listed as `[modified]` with identical before and after text, the same "change with nothing that explains it"
+as WR-03. Latent: the tracer writes `[]` for every member (`ModelBuilder.cs:138`), so it only appears when a
+Phase 4 extractor fills modifiers.
+**Fix:** In `HtmlWriter.MemberDetail`, add a `modifiers: a, b -> c` part when the two lists differ. In
+`MermaidWriter`, either append the changed modifiers to the member text or record in the README that the
+diagram omits them and the HTML report carries them.
+
+### IN-09: CliApp summary still says five output files
+
+**File:** `src/Vdiff.Core/Cli/CliApp.cs:33-34`
+**Issue:** The class summary says the run writes "the five files". `OutputWriter.FileNames` lists six
+(`base.model.json`, `head.model.json`, `diff.json`, `summary.mmd`, `report.html`, `run.meta.json`), the usage
+text says six, and the success line prints `FileNames.Count`. Same drift as the test name in IN-06 (b).
+**Fix:** Say "the output files" or "the six files of `OutputWriter.FileNames`".
+
+## Withdrawn
+
+None. Every finding of the 2026-11-21 review was re-checked against the current code and reproduces. One
+claim was narrowed rather than withdrawn: WR-01 point 3 now notes that the C# golden's edge also depends on a
+`context` class the writer cannot emit yet, so the golden is pending for more than the separator mismatch.
+
 ---
 
-_Reviewed: 2026-11-21_
+_Reviewed: 2026-11-24_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
