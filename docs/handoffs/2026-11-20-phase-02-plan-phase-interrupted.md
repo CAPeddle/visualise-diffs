@@ -9,7 +9,7 @@ resume_focus: "Finish /gsd-plan-phase 2: complete the plan set (02-05 onward), r
 repository: "CAPeddle/visualise-diffs"
 repo_root_sha: "6797a240f02da158200194d0ab74aba326223672"
 branch: "ccr-c12d6a45-a0eke4"
-head: "89205d29809d77da2ef953ec2244bf1a5395d240"
+head: "f339c73308f22c3958be20a84b5c6d540ab074ae"
 ---
 
 # Phase 02 plan-phase: interrupted by shutdown
@@ -22,9 +22,9 @@ the planner was stopped (by me, not the user) part-way through.
 
 ## Done and committed
 
-- `3662118` — `02-RESEARCH.md`, `02-VALIDATION.md` (Nyquist draft), and CONTEXT.md decisions
+- `19c09b3` — `02-RESEARCH.md`, `02-VALIDATION.md` (Nyquist draft), and CONTEXT.md decisions
   D-15..D-18.
-- `89205d2` — draft plans `02-01`..`02-04`, `02-PATTERNS.md`, `.planning/state.json`.
+- `f339c73` — draft plans `02-01`..`02-04`, `02-PATTERNS.md`, `.planning/state.json`.
 
 Both commits passed the target-name guard. Nothing is pushed. This repo is pushed by the user
 (`CAPeddle` account; see memory `github-owner-account`).

@@ -16,8 +16,8 @@ provides:
   - repository hygiene (.gitignore, .gitattributes)
 affects: [01-02, 01-03, 01-05, 01-06]
 
-plan_head_before: 58e8463f3a35fd8d1cf6d261b2409566ba4dd454
-plan_head_after: b56dceae1555a19c8cd952d38fc495633b775665
+plan_head_before: df400451e74d6c46cbe5a60af376eb2c66d8dd8a
+plan_head_after: d661028b224ee6204a073298263b57c83d7dbbfd
 
 actuals:
   tokens: 14600
@@ -127,9 +127,9 @@ status: complete
 
 ## Task Commits
 
-1. **Task 1: scaffold, pinned lock, protocol, blanking, deadline-bounded parse** - `6d37bd5` (feat)
-2. **Task 2 RED: failing extraction tests** - `289b67f` (test)
-3. **Task 2 GREEN: type and member extraction** - `b56dcea` (feat)
+1. **Task 1: scaffold, pinned lock, protocol, blanking, deadline-bounded parse** - `6861335` (feat)
+2. **Task 2 RED: failing extraction tests** - `e97cb8c` (test)
+3. **Task 2 GREEN: type and member extraction** - `d661028` (feat)
 
 ## TDD Notes
 
@@ -186,5 +186,5 @@ Ready for plans 01-02 and 01-03: the binary builds with `cargo build --release -
 ## Self-Check: PASSED
 
 - Files present: `.gitignore`, `.gitattributes`, `extractors/cpp-ts/Cargo.toml`, `Cargo.lock`, `src/main.rs`, `src/protocol.rs`, `src/blank.rs`, `src/extract.rs` (all tracked, none under `target/`).
-- Commits present on this branch: `6d37bd5`, `289b67f`, `b56dcea` (3 measured from the plan-start ledger `58e8463..HEAD` before this SUMMARY's own commit).
+- Commits present on this branch: `6861335`, `e97cb8c`, `d661028` (3 measured from the plan-start ledger `df40045..HEAD` before this SUMMARY's own commit).
 - Plan verification re-run: full cargo suite 65 passed, 0 failed; `extract::deadline` 5 passed; `extract::tests` 23 passed; lock diff ignoring root name exit 0; `grep -c "^/out/" .gitignore` = 1; `grep -c "eol=lf" .gitattributes` = 7; release build `Finished`.

@@ -7,7 +7,7 @@ kernel: "Linux 6.18.33.2-microsoft-standard-WSL2"
 arch: x86_64
 dotnet_sdk: "10.0.404"
 pwsh: "7.7.0"
-commit_tested: 3e87e5a41863b797453a0eec86eb14e1be003ed6
+commit_tested: dcbb5ccd3132e705d20ee3d57dbf886660cb20b6
 worktree_clean_before_run: yes
 run_at: 2026-11-19T10:47:11Z
 build_exit: 0
@@ -184,7 +184,7 @@ Non-passing tests only (8 of 542):
 
 ## Reviewer evaluation (Windows host, 2026-11-19)
 
-Judged against the test sources at `3e87e5a`.
+Judged against the test sources at `dcbb5cc`.
 
 - **Truth 34: observed on Linux.** `A_swap_before_the_held_directory_is_opened_is_refused_by_its_final_path` has no OS guard and asserts that its swap hook ran. `A_link_entry_retargeted_while_the_held_directory_is_open_does_not_redirect_the_write` has no OS guard. Both passed. The Windows-only tests in this filter (the rename-blocked test and `Dispose_releases_...`) return early by design, because no handle is held off Windows.
 - **Truth 45: observed on Linux.** `A_log_path_below_missing_directories_is_created_under_the_log_hold_and_leaves_no_temp_file(pwsh)` has no OS guard and passed. `The_log_hold_blocks_a_rename_...` returns early by design.

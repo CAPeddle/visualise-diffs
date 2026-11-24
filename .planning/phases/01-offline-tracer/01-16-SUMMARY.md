@@ -18,8 +18,8 @@ actuals:
   tokens: 10300
   tasks: 3
   commits: 6
-plan_head_before: 65261d3e43d5a1e550c52c61c6f45d288d0a4f19
-plan_head_after: a81726627ac417fc8c94f6f031063f1b426a273f
+plan_head_before: 93332a34ae4bad76cc5da7ef1d37636426d7517b
+plan_head_after: 9b07703e291f4efb36a2018190a4bdb42976da44
 commits: 6
 
 tech-stack:
@@ -74,14 +74,14 @@ status: complete
 ## Task Commits
 
 1. **Task 1 (tracer, red then green)**
-   - `3eb3aac` test: add failing tests for a swap of --out after the last check (with the CliHooks seam, no behavior change)
-   - `37dd02c` feat: write the outputs through a held output directory
+   - `923089e` test: add failing tests for a swap of --out after the last check (with the CliHooks seam, no behavior change)
+   - `87f2ca7` feat: write the outputs through a held output directory
 2. **Task 2**
-   - `7b6c02b` test: pin the acquisition order and the final-path forms
-   - `35d1451` feat: acquire the held directory under a judged anchor
+   - `65244a3` test: pin the acquisition order and the final-path forms
+   - `3d41ec9` feat: acquire the held directory under a judged anchor
 3. **Task 3**
-   - `706511b` docs: one swap-interval paragraph at the three CLI sites and the T-01-39 pointer
-   - `a817266` docs: record the held-directory tests in the validation map
+   - `01d74ac` docs: one swap-interval paragraph at the three CLI sites and the T-01-39 pointer
+   - `9b07703` docs: record the held-directory tests in the validation map
 
 **Plan metadata:** the SUMMARY commit and the closing bookkeeping commit follow this file; they are not counted in `commits: 6`, which is measured from `plan_head_before` to `plan_head_after`.
 
@@ -152,7 +152,7 @@ None beyond the plan's threat model: the two `kernel32` declarations (`CreateFil
 ## Self-Check: PASSED
 
 - Files exist: `src/Vdiff.Core/Output/HeldDirectory.cs`, `tests/Vdiff.Tests/Safety/HeldDirectoryTests.cs`, this SUMMARY.
-- Commits present on the branch: 3eb3aac, 37dd02c, 7b6c02b, 35d1451, 706511b, a817266.
+- Commits present on the branch: 923089e, 87f2ca7, 65244a3, 3d41ec9, 01d74ac, 9b07703.
 - Acceptance greps: `Directory.CreateDirectory` in OutputWriter outside comments 0; `OutputWriter.WriteAll(outPath` in CliApp 0; `DllImport` in HeldDirectory 2; the open-reparse-point constant outside comments 0; `CliHooks` in CliApp 4; `vdiff-links-*` in the temp area 0; `Check-to-write interval (T-01-43, T-01-46)` 3 files x 1; `separate bound (T-01-43, T-01-46)` 2; `is not closed` 0; `T-01-40` 0; T-01-39, T-01-41 and IN-04 cited in both CliApp and FinalPath.
 - Not-edited gate: `01-SECURITY.md`, `01-UAT.md`, `01-VERIFICATION.md`, `01-REVIEW-DISPOSITION.md` show no diff against `plan_head_before`.
 - The private target-name guard reported clean before every commit.

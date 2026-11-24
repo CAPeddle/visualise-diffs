@@ -3,7 +3,7 @@ uat_test: 11
 phase: 01-offline-tracer
 option: a
 os: windows
-commit_tested: d1a50f9
+commit_tested: 914b31a
 hosts: ["pwsh 7.7.0", "powershell 5.1.26100.9711"]
 run_at: 2026-11-19
 driver: run-uat-11.ps1
@@ -22,7 +22,7 @@ PASS C1 control : held '<scratch>\free\x'
 PASS C2 protected-verdict-maps-to-bad-arguments : text-check-refuses-subst-log=False; result=fail reason=bad-arguments repo_unchanged=unknown outputs_present=no; exit=1; out-entries=0 (vdiff started if > 0); logs-dir-in-repo=False; repo-status-unchanged=True
 PASS C3 control (log written when the hold works) : result=pass reason=none repo_unchanged=yes outputs_present=yes; log-written=True
 PASS C3 failed-hold-skips-log : result=pass reason=none repo_unchanged=yes outputs_present=yes; exit=0; output-files=5; log-written=False; log-dir-exists=False
-OVERALL PASS on pwsh 7.7.0 at d1a50f9 (0 failing check(s))
+OVERALL PASS on pwsh 7.7.0 at 914b31a (0 failing check(s))
 ```
 
 ## Windows PowerShell 5.1
@@ -33,7 +33,7 @@ PASS C1 control : held '<scratch>\free\x'
 PASS C2 protected-verdict-maps-to-bad-arguments : text-check-refuses-subst-log=False; result=fail reason=bad-arguments repo_unchanged=unknown outputs_present=no; exit=1; out-entries=0 (vdiff started if > 0); logs-dir-in-repo=False; repo-status-unchanged=True
 PASS C3 control (log written when the hold works) : result=pass reason=none repo_unchanged=yes outputs_present=yes; log-written=True
 PASS C3 failed-hold-skips-log : result=pass reason=none repo_unchanged=yes outputs_present=yes; exit=0; output-files=5; log-written=False; log-dir-exists=False
-OVERALL PASS on powershell 5.1.26100.9711 at d1a50f9 (0 failing check(s))
+OVERALL PASS on powershell 5.1.26100.9711 at 914b31a (0 failing check(s))
 ```
 
 ## Reading

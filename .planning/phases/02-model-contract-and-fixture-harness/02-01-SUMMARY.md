@@ -17,8 +17,8 @@ actuals:
   tokens: 4500
   tasks: 1
   commits: 1
-plan_head_before: af5a5a5d6b51fdf6a769e53ec56ad9171fd0047c
-plan_head_after: 2e63ea3bc39a77216f0a282bdeea85ad7baf6a39
+plan_head_before: 41388baeb2c543c58e30cc8b51a332299815b187
+plan_head_after: f67adad6a6421de76162845b94d562dcd5f3e995
 
 tech-stack:
   added: []
@@ -93,7 +93,7 @@ status: complete
 
 ## Task Commits
 
-1. **Task 1: One constant names the output files; every test reads it** - `2e63ea3` (refactor)
+1. **Task 1: One constant names the output files; every test reads it** - `f67adad` (refactor)
 
 **Plan metadata:** committed separately as `docs(02-01): complete shared output-file constant plan`.
 
@@ -132,7 +132,7 @@ None - no external service configuration required.
 ## Self-Check: PASSED
 
 - `OutputWriter.cs` holds `public static readonly IReadOnlyList<string> FileNames` (count 1); `CliApp.cs` holds `FileNames.Count` (count 1); `FiveFiles` count in `TraceRunScriptTests.cs` is 0; `wrote 5 files` appears nowhere in `src` or `tests`.
-- Commit `2e63ea3` is on the branch; `git rev-list --count` from the recorded base gives 1.
+- Commit `f67adad` is on the branch; `git rev-list --count` from the recorded base gives 1.
 - Plan verification: `dotnet test ... --filter "Category!=MermaidCli"` printed `Passed! - Failed: 0, Passed: 559`; no tracked `bin/` or `obj/` files.
 
 ---

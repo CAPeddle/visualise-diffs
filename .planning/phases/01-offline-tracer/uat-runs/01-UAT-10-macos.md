@@ -7,7 +7,7 @@ kernel: "Darwin 25.6.0"
 arch: arm64
 dotnet_sdk: "10.0.400"
 pwsh: "7.6.5"
-commit_tested: 4b8e8bd9c433df205d5f3aa42720b7ec741c4783
+commit_tested: aadcf2fe44c0b02f01ee2797923589ca84ae1eb1
 worktree_clean_before_run: yes
 run_at: 2026-11-19T12:19:27Z
 build_exit: 0
@@ -171,9 +171,9 @@ Non-passing tests only (5 of 542):
 
 - Host: macOS 26.7.3 on arm64. The clone is an existing one under the home directory on APFS.
 - Prerequisites were already installed: git 2.50.1 (Apple Git-155), python3 3.14.7, .NET SDK 10.0.400, pwsh 7.6.5, node 26.5.0, npm 12.0.2, Google Chrome.
-- This is the second run on this host. The first, at commit 7136b7b, was committed as 4b8e8bd; its full suite failed 11 tests, six of them MermaidCliSyntaxTests because mermaid-cli was not installed.
+- This is the second run on this host. The first, at commit 96305e9, was committed as aadcf2f; its full suite failed 11 tests, six of them MermaidCliSyntaxTests because mermaid-cli was not installed.
 - Before this run, the operator asked for the mermaid-check dependencies to be installed: `npm --prefix tools/mermaid-check ci --ignore-scripts` added 192 packages from the lockfile and reported 0 vulnerabilities. No other change was made between the runs.
-- commit_tested 4b8e8bd differs from 7136b7b only by this results file; no source or test file changed.
+- commit_tested aadcf2f differs from 96305e9 only by this results file; no source or test file changed.
 - run-uat-10.sh ran unmodified and exited 0.
 - No `core.fsmonitor` is set in system or global git config on this host (`git config --show-origin --get-all core.fsmonitor` printed nothing).
 - On macOS, `/var` is a symbolic link to `/private/var`. The three GitObjectReaderTests failures show the expected path under `/var/folders/...` and the actual path under `/private/var/folders/...`.
@@ -182,7 +182,7 @@ Non-passing tests only (5 of 542):
 
 ## Reviewer evaluation (Windows host, 2026-11-19, of the rerun)
 
-Judged against the test sources. The commit tested, `4b8e8bd`, adds only results files on top of `3e87e5a`, so the code is identical.
+Judged against the test sources. The commit tested, `aadcf2f`, adds only results files on top of `dcbb5cc`, so the code is identical.
 
 - **Truths 34, 45 and 55: observed on macOS.** The same tests as on Linux ran with no OS guard and passed: the swap-before-the-hold test (asserts its hook ran), the retarget test, the log-below-missing-directories test and all nine `drive_root` tests. The Windows-only tests return early by design.
 - **The fsmonitor positive-control failures are the same test defect as on Linux.** The hook is written without the execute bit, so Git cannot run it on Unix. The claim that the fsmonitor hook is never run (C47) is not verified off Windows.

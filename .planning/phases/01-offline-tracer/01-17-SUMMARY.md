@@ -19,8 +19,8 @@ actuals:
   tokens: 12600
   tasks: 3
   commits: 8
-plan_head_before: 5a1a4e227c9963b8d482cfa33c2d460f92b27b20
-plan_head_after: f4f1a05dc2a7012f9a1daefd2a9bcaa57f5cef22
+plan_head_before: 1ef5687e126e6393918b14ebcbf476fc5b4e55fd
+plan_head_after: 4b1ee4dba2ea4a6565c0aad3018f4e58258507f0
 commits: 8
 
 tech-stack:
@@ -140,16 +140,16 @@ status: complete
 ## Task Commits
 
 1. **Task 1 (tracer, red then green)**
-   - `fc02963` test: add the delayed fake sidecar mode, the environment scope and the staged-run helper (resume boundary; 92 tests in the two filtered classes passed unchanged)
-   - `c0dc5e6` test: add failing tests for a log directory swapped during the run
-   - `390fdd1` feat: write the log through a held directory
+   - `ebcc520` test: add the delayed fake sidecar mode, the environment scope and the staged-run helper (resume boundary; 92 tests in the two filtered classes passed unchanged)
+   - `cbd9adb` test: add failing tests for a log directory swapped during the run
+   - `61eb581` feat: write the log through a held directory
 2. **Task 2**
-   - `4e58714` test: add failing tests for the vdiff root as a protected directory (with the constants and the `CliHooks` member as the seam, no behavior change)
-   - `75bf2c1` feat: protect the vdiff root for --out through VDIFF_PROTECTED_DIRS
+   - `dc37f5c` test: add failing tests for the vdiff root as a protected directory (with the constants and the `CliHooks` member as the seam, no behavior change)
+   - `be8ca3c` feat: protect the vdiff root for --out through VDIFF_PROTECTED_DIRS
 3. **Task 3**
-   - `4fc1039` docs: one swap-interval paragraph in the script and the T-01-39 pointer
-   - `d651778` docs: update the T-01-43 and T-01-46 register rows
-   - `f4f1a05` docs: record the log-hold and protected-directory tests in the validation map
+   - `d3d4b39` docs: one swap-interval paragraph in the script and the T-01-39 pointer
+   - `d1a14a0` docs: update the T-01-43 and T-01-46 register rows
+   - `4b1ee4d` docs: record the log-hold and protected-directory tests in the validation map
 
 **Plan metadata:** the SUMMARY commit and the closing bookkeeping commit follow this file; they are not counted in `commits: 8`, which is measured from `plan_head_before` to `plan_head_after`.
 
@@ -199,7 +199,7 @@ L-1 to L-7 were followed as planned. Implementation choices beyond the plan:
 **1. [Rule 3 - Blocking] The configured branch is reported as protected by the commit guard**
 - **Found during:** step 0 before the first commit
 - **Issue:** `git.base-branch --is-protected` returned `true` for `ccr-c12d6a45-a0eke4`, the branch `origin/HEAD` points at (no `git.allow_default_branch_commits` override in `.planning/config.json`). The guard says to re-home, not to commit there.
-- **Fix:** created the local branch `gsd/phase-01-plan-17` from `5a1a4e2` and made all eight commits there; `ccr-c12d6a45-a0eke4` is untouched at `5a1a4e2`. HEAD is left on the new branch. Merging it back (a fast-forward) or setting the override is the orchestrator's call.
+- **Fix:** created the local branch `gsd/phase-01-plan-17` from `1ef5687` and made all eight commits there; `ccr-c12d6a45-a0eke4` is untouched at `1ef5687`. HEAD is left on the new branch. Merging it back (a fast-forward) or setting the override is the orchestrator's call.
 - **Files modified:** none
 - **Verification:** `git rev-parse --abbrev-ref HEAD` is `gsd/phase-01-plan-17`; guard result `false` before each commit
 
@@ -248,7 +248,7 @@ None beyond the plan's threat model (T-01-56 to T-01-59, T-01-SC): the two `kern
 ## Self-Check: PASSED
 
 - Files exist: `tests/Vdiff.Tests/Support/EnvironmentScope.cs`; the modified files are in the commits below.
-- Commits present on the branch: fc02963, c0dc5e6, 390fdd1, 4e58714, 75bf2c1, 4fc1039, d651778, f4f1a05 (`git rev-list --count` from `plan_head_before` is 8).
+- Commits present on the branch: ebcc520, cbd9adb, 61eb581, dc37f5c, be8ca3c, d3d4b39, d1a14a0, 4b1ee4d (`git rev-list --count` from `plan_head_before` is 8).
 - Acceptance greps: `Write-LogFile $logFull` outside comments 0; `Add-Type` outside comments 1; `ok-empty-after-delay` in the fake sidecar 2; `log_hold` in the script tests 3; non-ASCII in the script 0; the reason vocabulary line 1; `VDIFF_PROTECTED_DIRS` in the script 1 and in `CliApp.cs` 2; `protect` in `CliOptions.cs` 0; `$vdiffArgs` lines naming `VdiffRoot` 0; `Check-to-write interval (T-01-43, T-01-46)` in the script 1; `separate bound (T-01-43, T-01-46)` 2; `millisecond` and `is not closed` in the register 0; `T-01-43` and `T-01-46` rows 2; `vdiff-links-*` in the temp area 0; the infrastructure commit subject appears once.
 - The AR-04 and not-edited gates are run from `plan_head_before` after this file is written (see the final report).
 - The private target-name guard reported clean before every commit.

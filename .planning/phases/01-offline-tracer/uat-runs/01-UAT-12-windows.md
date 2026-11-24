@@ -3,7 +3,7 @@ uat_test: 12
 phase: 01-offline-tracer
 option: 1 (subst drive)
 os: windows
-commit_tested: a9b9c3e
+commit_tested: e65ee44
 hosts: ["pwsh 7.7.0"]
 run_at: 2026-11-19
 driver: run-uat-12.ps1
@@ -21,7 +21,7 @@ PASS five files in the root : 5 file(s) in T:\: base.model.json, diff.json, head
 PASS nothing in the current directory : 0 entr(y/ies) in T:\sub
 PASS no temp files : 0 *.tmp-* file(s)
 PASS success line names the typed root : stdout: vdiff: wrote 5 files to T:\
-OVERALL PASS on pwsh 7.7.0 at a9b9c3e (0 failing check(s))
+OVERALL PASS on pwsh 7.7.0 at e65ee44 (0 failing check(s))
 ```
 
 Caveat: `T:\` is a subst root backed by a folder on `C:`. The run shows that a typed drive root is written as that root and never as the current directory. It does not show a write to a separate physical volume.

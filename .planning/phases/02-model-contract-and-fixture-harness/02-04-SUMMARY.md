@@ -18,8 +18,8 @@ actuals:
   tokens: 4800
   tasks: 2
   commits: 3
-plan_head_before: 38d914586a798c27ebf762c80f7c6b2ca4e2afe5
-plan_head_after: 9eb850a705477ad522632e65c6fc4176660f3b26
+plan_head_before: d2d66ecfad5509b062492e8130d03cfd34bfd08f
+plan_head_after: 887114adeba41792008b692b222e1ef2ca1865f5
 
 tech-stack:
   added: []
@@ -118,15 +118,15 @@ status: complete
 
 ## TDD Gate Compliance
 
-- **RED** (`58d04db`, `test(02-04)`): `RatchetTests` (46 cases) plus throwing stubs of `Shapes`, `Ratchet` and `FixtureReport`. Run: `Failed: 43, Passed: 3, Total: 46`. The 43 failures were the target tests failing on `NotImplementedException` and on the empty `Shapes.All` stub. The 3 passes were the `IsShape` rows expecting false, which a stub returning false satisfies. Semantic assessment: the target tests ran and failed for the planned reason (behaviour absent); no build error, no zero-test discovery. `workflow.tdd_mode` is not enabled and the plan is `type: execute`, so `gsd_run check tdd-red-evidence` was not run and no evidence file was written.
-- **GREEN** (`9eb850a`, `feat(02-04)`): the three implementations; `Failed: 0, Passed: 46`.
+- **RED** (`5171333`, `test(02-04)`): `RatchetTests` (46 cases) plus throwing stubs of `Shapes`, `Ratchet` and `FixtureReport`. Run: `Failed: 43, Passed: 3, Total: 46`. The 43 failures were the target tests failing on `NotImplementedException` and on the empty `Shapes.All` stub. The 3 passes were the `IsShape` rows expecting false, which a stub returning false satisfies. Semantic assessment: the target tests ran and failed for the planned reason (behaviour absent); no build error, no zero-test discovery. `workflow.tdd_mode` is not enabled and the plan is `type: execute`, so `gsd_run check tdd-red-evidence` was not run and no evidence file was written.
+- **GREEN** (`887114a`, `feat(02-04)`): the three implementations; `Failed: 0, Passed: 46`.
 - **REFACTOR:** none needed.
 
 ## Task Commits
 
-1. **Task 1: Backlog 999.1 portability fixes and closure** - `eed94f8` (fix)
-2. **Task 2 RED: failing ratchet, report and shape tests** - `58d04db` (test)
-3. **Task 2 GREEN: ratchet, report and shapes** - `9eb850a` (feat)
+1. **Task 1: Backlog 999.1 portability fixes and closure** - `9356f1e` (fix)
+2. **Task 2 RED: failing ratchet, report and shape tests** - `5171333` (test)
+3. **Task 2 GREEN: ratchet, report and shapes** - `887114a` (feat)
 
 ## Verification
 
@@ -165,4 +165,4 @@ None. No new network, auth or file-access surface; `WriteIfRequested` writes onl
 ## Self-Check: PASSED
 
 - Files exist: Shapes.cs, Ratchet.cs, FixtureReport.cs, RatchetTests.cs under `tests/Vdiff.Tests/Fixtures/`.
-- Commits `eed94f8`, `58d04db`, `9eb850a` are on the branch; `git rev-list --count` from the recorded base gives 3.
+- Commits `9356f1e`, `5171333`, `887114a` are on the branch; `git rev-list --count` from the recorded base gives 3.

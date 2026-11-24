@@ -19,8 +19,8 @@ actuals:
   commits: 3
 
 commits: 3
-plan_head_before: fe6c08edd4a3f81b4efaa052b7ea4b2554701f10
-plan_head_after: 2e7d7ce4f4470c19cd4c935efcb56b90514e031e
+plan_head_before: 588e1b414611cb3d503e590aeba33d5b34fcaa6a
+plan_head_after: 47402edb7082275a6886f128028a2d97e2713cd2
 
 tech-stack:
   added: []
@@ -75,9 +75,9 @@ status: complete
 ## Task Commits
 
 1. **Task 1: keyword-named global types pass the real syntax check, C_ prefix** (tracer, tdd)
-   - `9322530` test(01-11): failing end-to-end test (RED)
-   - `38e2412` feat(01-11): prefix every Mermaid class id with C_ (GREEN, plus the writer and determinism assertions moved to the prefixed form)
-2. **Task 2: unit coverage for keyword ids and a lint that requires the prefix** - `2e7d7ce` (test)
+   - `1281ba9` test(01-11): failing end-to-end test (RED)
+   - `74f66ac` feat(01-11): prefix every Mermaid class id with C_ (GREEN, plus the writer and determinism assertions moved to the prefixed form)
+2. **Task 2: unit coverage for keyword ids and a lint that requires the prefix** - `47402ed` (test)
 
 **Plan metadata:** committed separately (docs: complete plan).
 
@@ -135,4 +135,4 @@ None - no external service configuration required.
 ## Self-Check: PASSED
 
 - FOUND: src/Vdiff.Core/Output/MermaidWriter.cs, tests/Vdiff.Tests/Output/MermaidCliSyntaxTests.cs, tests/Vdiff.Tests/Output/MermaidWriterTests.cs, tests/Vdiff.Tests/Output/DeterminismTests.cs, tests/Vdiff.Tests/Output/MermaidLint.cs
-- FOUND commits: 9322530, 38e2412, 2e7d7ce (all ancestors of HEAD; `git rev-list --count fe6c08e..HEAD` = 3)
+- FOUND commits: 1281ba9, 74f66ac, 47402ed (all ancestors of HEAD; `git rev-list --count 588e1b4..HEAD` = 3)

@@ -10,7 +10,7 @@ resume_focus: "Ask the user whether to run /gsd-execute-phase 2 (or first raise 
 repository: "CAPeddle/visualise-diffs"
 repo_root_sha: "6797a240f02da158200194d0ab74aba326223672"
 branch: "ccr-c12d6a45-a0eke4"
-head: "5bf8152 (before this handoff's commit)"
+head: "7c03794 (before this handoff's commit)"
 ---
 
 # Phase 02: plans ready to execute
@@ -21,7 +21,7 @@ head: "5bf8152 (before this handoff's commit)"
 
 | Repo | Branch | HEAD | Dirty | vs upstream |
 |---|---|---|---|---|
-| `C:/projects/personal/visualise-diffs` | `ccr-c12d6a45-a0eke4` | `5bf8152` | clean | 25 ahead, 0 behind (nothing pushed) |
+| `C:/projects/personal/visualise-diffs` | `ccr-c12d6a45-a0eke4` | `7c03794` | clean | 25 ahead, 0 behind (nothing pushed) |
 
 Pushing is the user's decision and needs the CAPeddle GitHub account. Run
 `bash C:/projects/shared-copilot/docs/investigations/visualise-diffs/scripts/check-public-diff.sh --cached`
@@ -29,23 +29,23 @@ before every commit (it takes git-diff arguments, not stdin). Never name the tar
 
 ## Supersedes
 
-- `docs/handoffs/2026-11-20-phase-02-doc-review-apply-interrupted.md` (dad4dc2): its "what still
-  has to be applied" list is now done (acf867f fixes, 5bf8152 decisions). Its "do not execute"
+- `docs/handoffs/2026-11-20-phase-02-doc-review-apply-interrupted.md` (15f657d): its "what still
+  has to be applied" list is now done (6ce5be9 fixes, 7c03794 decisions). Its "do not execute"
   warning no longer holds. Its **FYI review observations** section still holds and is not acted on;
   read it before the 02-06 freeze.
-- `docs/handoffs/2026-11-20-phase-02-plan-phase-second-interruption.md` (789ef6c): fully superseded.
+- `docs/handoffs/2026-11-20-phase-02-plan-phase-second-interruption.md` (0616d8e): fully superseded.
 
 ## Work completed this session (all committed)
 
-- `21e395e` /gsd-plan-phase 2 complete: 12 plans, 8 waves, gates green.
-- `400a04b` D-20..D-23 recorded in `02-CONTEXT.md` (from ce-doc-review; the user chose "Auto-resolve
+- `247c1ff` /gsd-plan-phase 2 complete: 12 plans, 8 waves, gates green.
+- `e142084` D-20..D-23 recorded in `02-CONTEXT.md` (from ce-doc-review; the user chose "Auto-resolve
   with best judgment", then later explicitly confirmed each recommended option).
-- `acf867f` three doc-review fixes (full sample lists, package/`via` presence rules, freeze revise path).
-- `5bf8152` D-20..D-23 applied across 02-05, 02-06, 02-08, 02-10, 02-12 and 02-VALIDATION.md
-  (02-03 already matched from a38d230), plus two plan-check fixes.
+- `6ce5be9` three doc-review fixes (full sample lists, package/`via` presence rules, freeze revise path).
+- `7c03794` D-20..D-23 applied across 02-05, 02-06, 02-08, 02-10, 02-12 and 02-VALIDATION.md
+  (02-03 already matched from 6f35a3a), plus two plan-check fixes.
 
 Plan dir: `.planning/phases/02-model-contract-and-fixture-harness/`. Read the commit message of
-`5bf8152` for the per-decision summary rather than re-deriving it.
+`7c03794` for the per-decision summary rather than re-deriving it.
 
 ## Verification performed
 

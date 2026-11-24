@@ -120,13 +120,13 @@ advisory:
   - finding: "SC4 trial record (docs/trials/phase-1-offline-tracer.md) predates plans 01-13 to 01-18"
     category: other
     reason: "Normal path re-run in the previous verification on both PowerShell hosts and again here for the CLI; plan 01-18 does not change scripts/trace-run.ps1 (git diff empty); human re-run recommended"
-    evidence_status: "fresh CLI run here; git diff f8a4906..HEAD -- scripts is empty"
+    evidence_status: "fresh CLI run here; git diff e9ccf3e..HEAD -- scripts is empty"
 ---
 
 # Phase 1: Offline Tracer Verification Report
 
 **Phase Goal:** A user can run `vdiff --repo <path> --base <sha> --head <sha> --out <dir>` offline against a local git repository and get a C++ type- and member-level diff in the output directory, with no Azure DevOps contact and no change to the repository that was read.
-**Verified:** 2026-11-18 (HEAD `220e67c`)
+**Verified:** 2026-11-18 (HEAD `8f87fe8`)
 **Status:** human_needed
 **Re-verification:** Yes, after gap-closure plan 01-18 (review finding CR-01). The previous report (`gaps_found`, 43/47) stays in git history. Truths 1 to 47 are carried from it; truth 2 is re-derived below and the others were re-checked for regression (the only source change since the last verification is `HeldDirectory.cs`; `scripts/` is byte-identical). Truths 48 to 55 are new, from plan 01-18.
 
@@ -136,14 +136,14 @@ The gap is closed. CR-01 no longer reproduces, the fix is the right shape, and t
 
 **CR-01, independently confirmed.**
 
-- Code: `HeldDirectory.SplitAtDeepestExisting` (lines 188-207) now reads `Path.GetPathRoot(directory)` and, after the same trailing-separator trim, starts from the root when the trimmed text is shorter than the root. `C:\`, `C:\\`, `C:/` and `C:\\/` all give root `C:\` and anchor `C:\`; the slash root is kept on Unix. Only that one method changed under `src/` (`git diff f8a4906 HEAD --stat -- src scripts`: `HeldDirectory.cs`, 12 insertions, 1 deletion). `CliApp`, `OutputWriter`, `FinalPath`, `CliOptions` and `scripts/trace-run.ps1` are unchanged, so no refusal text, exit code, argument or success-line text moved.
+- Code: `HeldDirectory.SplitAtDeepestExisting` (lines 188-207) now reads `Path.GetPathRoot(directory)` and, after the same trailing-separator trim, starts from the root when the trimmed text is shorter than the root. `C:\`, `C:\\`, `C:/` and `C:\\/` all give root `C:\` and anchor `C:\`; the slash root is kept on Unix. Only that one method changed under `src/` (`git diff e9ccf3e HEAD --stat -- src scripts`: `HeldDirectory.cs`, 12 insertions, 1 deletion). `CliApp`, `OutputWriter`, `FinalPath`, `CliOptions` and `scripts/trace-run.ps1` are unchanged, so no refusal text, exit code, argument or success-line text moved.
 - Behavior, CLI: built `src/Vdiff.Cli` at HEAD, ran it against a scratch two-commit C++ repository in the session scratchpad with a scratch current directory and `--out C:\`. Result: `vdiff: could not write the output: Access to the path 'C:\base.model.json.tmp-...' is denied.`, exit 1. The held directory is the root (the failing path is under `C:\`), the scratch current directory is empty, nothing was created in `C:\`, and the repository status is clean. This is the outcome the plan fixed (P-1): write as typed, or exit 1 with the existing could-not-write line. This unprivileged account cannot create files in the drive root, so the exit-0 success path into a real root is not observed (manual-only row, see human items).
 - Behavior, tests: `--filter drive_root` passes 10 of 10. I then staged the mutation that disables the root fallback (`if (false && current.Length < root.Length)`), re-ran the filter and got 7 failed, 3 passed: the three root-spelling rows, the judgement fact, the `CliApp.Run` case and both script-parity cases go red; the three below-root control rows stay green. The mutation was reverted with `git checkout` and the tree equals HEAD for `src/`. The tests therefore discriminate, which the executor's red run and the review's reading also state.
 - Regression: control run on the unchanged behavior: nested `--out` below a missing directory chain writes the five files and leaves the repository clean; `--out` inside the repository is refused (exit 1, `--out must not lie inside the analysed repository`, nothing written).
 - Targeted suites: `AliasedOutTests|FinalPathTests|HeldDirectoryTests|held_directory` 91 passed, 0 failed (matches the plan's projection of 91).
 - Full suite, run once by me: see Behavioral Spot-Checks (result recorded there).
 
-**Claims in the brief, checked.** `01-REVIEW.md` (plan 01-18 scope): 0 critical, 0 warning, 3 info, CR-01 reported fixed; consistent with my reading and the mutation run. `01-REVIEW-DISPOSITION.md` row CR-01 is `fixed` (plan 01-18, commit `6ea1807`), the other 14 rows `open`. The commits named in `01-18-SUMMARY.md` (`4e6b820`, `6ea1807`, `4279d8a`, `01f1848`, `b113a2b`) are in the log; the red-then-green order is real (`4e6b820` is the test-only commit before `6ea1807`).
+**Claims in the brief, checked.** `01-REVIEW.md` (plan 01-18 scope): 0 critical, 0 warning, 3 info, CR-01 reported fixed; consistent with my reading and the mutation run. `01-REVIEW-DISPOSITION.md` row CR-01 is `fixed` (plan 01-18, commit `92ffb55`), the other 14 rows `open`. The commits named in `01-18-SUMMARY.md` (`1567e09`, `92ffb55`, `58c186a`, `15d7100`, `2a24052`) are in the log; the red-then-green order is real (`1567e09` is the test-only commit before `92ffb55`).
 
 ## Goal Achievement
 
@@ -189,7 +189,7 @@ Roadmap success criteria first (the contract), then the carried plan truths (6 t
 | 34 | 01-16 (backstop): on Linux and macOS no handle is held; judged before and after creation; the bound is stated | PRESENT_BEHAVIOR_UNVERIFIED (abstained: insufficient_spec) | `CreateNarrowed` read; not run off Windows. See `behavior_unverified_items[1]`. |
 | 35 | 01-16: a run with no swap is unchanged (five files, same bytes, no `*.tmp-*`, success line names the typed path) | VERIFIED | Fresh run here; with the CR-01 fix the success line is now truthful for a root too (the files are in the typed path). |
 | 36 | 01-16: one identical swap-interval paragraph at three sites; pointer sentences; T-01-39 wording intact | VERIFIED | `grep -c 'Check-to-write interval (T-01-43, T-01-46)'` is 1 in each of `CliApp.cs`, `HeldDirectory.cs`, `OutputWriter.cs`; plan 01-18 touched only one method's summary. |
-| 37 | 01-16: no test, comment or truth claims subst, mapped drives or 8.3 names are refused; AR-04 not edited | VERIFIED | `grep -ci subst` in the changed sources: no new claim; the `01-SECURITY.md` diff from `f8a4906` has 0 removed lines (only added rows). |
+| 37 | 01-16: no test, comment or truth claims subst, mapped drives or 8.3 names are refused; AR-04 not edited | VERIFIED | `grep -ci subst` in the changed sources: no new claim; the `01-SECURITY.md` diff from `e9ccf3e` has 0 removed lines (only added rows). |
 | 38 | 01-17: on Windows, both hosts, a `-LogPath` run holds the log's directory without delete sharing, judges its final path, rename refused during the run | VERIFIED | Script unchanged; `log_hold` tests in the full run. |
 | 39 | 01-17: the log is written by temp name plus move through the held directory's final path | VERIFIED | Script unchanged; tests pass. |
 | 40 | 01-17: a protected verdict by handle ends the run with bad-arguments before vdiff starts; any other hold failure skips the log silently | PRESENT_BEHAVIOR_UNVERIFIED | Verdict function observed by a private probe in the previous round; no repository test reaches it (review WR-03). See `behavior_unverified_items[0]`. |
@@ -198,14 +198,14 @@ Roadmap success criteria first (the contract), then the carried plan truths (6 t
 | 43 | 01-17: a staged script test swaps `-Out` for a link into a stand-in vdiff root; the CLI refuses | VERIFIED | Test passes on both hosts. |
 | 44 | 01-17: no command-line argument added or changed (D-03) | VERIFIED | `CliOptions.cs` unchanged through HEAD (diff stat of `src` lists only `HeldDirectory.cs`). |
 | 45 | 01-17 (backstop): on Linux and macOS no handle is held and no type is compiled; post-run re-check stays | PRESENT_BEHAVIOR_UNVERIFIED (abstained: insufficient_spec) | Off-Windows branch read; not run. See `behavior_unverified_items[2]`. |
-| 46 | 01-17: T-01-43 and T-01-46 rows describe the new guarantee and its bound; millisecond claim gone; AR-04 unedited | VERIFIED | Rows unchanged by plan 01-18 (the register diff from `f8a4906` removes 0 lines). |
+| 46 | 01-17: T-01-43 and T-01-46 rows describe the new guarantee and its bound; millisecond claim gone; AR-04 unedited | VERIFIED | Rows unchanged by plan 01-18 (the register diff from `e9ccf3e` removes 0 lines). |
 | 47 | 01-17: no test, comment or truth claims subst, mapped drives or 5.1 8.3 names are now refused | VERIFIED | As truth 37. |
 | 48 | 01-18: with `--out` given as the root of the drive that holds the current directory, `HeldDirectory.Create` holds that root itself: `held.Path` equals the typed root and is not the process's current directory; the success line names the typed path and the files are in it | VERIFIED | Behavioral. `A_drive_root_is_held_as_the_root_and_never_as_the_current_directory` (3 rows) and `An_out_given_as_a_drive_root_reaches_the_held_directory_as_that_root_and_not_the_current_directory` pass; 7 of 10 red under my mutation; direct CLI run shows the failing write path under `C:\`, cwd empty. |
 | 49 | 01-18: the rule is never trim below the root: a root, a root with the alternate separator, and a root with two trailing separators are all held as the root on every platform | VERIFIED (Windows observed; other platforms see truth 55) | Code `HeldDirectory.cs` lines 191-196 read; the three spelling rows pass; the reviewer's arithmetic for `C:\\/` agrees. |
 | 50 | 01-18: one step below the root nothing changes: a directory with no, one, or one alternate trailing separator is held as the directory it names | VERIFIED | `A_directory_below_a_drive_root_...` (3 control rows) pass at HEAD and under the mutation (they stay green, as the plan states). |
 | 51 | 01-18: the outcome for a drive-root `--out` is decided and fixed (written as typed, or exit 1 with the existing could-not-write line); no refusal text, argument, script reason or exit code is added; the final path of the held root is still judged | VERIFIED | Direct run: exit 1 with the existing line for this account. Source diff is one method; `A_drive_root_is_judged_as_the_root_by_the_final_path_function_and_a_refusal_creates_nothing` passes (and fails under the mutation). |
 | 52 | 01-18: no test writes into a real drive root or the process's current directory, and none changes the current directory | VERIFIED | `grep -rl SetCurrentDirectory tests/Vdiff.Tests`: 0 files; the CLI case aborts at `AfterHeld` with a test-local exception before the first byte (stderr `unexpected failure (StopBeforeFirstWrite)`); `C:\` was clean after my runs; the one real write attempt into the root was my own CLI run, which was refused. |
-| 53 | 01-18: the script already agrees and is pinned: `Get-FullPath` and `Open-HeldDirectory` hold a drive root as the root on both PowerShell hosts and agree with `HeldDirectory.Create`; `scripts/trace-run.ps1` is not changed | VERIFIED | `git diff f8a4906 HEAD -- scripts` is empty; `The_script_holds_a_drive_root_as_the_root_and_agrees_with_the_cli_drive_root` passes on `pwsh` and `powershell`. The summary's own script mutation (guard replaced by `$true`) is cited, not repeated; under my source mutation both host cases also go red because they compare with the CLI value. |
+| 53 | 01-18: the script already agrees and is pinned: `Get-FullPath` and `Open-HeldDirectory` hold a drive root as the root on both PowerShell hosts and agree with `HeldDirectory.Create`; `scripts/trace-run.ps1` is not changed | VERIFIED | `git diff e9ccf3e HEAD -- scripts` is empty; `The_script_holds_a_drive_root_as_the_root_and_agrees_with_the_cli_drive_root` passes on `pwsh` and `powershell`. The summary's own script mutation (guard replaced by `$true`) is cited, not repeated; under my source mutation both host cases also go red because they compare with the CLI value. |
 | 54 | 01-18: every other contract stays intact (only `HeldDirectory.cs` under `src/`; refusal texts, exit codes, success-line text unchanged; repository-unchanged guarantee unaffected; whole suite passes, 565 expected on Windows) | VERIFIED | Source diff as above; repository status clean after every run here; targeted 91 passed; full-suite result in Behavioral Spot-Checks. |
 | 55 | 01-18 (verification: backstop): on Linux and macOS the same unit and CLI `drive_root` tests run with the slash as the root and pass | PRESENT_BEHAVIOR_UNVERIFIED (abstained: insufficient_spec) | Not observable on a Windows host; code reading says `GetPathRoot("/")` is `/`, so the root is kept. See `behavior_unverified_items[3]`. |
 
@@ -229,7 +229,7 @@ See `advisory` in the frontmatter: WR-01, WR-02 (re-observed), WR-03 to WR-06 an
 | `tests/Vdiff.Tests/Safety/HeldDirectoryTests.cs` | two theories and one fact with `drive_root` | VERIFIED | 7 cases pass (3 + 3 + 1); 102 lines added |
 | `tests/Vdiff.Tests/Safety/AliasedOutTests.cs` | `CliApp.Run` case for `--out` as the drive root | VERIFIED | Passes; red under the mutation |
 | `tests/Vdiff.Tests/Trial/TraceRunScriptTests.cs` | child-host parity test on both PowerShell hosts | VERIFIED | 2 cases pass |
-| `01-SECURITY.md` | rows T-01-60 to T-01-62, T-01-SC (01-18), AR-18 | VERIFIED | `git diff f8a4906 HEAD` on the register: 0 removed lines; rows added |
+| `01-SECURITY.md` | rows T-01-60 to T-01-62, T-01-SC (01-18), AR-18 | VERIFIED | `git diff e9ccf3e HEAD` on the register: 0 removed lines; rows added |
 | `01-VALIDATION.md` | map row (`drive_root`), updated count, manual-only row | VERIFIED | `drive_root` present; manual-only row is the human item above |
 | Artifacts of plans 01-01 to 01-17 | as before | VERIFIED (carried) | Sources unchanged apart from the file named |
 
@@ -259,7 +259,7 @@ See `advisory` in the frontmatter: WR-01, WR-02 (re-observed), WR-03 to WR-06 an
 | Mutation (disable the root fallback), then restored | same filter | 7 failed, 3 passed (the three below-root controls stay green) | PASS (tests discriminate) |
 | Held-directory and alias suites | `--filter "AliasedOutTests\|FinalPathTests\|HeldDirectoryTests\|held_directory"` | 91 passed, 0 failed | PASS |
 | No process-wide current-directory change in tests | `grep -rl SetCurrentDirectory tests/Vdiff.Tests` | 0 | PASS |
-| Script unchanged | `git diff f8a4906 HEAD --stat -- scripts` | empty | PASS |
+| Script unchanged | `git diff e9ccf3e HEAD --stat -- scripts` | empty | PASS |
 | Leftovers | `ls $TEMP \| grep -c '^vdiff-links-'`; `git status --short` | 0; only `.planning/config.json` and `.planning/state.json` (pre-existing, not mine) | PASS |
 | Full suite, once | `dotnet test tests/Vdiff.Tests/Vdiff.Tests.csproj --no-build` | 565 passed, 0 failed, 0 skipped (12 m 38 s); matches the claimed 565 (555 + 10) | PASS |
 
@@ -280,7 +280,7 @@ Requirement IDs in plan frontmatter, plans 01-01 to 01-18: SPK-02, TRC-01, TRC-0
 | TRC-03 | 01-10, 01-12, 01-14, 01-15, 01-17 | Real private PR, outputs outside this repository, no identifiers recorded | SATISFIED (orchestrator-attested) | Truths 4, 13, 14, 38 to 43; UAT 5 pass; trial re-run recommended |
 | SPK-02 | 01-01, 01-03, 01-06, 01-10, 01-14, 01-15 | ADR-001 recorded, tracer built on it | SATISFIED | Truths 5 and 17 |
 
-**REQUIREMENTS.md bookkeeping (not a code gap).** At HEAD all four rows (checkbox and traceability table) read `[ ]` / `Gaps Found`. Against the evidence above all four are supported, so the orchestrator may mark them Complete once the owner's human items are settled; the project convention (`2eaf361`, `b60fd72`) is to hold `Complete` marks while the verification is not `passed`. I make no edit.
+**REQUIREMENTS.md bookkeeping (not a code gap).** At HEAD all four rows (checkbox and traceability table) read `[ ]` / `Gaps Found`. Against the evidence above all four are supported, so the orchestrator may mark them Complete once the owner's human items are settled; the project convention (`aa94c91`, `625f538`) is to hold `Complete` marks while the verification is not `passed`. I make no edit.
 
 ### Test Quality Audit
 

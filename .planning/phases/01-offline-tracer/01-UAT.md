@@ -58,17 +58,17 @@ evidence: "uat-runs/01-UAT-10-linux.md and uat-runs/01-UAT-10-macos.md; truths 3
 ### 11. Protected verdict by handle, end to end, and skip-on-failure of the hold
 expected: Either (a) run end to end: with Open-HeldDirectory extracted into a child host (pattern: the drive_root driver in TraceRunScriptTests) and a protected list naming the log directory, the script ends with reason bad-arguments and six fixed lines before vdiff starts; and with the type made to fail compiling, a -LogPath run starts vdiff normally, writes no log and reports pass (truth 40). Or (b) accept the gap and take review finding WR-03 (add that test) as a follow-up. Source: behavior_unverified_items[0] in 01-VERIFICATION.md
 result: pass
-evidence: "option (a): uat-runs/01-UAT-11-windows.md (run-uat-11.ps1, C1-C3 pass on pwsh 7.7.0 and PowerShell 5.1 at d1a50f9); WR-03 (a repository test) stays open"
+evidence: "option (a): uat-runs/01-UAT-11-windows.md (run-uat-11.ps1, C1-C3 pass on pwsh 7.7.0 and PowerShell 5.1 at 914b31a); WR-03 (a repository test) stays open"
 
 ### 12. A real drive-root run on a scratch volume (manual-only row of 01-VALIDATION.md, TRC-02 / CR-01)
 expected: On a volume the owner controls, run vdiff with --out set to that volume's root from an unrelated current directory: five files appear in the root and none in the current directory
 result: pass
-evidence: "uat-runs/01-UAT-12-windows.md (run-uat-12.ps1 at a9b9c3e): --out T:\ from T:\sub on a subst drive; five files in T:\, none in T:\sub. T: is subst-backed by a folder on C:, not a separate physical volume"
+evidence: "uat-runs/01-UAT-12-windows.md (run-uat-12.ps1 at e65ee44): --out T:\ from T:\sub on a subst drive; five files in T:\, none in T:\sub. T: is subst-backed by a folder on C:, not a separate physical volume"
 
 ### 13. Re-run the trial wrapper once on the private clone with the current scripts/trace-run.ps1 (recommended)
 expected: Six-line block: pass, none, under budget, repo_unchanged yes, outputs_present yes, mermaid_syntax ok; only that block recorded
 result: pass
-evidence: "2026-11-19 re-run by the product owner with the rebuilt Release CLI at a9b9c3e and later: result pass, reason none, wall_clock under-1-min, repo_unchanged yes, outputs_present yes, mermaid_syntax ok (block recorded in docs/trials/phase-1-offline-tracer.md)"
+evidence: "2026-11-19 re-run by the product owner with the rebuilt Release CLI at e65ee44 and later: result pass, reason none, wall_clock under-1-min, repo_unchanged yes, outputs_present yes, mermaid_syntax ok (block recorded in docs/trials/phase-1-offline-tracer.md)"
 
 ### 14. Eleven judgment-tier prohibitions (plans 01-16, 01-17, 01-18) flagged unverified-prohibition
 expected: Reviewer confirms or overrules each non-authoritative verdict in the Prohibitions section of 01-VERIFICATION.md (all read as honoured; note WR-02 under the 01-16 message prohibition and under the 01-18 path prohibition)
@@ -94,7 +94,7 @@ blocked: 0
   reason: "User reported: (b) — product owner chose a hardening gap-closure plan over accepting device-path (backslash-backslash-question-backslash) prefixes, loopback UNC, pre-planted hard links and post-check swaps as residuals"
   severity: major
   test: 1
-  root_cause: "Test 1 cites CR-01/WR-01/WR-02 from the superseded review at 90b26a4; plans 01-13/01-14/01-15 already close the four named forms at HEAD (extended-length and loopback-UNC roots refused as non-drive; planted hard link neutralised by temp-name plus move in OutputWriter and delete-then-CreateNew in Write-LogFile). Still open is one design property: the guard compares resolved path text and re-resolves by name at write time instead of taking identity from an open handle, so (1) a swap after the last check (CliApp.cs:60 to OutputWriter.WriteAll, including the serialisation window; trace-run.ps1 -LogPath after the re-check) is narrowed, not closed; (2) subst and mapped drive letters in --out pass the CLI guard and write inside the repository (reproduced); (3) on Windows PowerShell 5.1 an extensionless 8.3 -LogPath writes inside the repository; (4) the CLI has no vdiff-repository guard after the script's single -Out check. Items 2-3 are the AR-04 residuals signed off in test 6, so G-01-1 scope conflicts with that acceptance."
+  root_cause: "Test 1 cites CR-01/WR-01/WR-02 from the superseded review at 868a44a; plans 01-13/01-14/01-15 already close the four named forms at HEAD (extended-length and loopback-UNC roots refused as non-drive; planted hard link neutralised by temp-name plus move in OutputWriter and delete-then-CreateNew in Write-LogFile). Still open is one design property: the guard compares resolved path text and re-resolves by name at write time instead of taking identity from an open handle, so (1) a swap after the last check (CliApp.cs:60 to OutputWriter.WriteAll, including the serialisation window; trace-run.ps1 -LogPath after the re-check) is narrowed, not closed; (2) subst and mapped drive letters in --out pass the CLI guard and write inside the repository (reproduced); (3) on Windows PowerShell 5.1 an extensionless 8.3 -LogPath writes inside the repository; (4) the CLI has no vdiff-repository guard after the script's single -Out check. Items 2-3 are the AR-04 residuals signed off in test 6, so G-01-1 scope conflicts with that acceptance."
   artifacts:
     - path: "src/Vdiff.Core/Cli/FinalPath.cs"
       issue: "text segment walk; no handle-based final-path identity"

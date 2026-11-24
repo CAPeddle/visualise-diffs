@@ -9,7 +9,7 @@ resume_focus: "Regenerate the stale 02-VERIFICATION.md (verify-phase-goal step),
 repository: "CAPeddle/visualise-diffs"
 repo_root_sha: "6797a240f02da158200194d0ab74aba326223672"
 branch: "ccr-c12d6a45-a0eke4"
-head: "8f538d369e23b56cf10ded4ab56f7f34b5f6d487"
+head: "d33d81d0c087ffd8ac5d10d4d96d52b5a3eded89"
 ---
 
 # Phase 02: UAT done, security verified, re-verification pending
@@ -23,7 +23,7 @@ Interrupted by a machine shutdown, at the user's request to "run security and re
   - Test 2 (private-fixture recipe): pass, **provisional** (user's choice). A subagent picked the five target PRs and wrote placeholder expected files, and the owner has not reviewed them. Its `extract-class` pick is probably wrong. The five public rows are in `docs/trials/private-fixtures.md`.
   - Tests 3 and 4: pass. Test 4 rests on a full scan of tracked content against the private pattern list.
   - `## Deferred Follow-Ups` holds two findings from an offline demo run on a private target clone. They are owned by Phase 3 (partial clone makes types show as `added`) and Phase 7 (a `std::function<void()>` member breaks Mermaid). Matching "Input from Phase 2 UAT" paragraphs were added to the Phase 3 and Phase 7 entries in `.planning/ROADMAP.md`.
-- **Security** (`02-SECURITY.md`, commit 9b302f9): `status: verified`, `threats_open: 0`, 42/42 threats closed at ASVS L1. Non-blocking audit notes N-1..N-4 and U-1 are in its "Audit Notes" section. N-1 was resolved afterwards by commit 8f538d3.
+- **Security** (`02-SECURITY.md`, commit f36831b): `status: verified`, `threats_open: 0`, 42/42 threats closed at ASVS L1. Non-blocking audit notes N-1..N-4 and U-1 are in its "Audit Notes" section. N-1 was resolved afterwards by commit d33d81d.
 - **Verification** (`02-VERIFICATION.md`): **stale**. `verification.status` reports it stale because `docs/trials/private-fixtures.md` changed after the verifier ran, and it routes to `execute-phase`. **Not started.**
 - Phase 2 is not marked complete in ROADMAP/STATE.
 
@@ -40,7 +40,7 @@ Run the verification sequence in `~/.claude/gsd-core/workflows/execute-phase/ste
 
 ## Open owner questions
 
-1. **Commit metadata.** Earlier author and committer emails carry the target organisation's domain, including commits already pushed to `origin/ccr-c12d6a45-a0eke4` and commit 9eaea7c from this session. The user chose "noreply from now on". Rewriting history and force-pushing is still undecided. The public-diff guard does not scan commit metadata (audit note N-4).
+1. **Commit metadata.** Earlier author and committer emails carry the target organisation's domain, including commits already pushed to `origin/ccr-c12d6a45-a0eke4` and commit 50bfd44 from this session. The user chose "noreply from now on". Rewriting history and force-pushing is still undecided. The public-diff guard does not scan commit metadata (audit note N-4).
 2. Whether the `architecture_analyser` project named in `docs/prompts/target-repo-investigation.md` (around line 215) is internal.
 3. When to replace the provisional test-2 fixtures (the `extract-class` pick especially) with owner-chosen PRs and reviewed expected files.
 
@@ -54,4 +54,4 @@ If these are lost, test 2's provisional fixtures have to be re-authored. That wa
 
 ## Commits this session (none pushed)
 
-9eaea7c (deferrals) · 56857af (tests 2 and 4, trial rows) · the UAT complete-session commit · 9b302f9 (SECURITY.md) · 8f538d3 (test 1 note). Every staged change passed `check-public-diff.sh` before it was committed.
+50bfd44 (deferrals) · 0e5e35d (tests 2 and 4, trial rows) · the UAT complete-session commit · f36831b (SECURITY.md) · d33d81d (test 1 note). Every staged change passed `check-public-diff.sh` before it was committed.

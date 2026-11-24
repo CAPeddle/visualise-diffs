@@ -21,8 +21,8 @@ actuals:
   tokens: 14609
   tasks: 3
   commits: 4
-plan_head_before: cbee9c47f5d6f86a9ab1da36e2ee000ceb732497
-plan_head_after: 796af2e0cd74efa6b55f0f7be1e38d7e76edd10d
+plan_head_before: c5263a853c9e266f816ff69a2078197daeabbc04
+plan_head_after: ed8fd3e56b5e8f2e5a7606558643761b031fe1e5
 
 tech-stack:
   added: []
@@ -155,10 +155,10 @@ status: complete
 
 ## Task Commits
 
-1. **Task 1 (tracer): small-cpp fixture, guard change in the same commit, golden self-checks and the committed-fixture run** - `5ef4e60` (feat)
-2. **Task 2: fixtures README, lint rows, real Mermaid parse of goldens, rename fixture** - `294ca51` (feat)
-3. **Task 3: extract-class fixture** - `d3177aa` (feat)
-4. **Follow-up: README states that every output starts pending (a bullet the plan's conventions list has and the first README copy dropped)** - `796af2e` (docs)
+1. **Task 1 (tracer): small-cpp fixture, guard change in the same commit, golden self-checks and the committed-fixture run** - `743ee50` (feat)
+2. **Task 2: fixtures README, lint rows, real Mermaid parse of goldens, rename fixture** - `030704e` (feat)
+3. **Task 3: extract-class fixture** - `52f362a` (feat)
+4. **Follow-up: README states that every output starts pending (a bullet the plan's conventions list has and the first README copy dropped)** - `ed8fd3e` (docs)
 
 **Plan metadata:** recorded in the final docs commit that carries this file.
 
@@ -195,7 +195,7 @@ For every member both sides model, the tool's current output agrees with the gol
 - **Fix:** added the bullet in a separate docs commit.
 - **Files modified:** `tests/fixtures/README.md`
 - **Verification:** `FixtureGoldenTests` and `RepoHygieneTests` re-run, 60 passed
-- **Committed in:** `796af2e`
+- **Committed in:** `ed8fd3e`
 
 **2. [Plan step already satisfied] `GeneratedFileNames` already aliased `OutputWriter.FileNames`**
 - **Found during:** Task 1 (read of RepoHygieneTests)
@@ -244,7 +244,7 @@ None - no external service configuration required.
 ## Self-Check: PASSED
 
 - All 27 plan files exist on disk (23 created, 4 modified); every listed fixture file, `FixtureGoldenTests.cs` and `CommittedFixtureTests.cs` are present and tracked.
-- Commits `5ef4e60`, `294ca51`, `d3177aa`, `796af2e` are ancestors of HEAD; `git rev-list --count` from the recorded base gives 4.
+- Commits `743ee50`, `030704e`, `52f362a`, `ed8fd3e` are ancestors of HEAD; `git rev-list --count` from the recorded base gives 4.
 
 ---
 *Phase: 02-model-contract-and-fixture-harness*

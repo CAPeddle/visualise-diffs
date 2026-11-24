@@ -9,7 +9,7 @@ resume_focus: "Run the final planner revision (B1 D-16 wording, W2 quick filters
 repository: "CAPeddle/visualise-diffs"
 repo_root_sha: "6797a240f02da158200194d0ab74aba326223672"
 branch: "ccr-c12d6a45-a0eke4"
-head: "e782ae5"
+head: "783cd53"
 ---
 
 # Phase 02 plan-phase: second shutdown interruption
@@ -18,7 +18,7 @@ Supersedes `docs/handoffs/2026-11-20-phase-02-plan-phase-interrupted.md` (the fi
 
 ## Where things stand (all committed, nothing pushed)
 
-- `e782ae5`: twelve plans `02-01`..`02-12` in eight waves under
+- `783cd53`: twelve plans `02-01`..`02-12` in eight waves under
   `.planning/phases/02-model-contract-and-fixture-harness/`, plus edits to `02-RESEARCH.md`
   (Open Questions marked RESOLVED; Q5 deferred to Phase 6), `02-VALIDATION.md` (per-task table),
   `02-CONTEXT.md` (D-16 clarification) and `.planning/ROADMAP.md` (Phase 2 plan list).
@@ -75,7 +75,7 @@ mtimes confirm that no plan changed after the CONTEXT edit. So B1 and W2 still n
    §13b `state.planned-phase`, §13c `roadmap.annotate-dependencies`, §13d commit,
    §13e plan:post dispatch, §14 final status with Next Up.
 
-Run `check-public-diff.sh --cached` before every commit; it was clean at `e782ae5`.
+Run `check-public-diff.sh --cached` before every commit; it was clean at `783cd53`.
 
 ## Machine-local inputs (Local\Temp, lost on reboot, all regenerable)
 

@@ -19,8 +19,8 @@ actuals:
   tokens: 4300
   tasks: 3
   commits: 4
-plan_head_before: d95059ebcc406c81ad82417c974e1222c04d7319
-plan_head_after: cc1f1db5340ba4c469fdb8b6d5b7f818c6ec3f76
+plan_head_before: 0fa93d74e5c163d2799eee094be5b118602f9322
+plan_head_after: af8ff73cafacfe3dc092d4845e0ffbf9b6e4e388
 
 tech-stack:
   added: []
@@ -56,15 +56,15 @@ status: complete
 
 ## Accomplishments
 
-- Task 1 (tracer, `ed5bf92`): `CanonicalSerialisationTests` with 29 tests. A seeded Fisher-Yates shuffle runs over every list in `ContractSamples.FullModel()`, `FullDiff()` and `FullMeta()` for seeds 1 to 25 and compares the `OutputWriter.Serialize` bytes with the unshuffled record. The guard fact `The_25_seeds_permute_every_reachable_list` runs its own seeds into a local set and passes when run alone. Builder order, differ order and the content tie-break (two types, two members, two diff types equal on every canonical key) are separate facts. Non-vacuity was checked by breaking the `Edges` sort: 13 tests failed, then the change was reverted.
+- Task 1 (tracer, `cf065b2`): `CanonicalSerialisationTests` with 29 tests. A seeded Fisher-Yates shuffle runs over every list in `ContractSamples.FullModel()`, `FullDiff()` and `FullMeta()` for seeds 1 to 25 and compares the `OutputWriter.Serialize` bytes with the unshuffled record. The guard fact `The_25_seeds_permute_every_reachable_list` runs its own seeds into a local set and passes when run alone. Builder order, differ order and the content tie-break (two types, two members, two diff types equal on every canonical key) are separate facts. Non-vacuity was checked by breaking the `Edges` sort: 13 tests failed, then the change was reverted.
 - Task 2 (checkpoint, answered): the owner reviewed the three schema files and the README and answered "freeze" on 2026-11-21, with README wording fixes. Recorded under `## Schema freeze`.
-- Task 3 (`cc1f1db`): README status flipped to `Status: frozen on 2026-11-21 after review (plan 02-06).` and `SchemaFreezeTests` added (5 tests: three hash pins, the file-set guard, the README status check).
+- Task 3 (`af8ff73`): README status flipped to `Status: frozen on 2026-11-21 after review (plan 02-06).` and `SchemaFreezeTests` added (5 tests: three hash pins, the file-set guard, the README status check).
 
 ## Schema freeze
 
 schema-freeze: approved 2026-11-21
 
-readme-fix: `docs/schema/README.md` "Presence rules" now says `renamed_from`, `rename` and a member's `renamed_from_key` are present exactly for state `renamed` and absent otherwise (commit `cc64d8e`), as `DiffPresence` enforces in both directions; it said "only for" before.
+readme-fix: `docs/schema/README.md` "Presence rules" now says `renamed_from`, `rename` and a member's `renamed_from_key` are present exactly for state `renamed` and absent otherwise (commit `291788b`), as `DiffPresence` enforces in both directions; it said "only for" before.
 
 The README edit changed wording only: no schema file, Identity rule, evolution-policy sentence or rule meaning changed, so it is not a `revision`. I checked every other presence rule in the README against `DiffPresence` and `ModelPresence` (type files, member before and after fields, package versions, via, edge rules, counts, unchanged-never-listed, the five ModelPresence rules) and found no other understated rule. `base_file` and `head_file` are stated as "present when the side exists" and the checker enforces exactly that, not absence on the other side.
 
@@ -103,5 +103,5 @@ None. This plan adds tests and a status line only.
 ## Self-Check: PASSED
 
 - `tests/Vdiff.Tests/Contract/CanonicalSerialisationTests.cs`, `tests/Vdiff.Tests/Contract/SchemaFreezeTests.cs`: present.
-- Commits `ed5bf92`, `a8ab22b`, `cc64d8e`, `cc1f1db` are ancestors of HEAD.
+- Commits `cf065b2`, `c131be1`, `291788b`, `af8ff73` are ancestors of HEAD.
 - Exactly one line starting `schema-freeze: approved` in this file.

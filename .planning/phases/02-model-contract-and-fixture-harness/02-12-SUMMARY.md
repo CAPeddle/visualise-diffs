@@ -20,8 +20,8 @@ actuals:
   tokens: 15053
   tasks: 2
   commits: 4
-plan_head_before: 3ecb14f76ec708e3f21dfbf568209797d69403b5
-plan_head_after: 270c61b7757c2726d3fe6885aefb57c0f5e33891
+plan_head_before: 2d0feae4022309ded3b4eee28ba99e80fa59b687
+plan_head_after: e0542205801d98cf77a3f1b4ec66ccc2f33c400b
 
 tech-stack:
   added: []
@@ -145,10 +145,10 @@ status: complete
 
 ## Task Commits
 
-1. **Task 1 RED: failing tests for the language-keyed diff, member modifiers and ordinal warnings** - `a28f04e` (test)
-2. **Task 1 GREEN: v1 diff records and a differ keyed by language and id** - `a704050` (feat)
-3. **Task 2 RED: failing tests for canonical diff order, edge identity and writer order** - `7592a37` (test)
-4. **Task 2 GREEN: canonical diff order, edge identity and a writer on the shared order** - `270c61b` (feat)
+1. **Task 1 RED: failing tests for the language-keyed diff, member modifiers and ordinal warnings** - `596dde2` (test)
+2. **Task 1 GREEN: v1 diff records and a differ keyed by language and id** - `141a823` (feat)
+3. **Task 2 RED: failing tests for canonical diff order, edge identity and writer order** - `e1e4490` (test)
+4. **Task 2 GREEN: canonical diff order, edge identity and a writer on the shared order** - `e054220` (feat)
 
 **Plan metadata:** committed separately as `docs(02-12): complete v1 diff plan`.
 
@@ -162,17 +162,17 @@ status: complete
 
 ## TDD Gate Compliance
 
-- **Task 1 RED** (`a28f04e`): three facts on the existing API so the assembly compiled. Run: `Failed: 3, Passed: 26, Total: 29`. Cross-language: `Assert.Equal` Expected 1, Actual 0 listed types. Modifiers-only: the type was unchanged, so `Assert.Single` failed. Warnings: `base: ... with parse errors` came before `base: ... not modelled`. Semantic assessment: each target ran and failed on the planned behaviour, not on compile, discovery or setup.
-- **Task 1 GREEN** (`a704050`): records, differ, `Canonical` type order by language, the eight classes' constructor updates and four new facts (presence, D-20 guard, D-20 member-modified, packages and edges). Eight edited classes: `Passed: 136, Failed: 0`.
-- **Task 2 RED** (`7592a37`): six facts plus a placeholder `Canonical.EdgeIdentity = Edges`. Run: `Failed: 4, Passed: 2, Total: 6`. The four failures were assertions: `EdgeIdentity` compare gave -25 and 1 instead of 0, the Mermaid output listed `removed` before `added`, and the reversed diff serialised differently. The other two (separation and canonical-files) passed at once, which the plan predicted because 02-11 and 02-03 had already removed the commit ids.
-- **Task 2 GREEN** (`270c61b`): real `EdgeIdentity`, diff canonicalisation, differ and writer changes. Nine classes: `Passed: 146, Failed: 0`.
+- **Task 1 RED** (`596dde2`): three facts on the existing API so the assembly compiled. Run: `Failed: 3, Passed: 26, Total: 29`. Cross-language: `Assert.Equal` Expected 1, Actual 0 listed types. Modifiers-only: the type was unchanged, so `Assert.Single` failed. Warnings: `base: ... with parse errors` came before `base: ... not modelled`. Semantic assessment: each target ran and failed on the planned behaviour, not on compile, discovery or setup.
+- **Task 1 GREEN** (`141a823`): records, differ, `Canonical` type order by language, the eight classes' constructor updates and four new facts (presence, D-20 guard, D-20 member-modified, packages and edges). Eight edited classes: `Passed: 136, Failed: 0`.
+- **Task 2 RED** (`e1e4490`): six facts plus a placeholder `Canonical.EdgeIdentity = Edges`. Run: `Failed: 4, Passed: 2, Total: 6`. The four failures were assertions: `EdgeIdentity` compare gave -25 and 1 instead of 0, the Mermaid output listed `removed` before `added`, and the reversed diff serialised differently. The other two (separation and canonical-files) passed at once, which the plan predicted because 02-11 and 02-03 had already removed the commit ids.
+- **Task 2 GREEN** (`e054220`): real `EdgeIdentity`, diff canonicalisation, differ and writer changes. Nine classes: `Passed: 146, Failed: 0`.
 - **REFACTOR:** none.
 - `workflow.tdd_mode` is not enabled and the plan is `type: execute`, so `gsd_run check tdd-red-evidence` was not run and no evidence file was written.
 - The D-20 facts, the presence rules, the packages/edges fact and the TracerEndToEnd schema assertions landed with GREEN because they need the v1 records to compile. The two D-20 facts are guards (they pass against the old differ too), not RED evidence.
 
 ## Verification
 
-- Full suite `dotnet test tests/Vdiff.Tests/Vdiff.Tests.csproj --filter "Category!=MermaidCli"` on `270c61b`: `Passed: 648, Failed: 0, Total: 648` (14 m 24 s). 02-03 ended at 635 (634 plus the fact added in `06e50ac`); this plan added 13 facts. The `TraceRunScriptTests` flake did not recur.
+- Full suite `dotnet test tests/Vdiff.Tests/Vdiff.Tests.csproj --filter "Category!=MermaidCli"` on `e054220`: `Passed: 648, Failed: 0, Total: 648` (14 m 24 s). 02-03 ended at 635 (634 plus the fact added in `02d9a2c`); this plan added 13 facts. The `TraceRunScriptTests` flake did not recur.
 - `cargo test --locked --manifest-path extractors/cpp-ts/Cargo.toml`: 105 passed, 0 failed (no Rust change).
 - The D-23 fact and the separation fact each pass alone (`Passed: 1`).
 - `grep -rn "v0-tracer" src tests --include=*.cs`: nothing. Task acceptance greps: `vdiff-diff/v1` 1, the three records 3, `BodyChanged` 1, `ToBefore` 1, `ToAfter` 1, `string? AccessBefore` declarations 1, separation fact 1, `BaseResolver.Strip` 1, `Canonical.` in the differ 7, `static int CompareTypes` in the differ 0, `EdgeIdentity` in `Canonical.cs` 5, D-23 fact 1.
@@ -193,13 +193,13 @@ status: complete
 - **Issue:** the plan's behaviours cover the edge identity and the writer, but nothing proved that `Canonicalise(DiffFile)` orders every v1 collection (packages, edges, warnings, modifiers) beyond the differ's own output, and the plan lists no such test although T-02-37 depends on it.
 - **Fix:** added `Canonicalising_a_reverse_ordered_diff_gives_the_bytes_of_the_forward_ordered_one_and_orders_each_collection` on a hand-built diff in both orders.
 - **Files modified:** tests/Vdiff.Tests/Diff/ModelDifferTests.cs
-- **Committed in:** `7592a37` (RED), `270c61b` (GREEN)
+- **Committed in:** `e1e4490` (RED), `e054220` (GREEN)
 
 **2. [Rule 3 - Consistency] Task 1 RED and Task 2 RED made to fail at run time**
 - **Found during:** Tasks 1 and 2
 - **Issue:** tdd.md rejects a build failure as RED. Task 1's tests would not compile against the new records, and task 2's D-23 facts need `EdgeIdentity`.
 - **Fix:** Task 1's RED tests use only the existing API (the cross-language check reads the serialised JSON); Task 2's RED carries a placeholder `EdgeIdentity` equal to `Edges`, replaced in GREEN.
-- **Committed in:** `a28f04e`, `7592a37`
+- **Committed in:** `596dde2`, `e1e4490`
 
 ---
 
@@ -229,9 +229,9 @@ None. T-02-02 (separation test plus the canonical-files fact), T-02-08 (cross-la
 
 ## Self-Check: PASSED
 
-- Commits `a28f04e`, `a704050`, `7592a37`, `270c61b` are ancestors of HEAD; `git rev-list --count` from the recorded base `3ecb14f` gives 4.
+- Commits `596dde2`, `141a823`, `e1e4490`, `e054220` are ancestors of HEAD; `git rev-list --count` from the recorded base `2d0feae` gives 4.
 - No file was created by this plan; every modified file exists and holds LF only.
-- Acceptance greps and the plan's verification (full suite 648 of 648, cargo 105 of 105, no `v0-tracer` in source or tests) were re-run on `270c61b`.
+- Acceptance greps and the plan's verification (full suite 648 of 648, cargo 105 of 105, no `v0-tracer` in source or tests) were re-run on `e054220`.
 
 ---
 *Phase: 02-model-contract-and-fixture-harness*

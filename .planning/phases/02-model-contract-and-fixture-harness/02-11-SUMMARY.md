@@ -19,8 +19,8 @@ actuals:
   tokens: 5700
   tasks: 2
   commits: 3
-plan_head_before: bb0a1aff6b3b8e96d979ebcec2a606b8d9244c85
-plan_head_after: ec707b3b37bc132c679d7173c813bac84d15c522
+plan_head_before: 278035e30f1f87153dfee42d0254492ba3cbaccd
+plan_head_after: 68e4695df074cf8f42019dedb9e96871022aa89b
 
 tech-stack:
   added: []
@@ -117,16 +117,16 @@ status: complete
 
 ## Task Commits
 
-1. **Task 1 (tracer): run.meta.json written by every run** - `253d98a` (feat)
-2. **Task 2 RED: failing test for report.html reading RunMeta** - `260e9d5` (test)
-3. **Task 2 GREEN: report.html reads RunMeta, diff drops commit ids** - `ec707b3` (feat)
+1. **Task 1 (tracer): run.meta.json written by every run** - `5b0167a` (feat)
+2. **Task 2 RED: failing test for report.html reading RunMeta** - `8fbbe67` (test)
+3. **Task 2 GREEN: report.html reads RunMeta, diff drops commit ids** - `68e4695` (feat)
 
 **Plan metadata:** committed separately as `docs(02-11): complete run.meta.json plan`.
 
 ## TDD Gate Compliance (task 2)
 
-- **RED** (`260e9d5`, `test(02-11)`): two new `HtmlWriterTests` cases plus a placeholder `Render(diff, mermaid, meta)` overload that ignores `meta`. Run: `Failed: 2, Passed: 11, Total: 13`. Both target tests failed on their assertions (`Assert.Contains` on the meta-supplied commit text, `Assert.NotEqual` on two pages), not on a build error and not at zero-test discovery. Semantic assessment: the target tests ran and failed for the planned reason (the page still read the diff). `workflow.tdd_mode` is not enabled and the plan is `type: execute`, so `gsd_run check tdd-red-evidence` was not run and no evidence file was written.
-- **GREEN** (`ec707b3`, `feat(02-11)`): the real overload, `DiffFile` without commits, `ModelDiffer` and test helpers updated; 72 of 72 in the four classes, then the full suite.
+- **RED** (`8fbbe67`, `test(02-11)`): two new `HtmlWriterTests` cases plus a placeholder `Render(diff, mermaid, meta)` overload that ignores `meta`. Run: `Failed: 2, Passed: 11, Total: 13`. Both target tests failed on their assertions (`Assert.Contains` on the meta-supplied commit text, `Assert.NotEqual` on two pages), not on a build error and not at zero-test discovery. Semantic assessment: the target tests ran and failed for the planned reason (the page still read the diff). `workflow.tdd_mode` is not enabled and the plan is `type: execute`, so `gsd_run check tdd-red-evidence` was not run and no evidence file was written.
+- **GREEN** (`68e4695`, `feat(02-11)`): the real overload, `DiffFile` without commits, `ModelDiffer` and test helpers updated; 72 of 72 in the four classes, then the full suite.
 - **REFACTOR:** none needed.
 
 ## Tracer gate
@@ -157,14 +157,14 @@ Task 1 is `type="tracer"`. Its `<verify>` is automated-only and `human_verify_mo
 - **Fix:** `GeneratedFileNames` is now `OutputWriter.FileNames` (one `using` added), so `run.meta.json` is flagged and the list cannot drift again. Plan 02-08's later hygiene change (accept `diff.json` and `summary.mmd` only under `tests/fixtures/<shape>/expected/`, still flag `run.meta.json`) works unchanged on top of this.
 - **Files modified:** tests/Vdiff.Tests/Safety/RepoHygieneTests.cs
 - **Verification:** `RepoHygieneTests` passed in the Task 1 filtered run and the full suite.
-- **Committed in:** `253d98a`
+- **Committed in:** `5b0167a`
 
 **2. [Rule 3 - Consistency] Existing CLI test renamed**
 - **Found during:** Task 1
 - **Issue:** `Cli_run_on_fixture_A_writes_the_five_files_...` would be false with six files. Its only references outside the file are two historical `ref:` strings in the 01-03 SUMMARY, which are records and were left alone.
 - **Fix:** renamed to `Cli_run_on_fixture_A_writes_every_output_file_and_leaves_the_repository_untouched`; Test 1's run.meta.json assertions were added inside it.
 - **Files modified:** tests/Vdiff.Tests/TracerEndToEndTests.cs
-- **Committed in:** `253d98a`
+- **Committed in:** `5b0167a`
 
 ---
 
@@ -192,7 +192,7 @@ None. `run.meta.json` is the threat model's T-02-01 surface and is covered: the 
 ## Self-Check: PASSED
 
 - `src/Vdiff.Core/Model/RunMeta.cs` exists.
-- Commits `253d98a`, `260e9d5`, `ec707b3` are on the branch; `git rev-list --count` from the recorded base gives 3.
+- Commits `5b0167a`, `8fbbe67`, `68e4695` are on the branch; `git rev-list --count` from the recorded base gives 3.
 - Plan verification run (full suite 625 of 625, cargo 105 of 105, no tracked bin/obj).
 
 ---

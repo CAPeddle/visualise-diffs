@@ -14,8 +14,8 @@ provides:
   - "HtmlWriterTests and DeterminismTests proving a self-contained, encoded page and byte-identical, path-free output"
 affects: [01-09, 01-10]
 
-plan_head_before: 0d1d68d87ce5341cc7a680493f7e9c2b45e14a9a
-plan_head_after: 22020c456b577a59f96061d7e2276f76f3060efb
+plan_head_before: b34944c18c7c993325430587ca63f855265e15b8
+plan_head_after: f03853c4ef51c37f018addf7cd0ea4fe1fe4a0c4
 
 actuals:
   tokens: 40000
@@ -113,17 +113,17 @@ The lint and tests prove structure only: balanced braces, one `:::state` per cla
 
 ## Task Commits
 
-1. **Task 1 RED** - `e3e43df` (test): failing Mermaid writer tests and structural lint
-2. **Task 1 GREEN** - `9df11f3` (feat): Mermaid writer hardening
-3. **Task 2 RED** - `b903331` (test): HTML report and deterministic output tests
-4. **Task 2 WIP** - `99b5d31` (wip): the HtmlWriter edit, committed by the orchestrator when the first executor was interrupted, untested at that point
-5. **Task 2 GREEN** - `22020c4` (feat, empty): marks the GREEN gate after the continuation executor ran the tests against `99b5d31`
+1. **Task 1 RED** - `2813e05` (test): failing Mermaid writer tests and structural lint
+2. **Task 1 GREEN** - `bc34b29` (feat): Mermaid writer hardening
+3. **Task 2 RED** - `0c4cfaf` (test): HTML report and deterministic output tests
+4. **Task 2 WIP** - `592629e` (wip): the HtmlWriter edit, committed by the orchestrator when the first executor was interrupted, untested at that point
+5. **Task 2 GREEN** - `f03853c` (feat, empty): marks the GREEN gate after the continuation executor ran the tests against `592629e`
 
 **Plan metadata:** see the docs commit that follows this SUMMARY.
 
 ## TDD Gate Compliance
 
-RED then GREEN commits exist for both tasks (`test(01-08)` before `feat(01-08)`). Task 2's RED evidence was not re-measured by the continuation executor: the `A_member_whose_signature_did_not_change_is_not_shown_as_an_arrow_from_itself` test is the one the wip edit targets (plan 01-03's summary recorded the self-arrow), and the remaining HTML and determinism tests are expected to have passed against the existing writers. The pre-change failure was not re-run, to avoid rewriting or reverting history. The Task 2 GREEN commit is empty by design: the fix lives in `99b5d31` and history was not rewritten.
+RED then GREEN commits exist for both tasks (`test(01-08)` before `feat(01-08)`). Task 2's RED evidence was not re-measured by the continuation executor: the `A_member_whose_signature_did_not_change_is_not_shown_as_an_arrow_from_itself` test is the one the wip edit targets (plan 01-03's summary recorded the self-arrow), and the remaining HTML and determinism tests are expected to have passed against the existing writers. The pre-change failure was not re-run, to avoid rewriting or reverting history. The Task 2 GREEN commit is empty by design: the fix lives in `592629e` and history was not rewritten.
 
 ## Deviations from Plan
 
@@ -131,9 +131,9 @@ RED then GREEN commits exist for both tasks (`test(01-08)` before `feat(01-08)`)
 
 **1. [Process] Interruption and WIP commit**
 - **Found during:** Task 2 GREEN
-- **Issue:** a machine shutdown stopped the first executor after it edited `HtmlWriter.cs` but before it ran the tests. The orchestrator preserved the edit as `99b5d31` (`wip(01-08)`).
-- **Resolution:** the continuation executor reviewed the 5-line change, judged it correct and minimal (an access-only change keeps both signatures, so showing them once avoids a self-arrow), ran the Task 1 and Task 2 filtered tests and both full suites, and kept the change. `22020c4` is an empty `feat(01-08)` commit recording the verified GREEN. The WIP commit and the empty commit stay in history.
-- **Commit count:** 5 commits from `plan_head_before` 0d1d68d, measured with `git rev-list --count`.
+- **Issue:** a machine shutdown stopped the first executor after it edited `HtmlWriter.cs` but before it ran the tests. The orchestrator preserved the edit as `592629e` (`wip(01-08)`).
+- **Resolution:** the continuation executor reviewed the 5-line change, judged it correct and minimal (an access-only change keeps both signatures, so showing them once avoids a self-arrow), ran the Task 1 and Task 2 filtered tests and both full suites, and kept the change. `f03853c` is an empty `feat(01-08)` commit recording the verified GREEN. The WIP commit and the empty commit stay in history.
+- **Commit count:** 5 commits from `plan_head_before` b34944c, measured with `git rev-list --count`.
 
 ### Auto-fixed Issues
 
@@ -152,5 +152,5 @@ None. T-01-18 (no local identity in outputs) and T-01-20 (Mermaid structure inje
 ## Self-Check: PASSED
 
 - Files exist: MermaidLint.cs, MermaidWriterTests.cs, HtmlWriterTests.cs, DeterminismTests.cs, MermaidWriter.cs, HtmlWriter.cs.
-- Commits e3e43df, 9df11f3, b903331, 99b5d31, 22020c4 are ancestors of HEAD.
+- Commits 2813e05, bc34b29, 0c4cfaf, 592629e, f03853c are ancestors of HEAD.
 - Both full suites pass (401 and 105).

@@ -20,8 +20,8 @@ actuals:
   tokens: 25873
   tasks: 3
   commits: 5
-plan_head_before: 900ad9fc763089642e91f818da4c1fa0c6a13e23
-plan_head_after: 231fb1fb1a84a3521100ba8e9a3b14582aabc5e2
+plan_head_before: d89b5f474334fec911beb4c7003bcb742d141e71
+plan_head_after: 3e2f22e2d88de486e5ebf3a9aefc234e8fa5dae6
 
 tech-stack:
   added: []
@@ -143,11 +143,11 @@ status: complete
 
 ## Task Commits
 
-1. **Task 1 (tracer): three schema files, schema helper, tracer output validated** - `ec10743` (feat)
-2. **Task 2 RED: failing tests for diff presence, parity and keyword negatives** - `be9902c` (test)
-3. **Task 2 GREEN: DiffPresence rules** - `0463533` (feat)
-4. **Task 3 RED: failing tests for model presence and the tracer models** - `066fb28` (test)
-5. **Task 3 GREEN: ModelPresence rules** - `231fb1f` (feat)
+1. **Task 1 (tracer): three schema files, schema helper, tracer output validated** - `6cd5b31` (feat)
+2. **Task 2 RED: failing tests for diff presence, parity and keyword negatives** - `efb7dda` (test)
+3. **Task 2 GREEN: DiffPresence rules** - `9da01d3` (feat)
+4. **Task 3 RED: failing tests for model presence and the tracer models** - `5719b49` (test)
+5. **Task 3 GREEN: ModelPresence rules** - `3e2f22e` (feat)
 
 **Plan metadata:** committed separately as `docs(02-05): complete v1 schema files plan` and `docs(02-05): update state and roadmap`.
 
@@ -161,18 +161,18 @@ status: complete
 | ModelPresenceTests | at least 10 | 10 |
 | The four classes together | at least 52 (task 2 gate floor 49) | 63 |
 
-- The task 2 gate run (`SchemaParityTests|SchemaValidationTests|DiffPresenceTests`) printed `Passed: 52` at `0463533`: 23 + 4 + 25, exactly the plan's count. Task 3 then added `Tracer_models_keep_the_model_presence_rules` to `SchemaValidationTests`, which makes 24. There is no per-class shortfall.
+- The task 2 gate run (`SchemaParityTests|SchemaValidationTests|DiffPresenceTests`) printed `Passed: 52` at `9da01d3`: 23 + 4 + 25, exactly the plan's count. Task 3 then added `Tracer_models_keep_the_model_presence_rules` to `SchemaValidationTests`, which makes 24. There is no per-class shortfall.
 - `--filter "Category=Contract"` prints `Passed: 81`, not 63: the trait is also on `PipelineYamlTests` (18, plan 02-02). 63 + 18 = 81.
-- Full suite `--filter "Category!=MermaidCli"` at `231fb1f`: `Passed: 711, Failed: 0, Total: 711` (15 m 34 s). 648 after 02-12 plus these 63. The `TraceRunScriptTests` flake did not recur.
+- Full suite `--filter "Category!=MermaidCli"` at `3e2f22e`: `Passed: 711, Failed: 0, Total: 711` (15 m 34 s). 648 after 02-12 plus these 63. The `TraceRunScriptTests` flake did not recur.
 
 ## TDD Gate Compliance
 
 `workflow.tdd_mode` is not enabled and the plan is `type: execute`, so `gsd_run check tdd-red-evidence` was not run and no evidence file was written.
 
-- **Task 2 RED** (`be9902c`): `ContractSamples`, the parity and keyword tests and 25 `DiffPresence` tests against a stub `Problems` that returns an empty list. Run: `Failed: 23, Passed: 29, Total: 52`. All 23 failures are the sole-problem rows, each `Assert.Single() Failure: The collection was empty`. Semantic assessment: every target ran and failed on the planned assertion (the checker reports nothing), not on compile, discovery or setup. The 29 that passed are the 23 `SchemaValidationTests`, 4 `SchemaParityTests` and the two clean-sample `DiffPresenceTests` facts. The schema facts passed at once because task 1 had already written the schemas, and the two clean checks passed vacuously against the stub; neither is RED evidence.
-- **Task 2 GREEN** (`0463533`): `DiffPresence`. `Passed: 52, Failed: 0`.
-- **Task 3 RED** (`066fb28`): `ModelPresenceTests` (2 clean checks, 8 rows) and the tracer fact against a stub. Run: `Failed: 8, Passed: 3, Total: 11`. All 8 failures are `Assert.Single() Failure: The collection was empty`. Semantic assessment: same as above. The two clean checks and `Tracer_models_keep_the_model_presence_rules` passed vacuously against the stub, so the tracer fact only became a real check at GREEN.
-- **Task 3 GREEN** (`231fb1f`): `ModelPresence`. `ModelPresenceTests` `Passed: 10`, the tracer fact alone `Passed: 1`.
+- **Task 2 RED** (`efb7dda`): `ContractSamples`, the parity and keyword tests and 25 `DiffPresence` tests against a stub `Problems` that returns an empty list. Run: `Failed: 23, Passed: 29, Total: 52`. All 23 failures are the sole-problem rows, each `Assert.Single() Failure: The collection was empty`. Semantic assessment: every target ran and failed on the planned assertion (the checker reports nothing), not on compile, discovery or setup. The 29 that passed are the 23 `SchemaValidationTests`, 4 `SchemaParityTests` and the two clean-sample `DiffPresenceTests` facts. The schema facts passed at once because task 1 had already written the schemas, and the two clean checks passed vacuously against the stub; neither is RED evidence.
+- **Task 2 GREEN** (`9da01d3`): `DiffPresence`. `Passed: 52, Failed: 0`.
+- **Task 3 RED** (`5719b49`): `ModelPresenceTests` (2 clean checks, 8 rows) and the tracer fact against a stub. Run: `Failed: 8, Passed: 3, Total: 11`. All 8 failures are `Assert.Single() Failure: The collection was empty`. Semantic assessment: same as above. The two clean checks and `Tracer_models_keep_the_model_presence_rules` passed vacuously against the stub, so the tracer fact only became a real check at GREEN.
+- **Task 3 GREEN** (`3e2f22e`): `ModelPresence`. `ModelPresenceTests` `Passed: 10`, the tracer fact alone `Passed: 1`.
 - **REFACTOR:** none.
 
 ## Tracer gate
@@ -218,7 +218,7 @@ See `key-decisions`. In addition: `SchemaSupport.ReadText` was added (not in the
 - **Issue:** `grep -c "ToBefore" ContractSamples.cs` returned 0 because the modified edge was built with positional arguments.
 - **Fix:** the modified edge now sets `To`, `ToBefore`, `ToAfter`, `ToName`, `Via` and `State` by name.
 - **Files modified:** tests/Vdiff.Tests/Contract/ContractSamples.cs
-- **Committed in:** `066fb28` (Task 3 RED), after Task 2's GREEN `0463533`. The file is in task 2's list, not task 3's.
+- **Committed in:** `5719b49` (Task 3 RED), after Task 2's GREEN `9da01d3`. The file is in task 2's list, not task 3's.
 
 **2. [Rule 2 - Missing coverage] `SchemaValidationTests` reaches 24, not 23**
 - **Found during:** Task 3
@@ -256,7 +256,7 @@ None. T-02-13 (allow-list, one rejecting row per keyword, coverage guard), T-02-
 ## Self-Check: PASSED
 
 - All 12 created files exist and hold LF only (CR count 0).
-- Commits `ec10743`, `be9902c`, `0463533`, `066fb28`, `231fb1f` are ancestors of HEAD; `git rev-list --count` from the recorded base `900ad9f` gives 5.
+- Commits `6cd5b31`, `efb7dda`, `9da01d3`, `5719b49`, `3e2f22e` are ancestors of HEAD; `git rev-list --count` from the recorded base `d89b5f4` gives 5.
 - Acceptance greps for all three tasks were re-run on the final files (diff schema closed objects 15, model 10, `access_before` 1, `to_before` 1, `to_after` 1, `^## Identity` 1, `#<path>` 3, `ToBefore` in the samples at the final state, `Canonical.Canonicalise` in `ModelPresenceTests` 1). The plan verification ran: full suite 711 of 711, `git ls-files docs/schema` lists the three schemas and the README.
 
 ---

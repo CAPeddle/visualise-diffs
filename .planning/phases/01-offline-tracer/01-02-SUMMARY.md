@@ -109,8 +109,8 @@ coverage:
 duration: "approx. 25 min (start time not recorded; estimated from commit timestamps)"
 completed: 2026-11-16
 status: complete
-plan_head_before: 58e8463f3a35fd8d1cf6d261b2409566ba4dd454
-plan_head_after: 0a38e227239c00861bf35ae10b56c366efb215b6
+plan_head_before: df400451e74d6c46cbe5a60af376eb2c66d8dd8a
+plan_head_after: 2f1420c8b8b012ba82aa75d9a2a53455567b1031
 ---
 
 # Phase 1 Plan 02: .NET core read path Summary
@@ -134,9 +134,9 @@ plan_head_after: 0a38e227239c00861bf35ae10b56c366efb215b6
 
 ## Task Commits
 
-1. **Task 1: Solution scaffold, bounded process runner, synthetic test support** - RED `f699734` (test), GREEN `636fe1b` (feat)
-2. **Task 2: Read-only git object reader and scope filter** - RED `0412619` (test), GREEN `c44276f` (feat)
-3. **Task 3: Sidecar client** - RED `2d62406` (test), GREEN `2947c36` (feat), follow-up `0a38e22` (fix)
+1. **Task 1: Solution scaffold, bounded process runner, synthetic test support** - RED `3e915cc` (test), GREEN `d8da8b1` (feat)
+2. **Task 2: Read-only git object reader and scope filter** - RED `0284a67` (test), GREEN `9919fb2` (feat)
+3. **Task 3: Sidecar client** - RED `2dbc711` (test), GREEN `f9cd4d5` (feat), follow-up `2f1420c` (fix)
 
 **Plan metadata:** the commit that adds this SUMMARY (`docs(01-02)`); it is not counted in `commits: 7` above, which is measured from `plan_head_before` to `plan_head_after`.
 
@@ -171,14 +171,14 @@ Each task has a `test(01-02)` commit followed by a `feat(01-02)` commit. The RED
 - **Issue:** `Git_configuration_comes_only_from_the_sandbox` assumed every `--show-origin` entry is an absolute path under the sandbox; git prints the repository config as `file:.git/config` and flags as `command line:`.
 - **Fix:** accept those two origins and still require every other origin to lie inside the sandbox (a global or system config would be an absolute path outside it).
 - **Files modified:** `tests/Vdiff.Tests/Support/SupportTests.cs`
-- **Committed in:** `636fe1b` (a test edited inside the GREEN commit, not the RED commit)
+- **Committed in:** `d8da8b1` (a test edited inside the GREEN commit, not the RED commit)
 
 **2. [Rule 2 - Missing critical] Empty sidecar output lost the stderr tail; unusable parse budget reached the sidecar**
 - **Found during:** Task 3 review, after the GREEN commit
 - **Issue:** the empty-output path went through `ParseResponse` and dropped the stderr tail the behaviour list requires; a sub-millisecond `ParseBudget` serialised as `parse_budget_ms: 0`, which the sidecar rejects with exit 2.
 - **Fix:** `Extract` checks for empty output and carries the tail; `BuildRequest` refuses a budget outside 1 to 600000 ms. Tests extended.
 - **Files modified:** `src/Vdiff.Core/Extraction/CppSidecar.cs`, `tests/Vdiff.Tests/CppSidecarProtocolTests.cs`
-- **Committed in:** `0a38e22`
+- **Committed in:** `2f1420c`
 
 ### Design choices beyond the plan text (not defects)
 
@@ -210,6 +210,6 @@ Ready for plan 01-03: the reader, scope filter, client and test support are usab
 ## Self-Check: PASSED
 
 - All 14 files listed under `key-files.created` exist on disk.
-- Commits `f699734`, `636fe1b`, `0412619`, `c44276f`, `2d62406`, `2947c36` and `0a38e22` are reachable from HEAD (`git rev-list --count` from the base gives 7).
+- Commits `3e915cc`, `d8da8b1`, `0284a67`, `9919fb2`, `2dbc711`, `f9cd4d5` and `2f1420c` are reachable from HEAD (`git rev-list --count` from the base gives 7).
 - `dotnet test tests/Vdiff.Tests/Vdiff.Tests.csproj --nologo` passes in full (104 passed, 0 failed); `git ls-files` lists no `bin/` or `obj/` path; `grep -c '"rollForward"' global.json` gives 1.
 - `check-public-diff.sh` reported no target names before every commit.

@@ -36,8 +36,8 @@ actuals:
   tasks: 3
   commits: 6
 commits: 6
-plan_head_before: 6b4cbf01e81a04acd6419050d1a73a6a670bb6ee
-plan_head_after: 3d34f6e986623f7d26057d9f4a979ed946394c05
+plan_head_before: b856aab6198a29f462464ebef8a901995301a3d3
+plan_head_after: ba58ca63c566b267a2645e39ea47931a230e1b9a
 completed: 2026-11-17
 ---
 
@@ -45,17 +45,17 @@ completed: 2026-11-17
 
 The CLI now refuses an `--out` in any non-drive Windows namespace, replaces (instead of writing through) a link or hard link planted at an output name, and re-checks containment immediately before the write, closing CR-01, WR-01 and WR-02 of the re-review.
 
-`commits: 6` is the measured count of `6b4cbf0..HEAD`; it includes `f156282`, the handoff doc commit made between the interrupted and the resumed run. The five plan commits are listed below.
+`commits: 6` is the measured count of `b856aab..HEAD`; it includes `47d7b94`, the handoff doc commit made between the interrupted and the resumed run. The five plan commits are listed below.
 
 ## Commits
 
 | Task | Phase | Commit | Message |
 |------|-------|--------|---------|
-| 1 | GREEN (tests and rule in one commit) | ffe6af4 | feat(01-13): refuse an --out in a non-drive Windows namespace |
-| 2 | RED | 6e2fa96 | test(01-13): add failing tests for link replacement at output names |
-| 2 | GREEN | 1a4acbc | feat(01-13): write outputs through a temp name and move, replacing planted links |
-| 3 | RED | b1c7c2c | test(01-13): add failing swap-after-check test and the Run test seam |
-| 3 | GREEN | 3d34f6e | feat(01-13): re-check containment immediately before the write |
+| 1 | GREEN (tests and rule in one commit) | 6fe8d89 | feat(01-13): refuse an --out in a non-drive Windows namespace |
+| 2 | RED | f495d6b | test(01-13): add failing tests for link replacement at output names |
+| 2 | GREEN | ee5a6bc | feat(01-13): write outputs through a temp name and move, replacing planted links |
+| 3 | RED | 2132858 | test(01-13): add failing swap-after-check test and the Run test seam |
+| 3 | GREEN | ba58ca6 | feat(01-13): re-check containment immediately before the write |
 
 ## What was built
 
@@ -65,9 +65,9 @@ The CLI now refuses an `--out` in any non-drive Windows namespace, replaces (ins
 
 ## TDD record (red steps)
 
-- **Task 1.** The earlier (interrupted) executor ran red first and recorded in the commit message: 11 tests failed before the rule, 31 pass after. Tests and rule were committed together in `ffe6af4`, so there is no separate `test(...)` commit for task 1. This is a TDD gate gap (RED observed, not committed separately); flagged here rather than rewritten. At the start of this resumed run, task 1 was re-confirmed green: of the 34 AliasedOutTests plus FinalPathTests, 33 passed and only the task 2 RED test failed.
-- **Task 2.** RED (`6e2fa96`): `A_hard_link_planted_at_every_output_name_is_replaced_and_the_repository_files_are_unchanged` failed because the repository victim file was overwritten (`Expected: "original 1"`, `Actual: "{ "schema": "vdiff-model/v0-tracer", ...`); re-confirmed at the start of this run (1 failed, 33 passed of 34 in AliasedOutTests+FinalPathTests). Semantic assessment: the target test executed and failed on the planned assertion (victim content changed), the intended reason. `A_failed_write_leaves_no_temporary_file_behind` passed before the change (as the plan predicted). `A_file_symbolic_link_planted...` returns early on this host when `File.CreateSymbolicLink` is refused; it was not verified here whether the privilege is held, and it was **not run under WSL**, so it may have asserted nothing on this host. GREEN `1a4acbc`: AliasedOutTests 19 passed; TracerEndToEnd, Determinism, RepoUnchangedMatrix and HtmlWriter 30 passed.
-- **Task 3.** RED (`b1c7c2c`): `An_out_swapped_for_a_link_into_the_repository_after_the_first_check_is_refused_before_the_write` failed with `Expected: 1, Actual: 0` (five files written through the swapped junction; the hook ran, asserted). `A_protected_root_in_a_non_drive_namespace_is_refused_even_when_out_is_a_plain_path` passed (a guard once task 1 landed). Semantic assessment: intended failure. GREEN `3d34f6e`: AliasedOutTests 21 passed.
+- **Task 1.** The earlier (interrupted) executor ran red first and recorded in the commit message: 11 tests failed before the rule, 31 pass after. Tests and rule were committed together in `6fe8d89`, so there is no separate `test(...)` commit for task 1. This is a TDD gate gap (RED observed, not committed separately); flagged here rather than rewritten. At the start of this resumed run, task 1 was re-confirmed green: of the 34 AliasedOutTests plus FinalPathTests, 33 passed and only the task 2 RED test failed.
+- **Task 2.** RED (`f495d6b`): `A_hard_link_planted_at_every_output_name_is_replaced_and_the_repository_files_are_unchanged` failed because the repository victim file was overwritten (`Expected: "original 1"`, `Actual: "{ "schema": "vdiff-model/v0-tracer", ...`); re-confirmed at the start of this run (1 failed, 33 passed of 34 in AliasedOutTests+FinalPathTests). Semantic assessment: the target test executed and failed on the planned assertion (victim content changed), the intended reason. `A_failed_write_leaves_no_temporary_file_behind` passed before the change (as the plan predicted). `A_file_symbolic_link_planted...` returns early on this host when `File.CreateSymbolicLink` is refused; it was not verified here whether the privilege is held, and it was **not run under WSL**, so it may have asserted nothing on this host. GREEN `ee5a6bc`: AliasedOutTests 19 passed; TracerEndToEnd, Determinism, RepoUnchangedMatrix and HtmlWriter 30 passed.
+- **Task 3.** RED (`2132858`): `An_out_swapped_for_a_link_into_the_repository_after_the_first_check_is_refused_before_the_write` failed with `Expected: 1, Actual: 0` (five files written through the swapped junction; the hook ran, asserted). `A_protected_root_in_a_non_drive_namespace_is_refused_even_when_out_is_a_plain_path` passed (a guard once task 1 landed). Semantic assessment: intended failure. GREEN `ba58ca6`: AliasedOutTests 21 passed.
 
 ## Verification
 
@@ -84,7 +84,7 @@ T-01-39 still open after plans 01-13 and 01-14: subst and mapped drive letters, 
 None in behaviour. Process notes:
 
 - Task 1 was committed as one `feat` commit with its tests (earlier executor), not as a separate RED commit; see the TDD record.
-- Task 3's RED commit `b1c7c2c` includes the seam and the csproj item together with the failing test, because the test does not compile without them (the plan's step 2 describes the seam as a no-behaviour-change prerequisite).
+- Task 3's RED commit `2132858` includes the seam and the csproj item together with the failing test, because the test does not compile without them (the plan's step 2 describes the seam as a no-behaviour-change prerequisite).
 - Test counts per task: the plan expected 19 AliasedOutTests after task 2 and 21 after task 3; both observed.
 
 ## Known Stubs
@@ -97,5 +97,5 @@ None beyond the plan's register (T-01-41, T-01-42, T-01-43). Residuals as stated
 
 ## Self-Check: PASSED
 
-- Commits ffe6af4, 6e2fa96, 1a4acbc, b1c7c2c, 3d34f6e are ancestors of HEAD.
+- Commits 6fe8d89, f495d6b, ee5a6bc, 2132858, ba58ca6 are ancestors of HEAD.
 - Files present: src/Vdiff.Core/Cli/FinalPath.cs, CliApp.cs, src/Vdiff.Core/Output/OutputWriter.cs, src/Vdiff.Core/Vdiff.Core.csproj, tests/Vdiff.Tests/Support/PathSpellings.cs, LinkScratch.cs, tests/Vdiff.Tests/Safety/AliasedOutTests.cs, FinalPathTests.cs.

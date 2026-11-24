@@ -106,8 +106,8 @@ coverage:
 
 duration: 45min
 completed: 2026-11-18
-plan_head_before: fd116395d8c0968da802053633372376bb5eb491
-plan_head_after: d831db3e1eb0b4cb02c6f8b838f592159c20ab54
+plan_head_before: 870461e86e7d6d150fe68e9074325c095afd40b3
+plan_head_after: 92b6b0019f2066bfbc87d45064848928cb961a25
 commits: 7
 status: complete
 ---
@@ -136,12 +136,12 @@ status: complete
 ## Task Commits
 
 1. **Task 1 (tracer, TDD): GLOBALROOT junction refused end to end**
-   - RED: `8d6e84a` (test)
-   - GREEN: `e63b794` (feat)
+   - RED: `037c6bb` (test)
+   - GREEN: `7000078` (feat)
 2. **Task 2: every NT-namespace shape and the reported-target rule pinned; WR-02**
-   - `f3e7e0e` (test), `04d798a` (refactor, WR-02)
+   - `a13c99b` (test), `41c7142` (refactor, WR-02)
 3. **Task 3: bound re-worded, handoff removed, validation map**
-   - `39c2a95` (docs, comments), `fac4f36` (docs, handoff removal), `d831db3` (docs, validation map)
+   - `768eeb3` (docs, comments), `4f24f55` (docs, handoff removal), `92b6b00` (docs, validation map)
 
 **Plan metadata:** the SUMMARY commit follows this file (docs: complete plan).
 
@@ -203,7 +203,7 @@ None in the plan's work. One tooling note: a stray `python3` probe in the shell 
 
 ## TDD Gate Compliance
 
-RED `8d6e84a` (`test(01-15)`) precedes GREEN `e63b794` (`feat(01-15)`); REFACTOR `04d798a` (`refactor(01-15)`) is the WR-02 change. Gate sequence intact.
+RED `037c6bb` (`test(01-15)`) precedes GREEN `7000078` (`feat(01-15)`); REFACTOR `41c7142` (`refactor(01-15)`) is the WR-02 change. Gate sequence intact.
 
 ## Residual
 
@@ -214,7 +214,7 @@ T-01-39 still open after plan 01-15: subst and mapped drive letters, DOS 8.3 sho
 - `01-UAT.md` test 1 is still `[pending]`; plans 01-13, 01-14 and 01-15 resolve it.
 - `01-SECURITY.md`: T-01-41 and T-01-44 were re-opened by the verification and need the next `/gsd-secure-phase`; the AR-04 wording lists a residual (link targets written without a drive letter) that this plan closes on Windows; T-01-47 to T-01-50 are new rows for it.
 - `01-REVIEW-DISPOSITION.md`: WR-02 (necessity) and IN-01 are now done; WR-01, IN-02, IN-03, IN-04, WR-03, WR-04, IN-05 and IN-06 stay open as scoped.
-- `REQUIREMENTS.md` status stays at Gaps Found (commit 2eaf361); the orchestrator sets Complete after re-verification.
+- `REQUIREMENTS.md` status stays at Gaps Found (commit aa94c91); the orchestrator sets Complete after re-verification.
 - `01-VERIFICATION.md` is unchanged; a re-verification should flip failed truths 2, 7 and 16.
 - Two behaviour-unverified items stay human checks: file symbolic link replacement on a capable host, and a staged swap during a script run. The Windows symbolic link (not junction) with a relative or NT-absolute target is a new manual-only row in `01-VALIDATION.md`.
 - The stale handoff content remains in git history (T-01-50 residual); a history rewrite is the owner's call.

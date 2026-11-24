@@ -16,8 +16,8 @@ provides:
   - "SidecarFixture (always builds the sidecar, sets VDIFF_CPP_TS) and the sidecar xunit collection"
 affects: [01-04, 01-05, 01-06, 01-07, 01-08, 01-09, 01-10]
 
-plan_head_before: daace6f8b7a78ceb79307a0ce7243093aa20ed4f
-plan_head_after: 67b2485db15f865bc9f614fbad365ca494d5b036
+plan_head_before: 68b52269afee790e2af39aa86a8269109e19e132
+plan_head_after: 0bacf19ced73a0eb7aaaae5076d4954634217e73
 
 actuals:
   tokens: 15200
@@ -151,17 +151,17 @@ status: complete
 
 ## Task Commits
 
-1. **Task 1 RED:** `66b1622` (test) - fails with `Actual: string[] []` against stubs returning empty results.
-2. **Task 1 GREEN:** `a1b7a07` (feat) - builder, differ, pipeline, plus four unit tests on hand-made sidecar answers.
-3. **Task 2:** `df7b990` (feat) - writers, CLI, executable project, solution entry, end-to-end and CLI tests.
-4. **Rename:** `67b2485` (refactor) - `ModelBuilderTests` renamed to `ModelAssemblyTests` (see Deviations).
+1. **Task 1 RED:** `753059a` (test) - fails with `Actual: string[] []` against stubs returning empty results.
+2. **Task 1 GREEN:** `eaad279` (feat) - builder, differ, pipeline, plus four unit tests on hand-made sidecar answers.
+3. **Task 2:** `d3c95dc` (feat) - writers, CLI, executable project, solution entry, end-to-end and CLI tests.
+4. **Rename:** `0bacf19` (refactor) - `ModelBuilderTests` renamed to `ModelAssemblyTests` (see Deviations).
 5. **Task 3:** no commit; the answer is recorded below.
 
 ## TDD Notes
 
-- RED `66b1622`: the target test `Pipeline_on_fixture_A_returns_the_expected_diff_through_the_real_sidecar` ran (the sidecar was built and located) and failed on the planned assertion: expected the three type ids, got an empty array. Semantic assessment: valid RED, not a compile, fixture or discovery failure.
+- RED `753059a`: the target test `Pipeline_on_fixture_A_returns_the_expected_diff_through_the_real_sidecar` ran (the sidecar was built and located) and failed on the planned assertion: expected the three type ids, got an empty array. Semantic assessment: valid RED, not a compile, fixture or discovery failure.
 - `gsd_run check tdd-red-evidence` was not run: the plan is `type: execute` and the project does not enable `workflow.tdd_mode`.
-- GREEN `a1b7a07` passed on the first run. No REFACTOR commit was needed.
+- GREEN `eaad279` passed on the first run. No REFACTOR commit was needed.
 
 ## Package checkpoint
 
@@ -178,7 +178,7 @@ The answer was supplied by the orchestrator from the product owner's direct answ
 - **Issue:** this plan's extra unit-test class `ModelBuilderTests` has the name plan 01-07 gives its own file (`tests/Vdiff.Tests/Diff/ModelBuilderTests.cs`), which risks a duplicate type.
 - **Fix:** renamed file and class to `ModelAssemblyTests`.
 - **Files modified:** `tests/Vdiff.Tests/ModelAssemblyTests.cs`
-- **Commit:** `67b2485`
+- **Commit:** `0bacf19`
 
 ### Additions beyond the plan text (not defects)
 
@@ -200,7 +200,7 @@ None.
 
 ## Known Stubs
 
-None. The RED-phase stubs were replaced in `a1b7a07`.
+None. The RED-phase stubs were replaced in `eaad279`.
 
 ## Known Limitations (for later plans)
 
@@ -220,7 +220,7 @@ Ready for plans 01-04 to 01-10: `CliApp.Run`, `TracerPipeline.Run`, `ModelBuilde
 ## Self-Check: PASSED
 
 - All 15 created files and the modified `vdiff.sln` exist on disk.
-- Commits `66b1622`, `a1b7a07`, `df7b990` and `67b2485` are reachable from HEAD (`git rev-list --count` from the base gives 4).
+- Commits `753059a`, `eaad279`, `d3c95dc` and `0bacf19` are reachable from HEAD (`git rev-list --count` from the base gives 4).
 - `dotnet test tests/Vdiff.Tests/Vdiff.Tests.csproj --nologo`: 125 passed, 0 failed. `cargo test --locked --manifest-path extractors/cpp-ts/Cargo.toml`: 65 passed. The `TracerEndToEndTests` filter gives 3 passed. `--help` count is 2.
 - `git ls-files` lists no `diff.json`, `summary.mmd`, `report.html`, `*.model.json`, `target/`, `bin/` or `obj/` path.
 - `check-public-diff.sh` reported no target names before every commit.

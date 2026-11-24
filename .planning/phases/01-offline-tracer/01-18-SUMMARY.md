@@ -18,8 +18,8 @@ actuals:
   tokens: 8400
   tasks: 3
   commits: 5
-plan_head_before: f8a49065b7e1c688151ab560718ba74027e71c82
-plan_head_after: b113a2bda9eac0c86cc842bc6a5b868811322fa7
+plan_head_before: e9ccf3ee2dda0e322cfb6f473a9ce78263b0767c
+plan_head_after: 2a24052d652b0e4eab66d52f6f052ac29783bf75
 commits: 5
 
 tech-stack:
@@ -114,11 +114,11 @@ T-01-39 still open after plan 01-18: subst and mapped drive letters, DOS 8.3 sho
 
 | Task | Commit | Message |
 |------|--------|---------|
-| 1 (red) | 4e6b820 | test(01-18): add failing tests for a drive-root --out held as the current directory |
-| 1 (green) | 6ea1807 | fix(01-18): never trim a drive root to its drive-relative form in HeldDirectory |
-| 2 | 4279d8a | test(01-18): pin that the script holds a drive root as the root, like the CLI |
-| 3 | 01f1848 | docs(01-18): add the T-01-60 to T-01-62 register rows |
-| 3 | b113a2b | docs(01-18): record the drive_root tests in the validation map |
+| 1 (red) | 1567e09 | test(01-18): add failing tests for a drive-root --out held as the current directory |
+| 1 (green) | 92ffb55 | fix(01-18): never trim a drive root to its drive-relative form in HeldDirectory |
+| 2 | 58c186a | test(01-18): pin that the script holds a drive root as the root, like the CLI |
+| 3 | 15d7100 | docs(01-18): add the T-01-60 to T-01-62 register rows |
+| 3 | 2a24052 | docs(01-18): record the drive_root tests in the validation map |
 
 `commits: 5` is measured from the ledger (`plan_head_before` to the last task commit); the SUMMARY commit follows and is not counted.
 
@@ -160,7 +160,7 @@ WR-01 (extended-length prefix for the handle), WR-02 (link target in I/O excepti
 
 - `01-REVIEW-DISPOSITION.md` row CR-01 can become `fixed` through the review gate (not edited here).
 - `01-VERIFICATION.md` gap on SC2 and human_verification item 1 can be re-verified; TRC-02 can be marked complete in `REQUIREMENTS.md` after that.
-- The register rows T-01-60 to T-01-62, T-01-SC (01-18) and AR-18 need the next secure-phase run to re-count (76 plus four) and to re-measure the `HeldDirectory.cs` line citations of T-01-51 to T-01-59 (they name lines at `f16ea0b`; the fix shifts the lines below `SplitAtDeepestExisting` by 11).
+- The register rows T-01-60 to T-01-62, T-01-SC (01-18) and AR-18 need the next secure-phase run to re-count (76 plus four) and to re-measure the `HeldDirectory.cs` line citations of T-01-51 to T-01-59 (they name lines at `ed8ee27`; the fix shifts the lines below `SplitAtDeepestExisting` by 11).
 - The non-Windows run of the new tests is not observed on this host.
 
 ## Known Stubs
@@ -177,7 +177,7 @@ None. No new network endpoint, auth path, file access pattern or schema change w
 
 ## Self-Check: PASSED
 
-- All five task commits (4e6b820, 6ea1807, 4279d8a, 01f1848, b113a2b) are ancestors of HEAD.
+- All five task commits (1567e09, 92ffb55, 58c186a, 15d7100, 2a24052) are ancestors of HEAD.
 - No file was created other than this SUMMARY; every modified file listed in key-files exists.
 - Plan-level gates re-run: only `HeldDirectory.cs` changed under `src` and `scripts`; `01-SECURITY.md` gained exactly five rows and lost no line; `01-UAT.md`, `01-VERIFICATION.md`, `01-REVIEW.md` and `01-REVIEW-DISPOSITION.md` unchanged; `scripts/trace-run.ps1` has no non-ASCII character; no `vdiff-links-*` directory left in the temp area; no test calls `SetCurrentDirectory`.
 - Full suite: 565 passed, 0 failed.

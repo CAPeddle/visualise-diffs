@@ -17,8 +17,8 @@ actuals:
   tokens: 315
   tasks: 3
   commits: 2
-plan_head_before: a1cf6403de6694ee5b02881814b1183812a1d907
-plan_head_after: ca7f75bdb5b408d38f6f8d91b8ac22106852ea4c
+plan_head_before: 52f80d8daeab8db05ab68887c9e9399058c1b0e9
+plan_head_after: a317b2eabf1633d6899f177219c89fbbd07678c3
 
 tech-stack:
   added: []
@@ -92,20 +92,20 @@ status: complete
 ## Accomplishments
 
 - ACC-01 traceability row set to `Partial (Phase 2: harness and five fixtures delivered, all outputs red by design; green progressively in Phases 5 to 7; tick at Phase 7)`, checkbox left `[ ]`, plus a Notes bullet saying the status stays Partial until Phase 7 and is ticked by hand then.
-- R-10, R-23 and ACC-02 flipped to `[x]` and Complete through `requirements mark-complete` (output `R-10,R-23,ACC-02`), undoing the over-wide `revert-phase` from 5ac75c5.
+- R-10, R-23 and ACC-02 flipped to `[x]` and Complete through `requirements mark-complete` (output `R-10,R-23,ACC-02`), undoing the over-wide `revert-phase` from 1f7da07.
 - Scratch-copy probe confirms `mark-complete ACC-01` now reports `updated: false`, so the executor's own post-plan call cannot re-tick it.
 - `requirements-completed: [ACC-01]` replaced by `requirements-completed: []` and `requirements-advanced: [ACC-01]` in 02-02, 02-04, 02-07, 02-08 and 02-10.
 - Footer date updated to 2026-11-22.
 
 ## Task Commits
 
-1. **Task 1: REQUIREMENTS.md tracking (tracer slice)** - `6d7a123` (docs)
-2. **Task 2: five SUMMARY frontmatters** - `ca7f75b` (docs)
+1. **Task 1: REQUIREMENTS.md tracking (tracer slice)** - `dfe0a2e` (docs)
+2. **Task 2: five SUMMARY frontmatters** - `a317b2e` (docs)
 3. **Task 3: this SUMMARY** - committed with the plan metadata commit (SUMMARY, STATE, ROADMAP, REQUIREMENTS)
 
 **Plan metadata:** see the docs(02-13) completion commit that follows.
 
-`actuals.commits: 2` is measured with `git rev-list --count a1cf640..HEAD` at SUMMARY write; the metadata commit lands after it.
+`actuals.commits: 2` is measured with `git rev-list --count 52f80d8..HEAD` at SUMMARY write; the metadata commit lands after it.
 
 ## Files Created/Modified
 

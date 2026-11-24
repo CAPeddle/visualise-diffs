@@ -14,8 +14,8 @@ provides:
   - "CliOptions.MaxBlankNameLength (128): a --blank macro name longer than that is refused"
 affects: [01-05, 01-06, 01-07, 01-08, 01-09, 01-10]
 
-plan_head_before: cc85a3a37d7b45ed1471cef004ec1dec33936148
-plan_head_after: a545b7308f416908be8b4e6d12b89c4127e5aaa8
+plan_head_before: 75df2cc085281e5ddc5be22f97b8a3fb90505a88
+plan_head_after: 13535a539f711eca835aecd8629f10f1cab455c9
 
 actuals:
   tokens: 11500
@@ -121,15 +121,15 @@ status: complete
 
 ## Task Commits
 
-1. **Task 1:** `734d763` (test) - repository-unchanged matrix.
-2. **Task 2 RED:** `849c3b1` (test) - hostile input tests; the 129-character `--blank` case fails without the cap (observed: expected exit 1, got 0).
-3. **Task 2 GREEN:** `e41dbe0` (fix) - `CliOptions.MaxBlankNameLength = 128`, enforced beside the identifier check.
-4. **Task 3:** `a545b73` (test) - hygiene guards.
+1. **Task 1:** `cb4a6d7` (test) - repository-unchanged matrix.
+2. **Task 2 RED:** `9b7f895` (test) - hostile input tests; the 129-character `--blank` case fails without the cap (observed: expected exit 1, got 0).
+3. **Task 2 GREEN:** `e51889e` (fix) - `CliOptions.MaxBlankNameLength = 128`, enforced beside the identifier check.
+4. **Task 3:** `13535a5` (test) - hygiene guards.
 
 ## TDD Notes
 
 - Task 1 and Task 3 are attack and guard tests over behaviour that already existed; they passed on first valid run (after fixing mistakes in the tests themselves, listed under Issues Encountered), so they have no RED commit. Their failure direction was proven another way: positive controls for the fsmonitor scenarios, and the temporary-mutation check for the hygiene guards.
-- Task 2 produced a genuine RED: `849c3b1` contains `A_blank_name_of_129_characters_is_refused_and_128_is_accepted`, which failed on the planned assertion (exit 0 instead of 1). `e41dbe0` is the GREEN. No refactor was needed.
+- Task 2 produced a genuine RED: `9b7f895` contains `A_blank_name_of_129_characters_is_refused_and_128_is_accepted`, which failed on the planned assertion (exit 0 instead of 1). `e51889e` is the GREEN. No refactor was needed.
 
 ## Deviations from Plan
 
@@ -141,7 +141,7 @@ status: complete
 - **Fix:** added `MaxBlankNameLength = 128` and the length check next to the identifier check; the error message names the limit.
 - **Files modified:** `src/Vdiff.Core/Cli/CliOptions.cs` (3 lines added, 2 changed; the fix budget is 80)
 - **Verification:** the 129-character case failed before and passes after; 128 characters is accepted.
-- **Commit:** `e41dbe0`
+- **Commit:** `e51889e`
 
 ### Additions beyond the plan text (not defects)
 
@@ -182,7 +182,7 @@ Ready for plans 01-05 to 01-08. The new test classes carry `[Collection("sidecar
 ## Self-Check: PASSED
 
 - The three created test files exist on disk and `src/Vdiff.Core/Cli/CliOptions.cs` carries the new constant.
-- Commits `734d763`, `849c3b1`, `e41dbe0` and `a545b73` are reachable from HEAD; `git rev-list --count` from `plan_head_before` gives 4.
+- Commits `cb4a6d7`, `9b7f895`, `e51889e` and `13535a5` are reachable from HEAD; `git rev-list --count` from `plan_head_before` gives 4.
 - `dotnet test tests/Vdiff.Tests/Vdiff.Tests.csproj --nologo`: 209 passed, 0 failed. `cargo test --locked --manifest-path extractors/cpp-ts/Cargo.toml`: 65 passed.
 - Per-task filters: `RepoUnchangedMatrixTests` 8 passed (needs at least 7), `HostileInputTests` 44 passed (needs at least 12), `RepoHygieneTests` 32 passed (needs at least 3).
 - `git diff --stat` from `plan_head_before` touches only the three planned test files and `CliOptions.cs`; no other file.

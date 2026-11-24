@@ -13,8 +13,8 @@ provides:
   - "MermaidCliSyntaxTests (Category=MermaidCli): real-parser proof on writer output, broken diagrams, over-50,000-character diagrams and the zero-change diagram"
 affects: [01-10]
 
-plan_head_before: 46abce795504a22c66dfb649d489713f8c33f341
-plan_head_after: 28ff7c8de2fac9e0f3593b40ffa15ec78d09a4d8
+plan_head_before: 3e771fe44b075ae11a1f89c6ddf294482ef6f557
+plan_head_after: 3f05cab82724becad800cc951c22db184f52d2ac
 
 # Actuals: chars/4 over the hand-written files (check.mjs, package.json, the test file); the generated lockfile is excluded
 actuals:
@@ -110,8 +110,8 @@ status: complete
 
 ## Task Commits
 
-1. **Task 1: Install pinned mermaid-cli and write the local check script** - `6f2644e` (feat)
-2. **Task 2: Syntax-check tests on writer output and on a broken diagram** - `28ff7c8` (test)
+1. **Task 1: Install pinned mermaid-cli and write the local check script** - `f053f8e` (feat)
+2. **Task 2: Syntax-check tests on writer output and on a broken diagram** - `3f05cab` (test)
 
 **Plan metadata:** the docs commit that follows this file (docs: complete plan)
 
@@ -173,7 +173,7 @@ None. A developer who wants to run the Category=MermaidCli tests needs node 22.1
 ## Self-Check: PASSED
 
 - `tools/mermaid-check/package.json`, `package-lock.json`, `check.mjs` and `tests/Vdiff.Tests/Output/MermaidCliSyntaxTests.cs` exist.
-- Commits `6f2644e` and `28ff7c8` are ancestors of HEAD.
+- Commits `f053f8e` and `3f05cab` are ancestors of HEAD.
 
 ---
 *Phase: 01-offline-tracer*

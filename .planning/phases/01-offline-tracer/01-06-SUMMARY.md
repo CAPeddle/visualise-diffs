@@ -15,8 +15,8 @@ provides:
   - "hardened blanking tests and two CLI-level test classes (Fixture B, blanking end to end)"
 affects: [01-07, 01-08, 01-10]
 
-plan_head_before: 533e931da1505c3fb044b0ebc46bc453cd7190f5
-plan_head_after: 7ecfcf8294be3e2336c89a2bba9994eab1d40c5c
+plan_head_before: 510bac9046800016e9b8575fc567d5db179fa27a
+plan_head_after: 56b75ea43fb6916119e171becadd121319957ec1
 
 actuals:
   tokens: 14400
@@ -121,10 +121,10 @@ status: complete
 
 ## Task Commits
 
-1. **Task 1 RED: failing tests for enum, nested type, alias and special member extraction** - `6e5a145` (test) - 11 cargo tests and 2 CLI tests failed on the planned assertions
-2. **Task 1 GREEN: enum, nested type, alias, member template and conversion operator extraction** - `3d74b7f` (feat)
-3. **Task 2: macro blanking at byte level and through the CLI** - `5c4405a` (test)
-4. **Task 3: robustness tests and exact depth-cap labelling** - `7ecfcf8` (feat)
+1. **Task 1 RED: failing tests for enum, nested type, alias and special member extraction** - `d718f6d` (test) - 11 cargo tests and 2 CLI tests failed on the planned assertions
+2. **Task 1 GREEN: enum, nested type, alias, member template and conversion operator extraction** - `0290cdb` (feat)
+3. **Task 2: macro blanking at byte level and through the CLI** - `385f903` (test)
+4. **Task 3: robustness tests and exact depth-cap labelling** - `56b75ea` (feat)
 
 **Plan metadata:** recorded in the docs commit that follows this file.
 
@@ -156,14 +156,14 @@ See `key-decisions`. Two behaviours the plan left open: an enumerator's span is 
 - **Issue:** The plan requires each depth-skipped subtree to add 1 to the file's `error_nodes`, but `error_nodes` is assembled in `main.rs` from `count_error_nodes` alone, and `extract_types` returned only types.
 - **Fix:** Added `extract_with_skips` returning `(types, skipped)` and changed `process_file` to report `count_error_nodes(root) + skipped`. `extract_types` is now test-only. No protocol field was added.
 - **Files modified:** `extractors/cpp-ts/src/main.rs`
-- **Committed in:** `3d74b7f`
+- **Committed in:** `0290cdb`
 
 **2. [Rule 3 - Blocking] `protocol.rs` doc comments updated, outside `files_modified`**
 - **Found during:** Task 1
 - **Issue:** The comments on `TypeInfo.kind`, `MemberInfo.kind` and `MemberInfo.access` named only the tracer values and would now mislead.
 - **Fix:** Comment text only; no code change.
 - **Files modified:** `extractors/cpp-ts/src/protocol.rs`
-- **Committed in:** `3d74b7f`
+- **Committed in:** `0290cdb`
 
 **3. [Rule 1 - Bug] A declaration counted as a depth level**
 - **Found during:** Task 3 (`nesting_below_the_cap...` failed on first run)
@@ -171,13 +171,13 @@ See `key-decisions`. Two behaviours the plan left open: an enumerator's span is 
 - **Fix:** `declaration`, `type_definition` and `field_declaration` are entered at the same depth; a type specifier inside them is still counted by `collect_type`.
 - **Files modified:** `extractors/cpp-ts/src/extract.rs`
 - **Verification:** the cap boundary tests (127 clean, 128 keeps the type and labels, 129 skips) and the full suite pass
-- **Committed in:** `7ecfcf8`
+- **Committed in:** `56b75ea`
 
 **4. [Rule 1 - Bug] An existing 01-01 test asserted the gap this plan closes**
 - **Found during:** Task 1
 - **Issue:** `a_conversion_operator_or_other_unhandled_child_yields_no_member` expected a conversion operator to yield no member.
 - **Fix:** Renamed to `friend_using_and_static_assert_children_yield_nothing` and dropped the conversion operator from it; conversion operators have their own tests now.
-- **Committed in:** `6e5a145`
+- **Committed in:** `d718f6d`
 
 ---
 
@@ -207,7 +207,7 @@ None.
 
 ## Threat Flags
 
-None. No new network, auth or file-access surface; T-01-14, T-01-15 and T-01-16 are covered by the depth cap, the unchanged blank-name validation and the skip-to-`error_nodes` labelling. `git diff --stat 533e931 -- extractors/cpp-ts/Cargo.lock extractors/cpp-ts/Cargo.toml` is empty (T-01-SC).
+None. No new network, auth or file-access surface; T-01-14, T-01-15 and T-01-16 are covered by the depth cap, the unchanged blank-name validation and the skip-to-`error_nodes` labelling. `git diff --stat 510bac9 -- extractors/cpp-ts/Cargo.lock extractors/cpp-ts/Cargo.toml` is empty (T-01-SC).
 
 ## Verification Run
 
@@ -221,5 +221,5 @@ Ready for 01-07 and 01-08. The sidecar JSON shape is unchanged; new values are `
 ## Self-Check: PASSED
 
 - Files present: `extractors/cpp-ts/src/extract.rs`, `blank.rs`, `main.rs`, `protocol.rs`, `tests/Vdiff.Tests/Extraction/RichFixtureEndToEndTests.cs`, `BlankingEndToEndTests.cs`.
-- Commits present on this branch: `6e5a145`, `3d74b7f`, `5c4405a`, `7ecfcf8` (4 measured from the plan-start ledger `533e931..HEAD` before this SUMMARY's own commit).
+- Commits present on this branch: `d718f6d`, `0290cdb`, `385f903`, `56b75ea` (4 measured from the plan-start ledger `510bac9..HEAD` before this SUMMARY's own commit).
 - Plan verification re-run: full cargo suite 105 passed; `extract::tests` 39, `blank::tests` 20, `extract::robustness` 14; full dotnet suite 259 passed; `Cargo.lock` and `Cargo.toml` unchanged.

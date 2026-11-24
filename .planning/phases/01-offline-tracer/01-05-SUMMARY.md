@@ -13,8 +13,8 @@ provides:
   - "SidecarLimits.FromEnvironment: VDIFF_SIDECAR_TIMEOUT_SECONDS (1 to 1200) and VDIFF_PARSE_BUDGET_MS (1 to 600000) overrides; SidecarLimits.Default now reads the process environment"
 affects: [01-06, 01-07, 01-08, 01-09, 01-10]
 
-plan_head_before: 0271a3e4f75a3b6a86a519f6c7417137e4ba3c4b
-plan_head_after: 6a8c063aa5d50b99985dcaaf6f9d376fb5a26e8c
+plan_head_before: 2dce22c85b72b5035986c3f2f9d72285942bd01e
+plan_head_after: 98e34faf06b33af498705ea6c6117f7e4e593ec7
 
 actuals:
   tokens: 10500
@@ -107,13 +107,13 @@ status: complete
 
 ## Task Commits
 
-1. **Task 1:** `721cbee` (test) - fake sidecar, solution and project references, 15 client-level cases; all passed on the first valid run.
-2. **Task 2 RED:** `117dcbc` (test) - override, CLI and deadline tests against a stub `FromEnvironment`; 8 failures on planned assertions (overrides not read, hang test names 120 s instead of 2, locator text lacks the setting names, the 50 ms budget leaves the large file modelled).
-3. **Task 2 GREEN:** `6a8c063` (feat) - `FromEnvironment`, `Default` from the environment, locator text; 43 of 43 pass.
+1. **Task 1:** `19a0141` (test) - fake sidecar, solution and project references, 15 client-level cases; all passed on the first valid run.
+2. **Task 2 RED:** `1d660ee` (test) - override, CLI and deadline tests against a stub `FromEnvironment`; 8 failures on planned assertions (overrides not read, hang test names 120 s instead of 2, locator text lacks the setting names, the 50 ms budget leaves the large file modelled).
+3. **Task 2 GREEN:** `98e34fa` (feat) - `FromEnvironment`, `Default` from the environment, locator text; 43 of 43 pass.
 
 ## TDD Notes
 
-- RED `117dcbc`: the `SidecarLimits.FromEnvironment` stub returned the built-in limits, so the tests compiled and the target tests ran and failed on their assertions. Observed: `Expected 00:00:07, Actual 00:02:00` (default limits ignore the environment), `Expected 00:00:00.001, Actual 00:00:10` (budget override), `Sub-string not found` for `time limit of 2` in the hang run, and `Assert.Single() Failure: The collection did not contain any matching items` for the large file at a 50 ms budget. Semantic assessment: valid RED, not a compile, fixture or discovery failure. The "ignored" theory rows and `With_the_default_parse_budget_the_same_large_file_is_modelled` passed already, as expected, since they describe the default.
+- RED `1d660ee`: the `SidecarLimits.FromEnvironment` stub returned the built-in limits, so the tests compiled and the target tests ran and failed on their assertions. Observed: `Expected 00:00:07, Actual 00:02:00` (default limits ignore the environment), `Expected 00:00:00.001, Actual 00:00:10` (budget override), `Sub-string not found` for `time limit of 2` in the hang run, and `Assert.Single() Failure: The collection did not contain any matching items` for the large file at a 50 ms budget. Semantic assessment: valid RED, not a compile, fixture or discovery failure. The "ignored" theory rows and `With_the_default_parse_budget_the_same_large_file_is_modelled` passed already, as expected, since they describe the default.
 - `gsd_run check tdd-red-evidence` was not run: the plan is `type: execute` and the project does not enable `workflow.tdd_mode`.
 - Task 1 has no RED commit: it proves behaviour that already existed (see 01-04's note on attack tests). The failure direction is covered by the pid-file check (the test fails if the fake never started) and by the exact message assertions.
 
@@ -132,7 +132,7 @@ None.
 
 ## Known Stubs
 
-None. The RED stub was replaced in `6a8c063`.
+None. The RED stub was replaced in `98e34fa`.
 
 ## Known Limitations (for later plans)
 
@@ -152,6 +152,6 @@ Ready for plans 01-06 to 01-08 (disjoint files). `SidecarLimits.Default` now hon
 ## Self-Check: PASSED
 
 - Created files exist: `tests/Vdiff.FakeSidecar/Vdiff.FakeSidecar.csproj`, `tests/Vdiff.FakeSidecar/Program.cs`, `tests/Vdiff.Tests/Safety/SidecarBoundsTests.cs`; `git ls-files tests/Vdiff.FakeSidecar` lists only those two files (no `bin/` or `obj/`).
-- Commits `721cbee`, `117dcbc` and `6a8c063` are reachable from HEAD; `git rev-list --count` from `plan_head_before` gives 3.
+- Commits `19a0141`, `1d660ee` and `98e34fa` are reachable from HEAD; `git rev-list --count` from `plan_head_before` gives 3.
 - `dotnet test tests/Vdiff.Tests/Vdiff.Tests.csproj --nologo`: 252 passed, 0 failed. `cargo test --locked --manifest-path extractors/cpp-ts/Cargo.toml`: 65 passed. `SidecarBoundsTests` filter: 43 passed (task 1 needs at least 10, task 2 at least 16).
 - `check-public-diff.sh` reported no target names before every commit.

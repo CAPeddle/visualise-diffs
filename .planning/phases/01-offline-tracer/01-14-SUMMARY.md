@@ -29,8 +29,8 @@ actuals:
   tasks: 3
   commits: 5
 commits: 5
-plan_head_before: bbfff069707350449962d30fc4bb3796085ba0d8
-plan_head_after: cc570a192c1135ed7855da85d332cf038b57dcf5
+plan_head_before: 72e655721e0ca11711154762c1d2625c554520f1
+plan_head_after: f340659236110c63f37be3fb13bfa590e300aa1b
 completed: 2026-11-17
 ---
 
@@ -38,17 +38,17 @@ completed: 2026-11-17
 
 `scripts/trace-run.ps1` now refuses an `-Out` or `-LogPath` in any non-drive Windows namespace, fails closed on a junction whose target is a volume GUID path, writes its log by replacing (not following) a planted hard link, and checks the log path again after the vdiff run, closing CR-01, WR-01 and WR-02 on the script side; SPK-02 is shown as Complete.
 
-`commits: 5` is the measured count of `bbfff06..HEAD` at the time this file was written; the SUMMARY commit follows it.
+`commits: 5` is the measured count of `72e6557..HEAD` at the time this file was written; the SUMMARY commit follows it.
 
 ## Commits
 
 | Task | Phase | Commit | Message |
 |------|-------|--------|---------|
-| 1 | RED | 935519d | test(01-14): add failing script tests for non-drive namespaces and volume GUID links |
-| 1 | GREEN | b5cfa24 | feat(01-14): refuse a non-drive namespace and a volume GUID link target in trace-run.ps1 |
-| 2 | RED | 1879d33 | test(01-14): add failing test for a hard link planted at the -LogPath entry |
-| 2 | GREEN | 116d2a5 | feat(01-14): write the trace-run log without following a planted link |
-| 3 | docs | cc570a1 | docs(01-14): mark SPK-02 complete in REQUIREMENTS.md |
+| 1 | RED | e87e705 | test(01-14): add failing script tests for non-drive namespaces and volume GUID links |
+| 1 | GREEN | 7222272 | feat(01-14): refuse a non-drive namespace and a volume GUID link target in trace-run.ps1 |
+| 2 | RED | 77f2234 | test(01-14): add failing test for a hard link planted at the -LogPath entry |
+| 2 | GREEN | 960a80c | feat(01-14): write the trace-run log without following a planted link |
+| 3 | docs | f340659 | docs(01-14): mark SPK-02 complete in REQUIREMENTS.md |
 
 ## What was built
 
@@ -58,10 +58,10 @@ completed: 2026-11-17
 
 ## TDD record (red steps)
 
-- **Task 1 RED** (`935519d`; 6 failed, 28 passed of 34, run on both hosts). `Aliased_out_in_a_non_drive_namespace_is_refused_with_out_not_outside`: expected `out-not-outside`, got `tool-failed` under PowerShell 7 and `script-error` under Windows PowerShell 5.1 (the first spelling already fails differently there). `Aliased_out_through_a_junction_with_a_volume_guid_target_fails_closed_with_script_error`: expected `script-error`, got `tool-failed` on both hosts (the C# CLI refused, the script did not). `Aliased_log_path_in_a_non_drive_namespace_is_refused_with_bad_arguments`: expected exit 1, got exit 0 on both hosts, so the script accepted the log path and wrote the log into the repository (its status stayed clean because the sandbox `.gitignore` ignores `*.log`, so the plan's expected `repo-changed` did not occur; the test still fails on the planned refusal and on the file-exists assertion). The sibling, extended `-Repo` mirror and `out-omitted` cases passed, as the plan predicted. Semantic assessment: each target test executed and failed on the planned assertion for the intended reason.
-- **Task 1 GREEN** (`b5cfa24`): TraceRunScriptTests 34 passed (23 before plus 11).
-- **Task 2 RED** (`1879d33`; 2 failed of 2): the run reported pass, but `README.md` now held the log text (`Expected: "# Sample\n"`, `Actual: "vdiff: wrote 5 files to ..."`), so the planted hard link was written through into the tracked file. The plan expected `repo-changed`; the script's snapshot did not see the change in the test (the repository file was overwritten through another NTFS name for it, and the after-run `git status` was unchanged in that run, although an identical manual run reported `repo-changed`). So the run-level result cannot be relied on to catch this write: the log guard is the defence. Semantic assessment: intended failure on the README content assertion.
-- **Task 2 GREEN** (`116d2a5`): TraceRunScriptTests 36 passed.
+- **Task 1 RED** (`e87e705`; 6 failed, 28 passed of 34, run on both hosts). `Aliased_out_in_a_non_drive_namespace_is_refused_with_out_not_outside`: expected `out-not-outside`, got `tool-failed` under PowerShell 7 and `script-error` under Windows PowerShell 5.1 (the first spelling already fails differently there). `Aliased_out_through_a_junction_with_a_volume_guid_target_fails_closed_with_script_error`: expected `script-error`, got `tool-failed` on both hosts (the C# CLI refused, the script did not). `Aliased_log_path_in_a_non_drive_namespace_is_refused_with_bad_arguments`: expected exit 1, got exit 0 on both hosts, so the script accepted the log path and wrote the log into the repository (its status stayed clean because the sandbox `.gitignore` ignores `*.log`, so the plan's expected `repo-changed` did not occur; the test still fails on the planned refusal and on the file-exists assertion). The sibling, extended `-Repo` mirror and `out-omitted` cases passed, as the plan predicted. Semantic assessment: each target test executed and failed on the planned assertion for the intended reason.
+- **Task 1 GREEN** (`7222272`): TraceRunScriptTests 34 passed (23 before plus 11).
+- **Task 2 RED** (`77f2234`; 2 failed of 2): the run reported pass, but `README.md` now held the log text (`Expected: "# Sample\n"`, `Actual: "vdiff: wrote 5 files to ..."`), so the planted hard link was written through into the tracked file. The plan expected `repo-changed`; the script's snapshot did not see the change in the test (the repository file was overwritten through another NTFS name for it, and the after-run `git status` was unchanged in that run, although an identical manual run reported `repo-changed`). So the run-level result cannot be relied on to catch this write: the log guard is the defence. Semantic assessment: intended failure on the README content assertion.
+- **Task 2 GREEN** (`960a80c`): TraceRunScriptTests 36 passed.
 - Task 3 is bookkeeping (no TDD).
 - The task 1 RED and GREEN are separate commits, as the 01-13 SUMMARY asked.
 
@@ -92,5 +92,5 @@ None beyond the plan's register (T-01-44, T-01-45, T-01-46). Residuals: a file s
 
 ## Self-Check: PASSED
 
-- Commits 935519d, b5cfa24, 1879d33, 116d2a5, cc570a1 are ancestors of HEAD.
+- Commits e87e705, 7222272, 77f2234, 960a80c, f340659 are ancestors of HEAD.
 - Files present: scripts/trace-run.ps1, tests/Vdiff.Tests/Trial/TraceRunScriptTests.cs, .planning/REQUIREMENTS.md.

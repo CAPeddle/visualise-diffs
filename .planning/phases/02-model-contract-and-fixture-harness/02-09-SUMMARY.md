@@ -18,8 +18,8 @@ actuals:
   tokens: 9800
   tasks: 3
   commits: 5
-plan_head_before: 81ce1ebddf9190480e5b8c21194d36b5fe311c89
-plan_head_after: 9295b7283a2b4a2b04fc8329fa98e95b992680a5
+plan_head_before: c35a4450379714b63dee94b5514f8d5a1c150f88
+plan_head_after: e256932c9de4aa447ee537b2f695f4e4820ebc66
 
 tech-stack:
   added: []
@@ -131,11 +131,11 @@ status: complete
 
 ## Task Commits
 
-1. **Task 1 (tracer): runner over a stand-in clone, one shape line, minimal Refusal** - `6e021d0` (feat)
-2. **Task 2 RED: failing refusal and leak tests** - `30f22a9` (test)
-3. **Task 2 GREEN: Refusal with fixed messages** - `f0d91b7` (feat)
-4. **Task 3: recipe, public record and grammar tests** - `54aa24d` (feat)
-5. **Rule 2 fix: one fixed line when the run cannot read or write its files** - `9295b72` (fix)
+1. **Task 1 (tracer): runner over a stand-in clone, one shape line, minimal Refusal** - `6b9e95b` (feat)
+2. **Task 2 RED: failing refusal and leak tests** - `4e09ba3` (test)
+3. **Task 2 GREEN: Refusal with fixed messages** - `5e60648` (feat)
+4. **Task 3: recipe, public record and grammar tests** - `2d95dbb` (feat)
+5. **Rule 2 fix: one fixed line when the run cannot read or write its files** - `e256932` (fix)
 
 **Plan metadata:** recorded in the final docs commit that carries this file.
 
@@ -147,8 +147,8 @@ Task 1 is `type="tracer"`, `human_verify_mode` is `end-of-phase` and its `<verif
 
 `workflow.tdd_mode` is not enabled and the plan is `type: execute`, so `gsd_run check tdd-red-evidence` was not run and no evidence file was written. Task 2 is the only `tdd="true"` task.
 
-- **Task 2 RED** (`30f22a9`): `Failed: 6, Passed: 16, Total: 22`. Five failures are assertion failures on the planned behaviour (fixtures directory in the repository, accept mode, no shape directory, non-shape directory, output in the repository: the minimal `Refusal` returned null so the run went ahead). The sixth, `A_fixtures_directory_that_does_not_exist_is_refused`, failed on an unhandled `DirectoryNotFoundException` out of `Run`, not on an assertion; it is still the target test failing because the planned refusal does not exist yet. The other 16 passed against task 1's code (the CLI-layer refusal, the SecretTypeName-free unknown-key line, the grammar and leak checks, the status check, the environment run); they are regression coverage of task 1 behaviour, not RED evidence.
-- **Task 2 GREEN** (`f0d91b7`): `Passed: 22, Failed: 0`; `RepoHygieneTests` `Passed: 50`.
+- **Task 2 RED** (`4e09ba3`): `Failed: 6, Passed: 16, Total: 22`. Five failures are assertion failures on the planned behaviour (fixtures directory in the repository, accept mode, no shape directory, non-shape directory, output in the repository: the minimal `Refusal` returned null so the run went ahead). The sixth, `A_fixtures_directory_that_does_not_exist_is_refused`, failed on an unhandled `DirectoryNotFoundException` out of `Run`, not on an assertion; it is still the target test failing because the planned refusal does not exist yet. The other 16 passed against task 1's code (the CLI-layer refusal, the SecretTypeName-free unknown-key line, the grammar and leak checks, the status check, the environment run); they are regression coverage of task 1 behaviour, not RED evidence.
+- **Task 2 GREEN** (`5e60648`): `Passed: 22, Failed: 0`; `RepoHygieneTests` `Passed: 50`.
 - **REFACTOR:** none.
 - The Rule 2 fix test (`A_private_out_that_cannot_be_created_gives_one_fixed_line_with_no_path`) was written together with the fix and was not observed failing before it; the mechanism (an IO exception from `CreateDirectory` under a file) is the one the task 2 RED run showed.
 
@@ -170,7 +170,7 @@ Task 1 is `type="tracer"`, `human_verify_mode` is `end-of-phase` and its `<verif
 - **Fix:** `Run` now delegates to `RunShapes` inside a catch-all that returns one fixed line (`the private run could not read or write its files; check VDIFF_FIXTURES_DIR and VDIFF_PRIVATE_OUT`); the how-to lists it.
 - **Files modified:** `tests/Vdiff.Tests/Fixtures/PrivateFixtures.cs`, `tests/Vdiff.Tests/Fixtures/PrivateFixtureTests.cs`, `docs/how-to/private-fixtures.md`
 - **Verification:** new stand-in test (an output path beneath a file) plus the full suite
-- **Commit:** `9295b72`
+- **Commit:** `e256932`
 
 ### HEAD safety assertion
 
@@ -213,7 +213,7 @@ None - no external service configuration required.
 ## Self-Check: PASSED
 
 - Files exist: `tests/Vdiff.Tests/Fixtures/PrivateFixtures.cs`, `tests/Vdiff.Tests/Fixtures/PrivateFixtureTests.cs`, `docs/how-to/private-fixtures.md`, `docs/trials/private-fixtures.md`.
-- Commits `6e021d0`, `30f22a9`, `f0d91b7`, `54aa24d`, `9295b72` are ancestors of HEAD; `git rev-list --count` from the recorded base gives 5.
+- Commits `6b9e95b`, `4e09ba3`, `5e60648`, `2d95dbb`, `e256932` are ancestors of HEAD; `git rev-list --count` from the recorded base gives 5.
 
 ---
 *Phase: 02-model-contract-and-fixture-harness*

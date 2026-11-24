@@ -15,8 +15,8 @@ provides:
   - "83 new test cases: ModelDifferTests 26, ModelBuilderTests 8, ScopeFilterTests 38, IncludeGlobEndToEndTests 11 (theory rows counted individually)"
 affects: [01-08, 01-09, 01-10]
 
-plan_head_before: 231c4005ae339662081296666dedb0e5314bcadd
-plan_head_after: b48282f82f9b854e97e1b0f7f304bdc20fe550ca
+plan_head_before: 567d37608c1c70345ad29df094c9d1b86a702b32
+plan_head_after: 25523ca5fe1eb0cf745428809f2b7a06a809945e
 
 actuals:
   tokens: 13700
@@ -116,16 +116,16 @@ status: complete
 
 ## Task Commits
 
-1. **Task 1 RED:** `50389bb` (test) - 34 unit tests, 17 fail on the planned assertions.
-2. **Task 1 GREEN:** `39e3ec8` (feat) - builder, differ and the warning-wording update in `ModelAssemblyTests`.
-3. **Task 2 RED:** `05f1550` (test) - 49 tests, 3 fail (empty-pattern rejection).
-4. **Task 2 GREEN:** `b48282f` (feat) - `ScopeFilter`.
+1. **Task 1 RED:** `6788343` (test) - 34 unit tests, 17 fail on the planned assertions.
+2. **Task 1 GREEN:** `a8c5d4f` (feat) - builder, differ and the warning-wording update in `ModelAssemblyTests`.
+3. **Task 2 RED:** `0cca5b7` (test) - 49 tests, 3 fail (empty-pattern rejection).
+4. **Task 2 GREEN:** `25523ca` (feat) - `ScopeFilter`.
 
 ## TDD Notes
 
-- Task 1 RED `50389bb`: the 17 failures were assertion failures, never build or discovery errors. They covered `duplicates` (empty instead of the expected entries), the split warnings (old combined text), members of added and removed types in input order, equal-start-byte member ties, and the shuffled and equal-key diff tests (output depended on input order). To keep RED compiling, `ModelFile.Duplicates` was added in the RED commit as an empty-default property; that is not behaviour. Semantic assessment: valid RED.
+- Task 1 RED `6788343`: the 17 failures were assertion failures, never build or discovery errors. They covered `duplicates` (empty instead of the expected entries), the split warnings (old combined text), members of added and removed types in input order, equal-start-byte member ties, and the shuffled and equal-key diff tests (output depended on input order). To keep RED compiling, `ModelFile.Duplicates` was added in the RED commit as an empty-default property; that is not behaviour. Semantic assessment: valid RED.
 - The other 17 tests in that commit (overloads, const qualifier, changed parameter list, base list, enum underlying type, kind change, files, unchanged counts, empty models, ordinal order, unmodelled reasons) passed before any change: the 01-03 code already had that behaviour. They are pinning tests, not RED evidence.
-- Task 2 RED `05f1550`: only the three empty-pattern cases failed (no exception thrown). `./src/**`, a non-recursive `*.h`, `Include/A` against `include/a`, the no-glob bypass and every end-to-end test already passed, so they too are pinning tests. `Matcher` already accepts a leading `./`; the explicit normalisation makes that independent of the library.
+- Task 2 RED `0cca5b7`: only the three empty-pattern cases failed (no exception thrown). `./src/**`, a non-recursive `*.h`, `Include/A` against `include/a`, the no-glob bypass and every end-to-end test already passed, so they too are pinning tests. `Matcher` already accepts a leading `./`; the explicit normalisation makes that independent of the library.
 - `gsd_run check tdd-red-evidence` was not run: the plan is `type: execute` and `workflow.tdd_mode` is not enabled; the semantic assessment is recorded here.
 - No REFACTOR commit was needed.
 
@@ -138,7 +138,7 @@ status: complete
 - **Issue:** `tests/Vdiff.Tests/ModelAssemblyTests.cs` (plan 01-03, not in this plan's `files_modified`) asserted `"base: 0 file(s) with parse errors, 1 file(s) not modelled"`. The plan requires separate, conditional warnings.
 - **Fix:** updated the one assertion to `"base: 1 file(s) not modelled"` and `"head: 2 file(s) not modelled"`. `BlankingEndToEndTests` uses `StartsWith("head: 1 file(s) with parse errors")`, which still holds.
 - **Files modified:** `tests/Vdiff.Tests/ModelAssemblyTests.cs`
-- **Commit:** `39e3ec8`
+- **Commit:** `a8c5d4f`
 
 ### Judgement calls on points the plan left open
 
@@ -178,7 +178,7 @@ Ready for 01-08: `ModelFile.Duplicates` exists and serialises as `"duplicates": 
 ## Self-Check: PASSED
 
 - All 4 created test files and 5 modified files exist on disk.
-- Commits `50389bb`, `39e3ec8`, `05f1550` and `b48282f` are reachable from HEAD (`git rev-list --count` from the base gives 4).
+- Commits `6788343`, `a8c5d4f`, `0cca5b7` and `25523ca` are reachable from HEAD (`git rev-list --count` from the base gives 4).
 - `dotnet test tests/Vdiff.Tests/Vdiff.Tests.csproj --nologo`: 342 passed, 0 failed. `cargo test --locked --manifest-path extractors/cpp-ts/Cargo.toml`: 105 passed. Task 1 filter 34 passed (needs at least 20), Task 2 filter 49 passed (needs at least 10; 65 with the existing scope tests in `GitObjectReaderTests`).
 - `git diff --stat` for the plan touches the eight listed files plus `ModelAssemblyTests.cs` (deviation 1).
 - `check-public-diff.sh` reported no target names before every commit.

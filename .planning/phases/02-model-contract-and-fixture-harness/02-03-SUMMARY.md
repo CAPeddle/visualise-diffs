@@ -19,8 +19,8 @@ actuals:
   tokens: 10200
   tasks: 2
   commits: 5
-plan_head_before: 914c3f70191f5dd6e2597466cd2866084d32faf2
-plan_head_after: 06e50ac89c574f338af6511a9cd3a10f0a984696
+plan_head_before: eff27981ee63f2ed6a65c7692a57fb857ee4e92c
+plan_head_after: 02d9a2cda83b3b06d9a07d5598086f7d52bc5f01
 
 tech-stack:
   added: []
@@ -123,26 +123,26 @@ status: complete
 
 ## Task Commits
 
-1. **Task 1 RED: failing tests for path-suffixed repeated ids (D-21)** - `4dcb5bc` (test)
-2. **Task 1 GREEN: v1 model records with language, mode, type access and path-suffixed ids** - `c5c066f` (feat)
-3. **Task 2 RED: failing tests for base edges and canonical order** - `73c0d7a` (test)
-4. **Task 2 GREEN: canonical ordering module, base resolver and base edges** - `67c3f0b` (feat)
-5. **Task 1 behaviour added after GREEN: tracer labelling and omitted type fields** - `06e50ac` (test)
+1. **Task 1 RED: failing tests for path-suffixed repeated ids (D-21)** - `ec02565` (test)
+2. **Task 1 GREEN: v1 model records with language, mode, type access and path-suffixed ids** - `3bb043f` (feat)
+3. **Task 2 RED: failing tests for base edges and canonical order** - `3c8520c` (test)
+4. **Task 2 GREEN: canonical ordering module, base resolver and base edges** - `e032f48` (feat)
+5. **Task 1 behaviour added after GREEN: tracer labelling and omitted type fields** - `02d9a2c` (test)
 
 **Plan metadata:** committed separately as `docs(02-03): complete v1 model plan`.
 
 ## TDD Gate Compliance
 
-- **Task 1 RED** (`4dcb5bc`): the six D-21 assertions (rewritten repeated-type, repeated-member, same-byte-member, differ-warning tests, the new adjacency fact and `ModelAssemblyTests`' repeated-definition test) written against the current signature so the assembly compiled. Run: `Failed: 6, Passed: 7, Total: 13`; each target failed on its id or count assertion, not on a build error or at zero discovery. Semantic assessment: the tests ran and failed for the planned reason (old `#2` ids).
-- **Task 1 GREEN** (`c5c066f`): records, builder, pipeline and the six edited test classes; `Passed: 49, Failed: 0`.
-- **Task 2 RED** (`73c0d7a`): eight new `ModelBuilderTests` facts (five D-16 cases, three canonical-order checks) plus a placeholder `Canonical.Canonicalise(ModelFile)` that returns its input, so the suite compiled. Run: `Failed: 8, Passed: 9, Total: 17`, all eight on assertions. Semantic assessment: edges were `[]` and nothing was reordered, which is the planned failure.
-- **Task 2 GREEN** (`67c3f0b`): real `Canonical`, `BaseResolver`, edges; filtered run `Passed: 58, Failed: 0`.
+- **Task 1 RED** (`ec02565`): the six D-21 assertions (rewritten repeated-type, repeated-member, same-byte-member, differ-warning tests, the new adjacency fact and `ModelAssemblyTests`' repeated-definition test) written against the current signature so the assembly compiled. Run: `Failed: 6, Passed: 7, Total: 13`; each target failed on its id or count assertion, not on a build error or at zero discovery. Semantic assessment: the tests ran and failed for the planned reason (old `#2` ids).
+- **Task 1 GREEN** (`3bb043f`): records, builder, pipeline and the six edited test classes; `Passed: 49, Failed: 0`.
+- **Task 2 RED** (`3c8520c`): eight new `ModelBuilderTests` facts (five D-16 cases, three canonical-order checks) plus a placeholder `Canonical.Canonicalise(ModelFile)` that returns its input, so the suite compiled. Run: `Failed: 8, Passed: 9, Total: 17`, all eight on assertions. Semantic assessment: edges were `[]` and nothing was reordered, which is the planned failure.
+- **Task 2 GREEN** (`e032f48`): real `Canonical`, `BaseResolver`, edges; filtered run `Passed: 58, Failed: 0`.
 - **REFACTOR:** none.
 - `workflow.tdd_mode` is not enabled and the plan is `type: execute`, so `gsd_run check tdd-red-evidence` was not run and no evidence file was written. The plan asked for task 1's tests to fail to compile; they were made to fail at run time instead so the RED is valid under the TDD reference.
 
 ## Verification
 
-- Full suite `dotnet test tests/Vdiff.Tests/Vdiff.Tests.csproj --filter "Category!=MermaidCli"` on `67c3f0b`: `Passed: 634, Failed: 0, Total: 634` (13 m 25 s). That is 625 from 02-11 plus nine new facts. The last commit (`06e50ac`) adds one test file edit and no source change; `ModelBuilderTests` reran alone after it: `Passed: 18, Failed: 0`. The `TraceRunScriptTests` flake did not recur.
+- Full suite `dotnet test tests/Vdiff.Tests/Vdiff.Tests.csproj --filter "Category!=MermaidCli"` on `e032f48`: `Passed: 634, Failed: 0, Total: 634` (13 m 25 s). That is 625 from 02-11 plus nine new facts. The last commit (`02d9a2c`) adds one test file edit and no source change; `ModelBuilderTests` reran alone after it: `Passed: 18, Failed: 0`. The `TraceRunScriptTests` flake did not recur.
 - `cargo test --locked --manifest-path extractors/cpp-ts/Cargo.toml`: 105 passed, 0 failed (no Rust change).
 - `grep -rn "vdiff-model/v0-tracer" src tests --include=*.cs`: nothing. No `#n` id assertions remain in `tests`, and `scripts/` holds no `v0-tracer`, `tree_sitter` or `extraction.mode` reference.
 - All Task 1 and Task 2 acceptance greps returned their expected counts. Public-diff guard printed `clean` before all six commits. Every edited file holds LF only.
@@ -162,13 +162,13 @@ status: complete
 - **Issue:** the bullet (every type language `cpp`, `Partial` false, `Access`/`Files` null, empty modifiers; files `cpp`/`syntax-only`; one `cpp-ts` language entry with sorted macros) was covered only indirectly.
 - **Fix:** added `The_tracer_labels_everything_as_syntax_only_cpp_and_omits_what_it_cannot_fill`, including a nested type and unsorted macros, after GREEN.
 - **Files modified:** tests/Vdiff.Tests/Diff/ModelBuilderTests.cs
-- **Committed in:** `06e50ac`
+- **Committed in:** `02d9a2c`
 
 **2. [Rule 3 - Consistency] Fixture A edge assertion in `TracerEndToEndTests` landed in Task 2's commit**
 - **Found during:** Task 2
 - **Issue:** `TracerEndToEndTests.cs` is in Task 1's file list, not Task 2's. A one-edge assertion (Widget to Gadget, `to_name` Gadget, none in base) belongs to the edge behaviour.
-- **Fix:** added it in `67c3f0b`.
-- **Committed in:** `67c3f0b`
+- **Fix:** added it in `e032f48`.
+- **Committed in:** `e032f48`
 
 **3. [Rule 3 - Consistency] Task 1 RED made to fail at run time**
 - **Found during:** Task 1
@@ -185,7 +185,7 @@ status: complete
 
 ## Known Stubs
 
-None. The RED-phase `Canonical` placeholder was replaced in `67c3f0b`.
+None. The RED-phase `Canonical` placeholder was replaced in `e032f48`.
 
 ## Deferred Items
 
@@ -205,7 +205,7 @@ None. T-02-07 (paths stay repository-relative; the local-identity determinism te
 ## Self-Check: PASSED
 
 - `src/Vdiff.Core/Model/Canonical.cs` and `src/Vdiff.Core/Model/BaseResolver.cs` exist.
-- Commits `4dcb5bc`, `c5c066f`, `73c0d7a`, `67c3f0b`, `06e50ac` are on the branch; `git rev-list --count` from the recorded base gives 5.
+- Commits `ec02565`, `3bb043f`, `3c8520c`, `e032f48`, `02d9a2c` are on the branch; `git rev-list --count` from the recorded base gives 5.
 - Plan verification run: full suite 634 of 634, cargo 105 of 105, no `v0-tracer` in source or tests, no tracked `bin/` or `obj/` files.
 
 ---

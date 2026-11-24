@@ -9,7 +9,7 @@ resume_focus: "Re-run the revision planner to finish applying the doc-review out
 repository: "CAPeddle/visualise-diffs"
 repo_root_sha: "6797a240f02da158200194d0ab74aba326223672"
 branch: "ccr-c12d6a45-a0eke4"
-head: "a38d230"
+head: "6f35a3a"
 ---
 
 # Phase 02: doc-review outcome half-applied
@@ -18,14 +18,14 @@ Supersedes `docs/handoffs/2026-11-20-phase-02-plan-phase-second-interruption.md`
 
 ## State (all committed on `ccr-c12d6a45-a0eke4`, nothing pushed; the user pushes)
 
-- `21e395e`: `/gsd-plan-phase 2` completed. 12 plans in 8 waves; STATE.md says ready to execute.
+- `247c1ff`: `/gsd-plan-phase 2` completed. 12 plans in 8 waves; STATE.md says ready to execute.
   Requirements, decision and gap gates were all green at that point.
 - The user then ran `/ce-doc-review` on the contract plans 02-03, 02-12, 02-05 and 02-06 and chose
   **"Auto-resolve with best judgment"**. That approves the three proposed fixes and my
   recommended action on all four decisions.
-- `400a04b`: the four decisions are recorded as **D-20..D-23** in `02-CONTEXT.md`. They are user
+- `e142084`: the four decisions are recorded as **D-20..D-23** in `02-CONTEXT.md`. They are user
   decisions, one-way.
-- `a38d230`: **WIP, inconsistent.** I stopped the revision planner for the shutdown after it had
+- `6f35a3a`: **WIP, inconsistent.** I stopped the revision planner for the shutdown after it had
   edited 02-03 and part of 02-12. 02-05, 02-06, 02-08, 02-10 and 02-VALIDATION.md are not yet
   updated. **Do not execute the phase until this is finished.**
 

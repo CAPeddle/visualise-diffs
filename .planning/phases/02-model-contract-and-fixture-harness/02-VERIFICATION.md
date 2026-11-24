@@ -77,9 +77,9 @@ human_verification:
 
 ## Re-verification scope
 
-The previous report (2026-11-21) found one gap: requirement tracking. REQUIREMENTS.md ticked ACC-01 Complete although all ten fixture outputs are red by design, and a revert had left R-10, R-23 and ACC-02 unticked. Plan 02-13 landed in commits 6d7a123, ca7f75b and 583cde9.
+The previous report (2026-11-21) found one gap: requirement tracking. REQUIREMENTS.md ticked ACC-01 Complete although all ten fixture outputs are red by design, and a revert had left R-10, R-23 and ACC-02 unticked. Plan 02-13 landed in commits dfe0a2e, a317b2e and 62193f4.
 
-**No code changed.** `git log --since=2026-11-21T14:00:00Z -- src tests docs azure-pipelines.yml` is empty, and `git diff --stat 583cde9~3 HEAD` touches only `.planning/` (REQUIREMENTS, ROADMAP, STATE, state.json, five SUMMARYs, the new 02-13-SUMMARY). I re-checked the three schema SHA-256 prefixes (c62ea541, 1bb22e1d, 47964d1d): they still match the pins in `SchemaFreezeTests`. `tests/fixtures` still holds the five shapes, 48 tracked files. I did not rerun the test suites; the earlier results (298 tests in the Contract, Fixtures and Ci namespaces, 10 RED rows, 0 FAIL, 0 GREEN) stand because the files they cover are unchanged. The `covered_digest` differs from the previous one only because 02-13-PLAN.md and 02-13-SUMMARY.md now sit in the phase directory.
+**No code changed.** `git log --since=2026-11-21T14:00:00Z -- src tests docs azure-pipelines.yml` is empty, and `git diff --stat 62193f4~3 HEAD` touches only `.planning/` (REQUIREMENTS, ROADMAP, STATE, state.json, five SUMMARYs, the new 02-13-SUMMARY). I re-checked the three schema SHA-256 prefixes (c62ea541, 1bb22e1d, 47964d1d): they still match the pins in `SchemaFreezeTests`. `tests/fixtures` still holds the five shapes, 48 tracked files. I did not rerun the test suites; the earlier results (298 tests in the Contract, Fixtures and Ci namespaces, 10 RED rows, 0 FAIL, 0 GREEN) stand because the files they cover are unchanged. The `covered_digest` differs from the previous one only because 02-13-PLAN.md and 02-13-SUMMARY.md now sit in the phase directory.
 
 ## Gap-closure check (the one previous gap)
 

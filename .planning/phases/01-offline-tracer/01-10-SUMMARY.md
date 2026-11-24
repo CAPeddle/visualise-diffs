@@ -14,8 +14,8 @@ provides:
   - "docs/trials/phase-1-offline-tracer.md: the public record of the TRC-03 run (six-line block and date only) and the SPK-02 evidence"
 affects: [phase-2, later-trials]
 
-plan_head_before: 2f0415df917d57c2cb70ed5a8a407aff3e74a914
-plan_head_after: 61288ae14b3263409929b9534135ef406b3aad5d
+plan_head_before: 21724301ff8fb5208587f62b3c82b6cc493c1e7c
+plan_head_after: c5e275a70b8f413216c31af93a748636a11bf544
 
 actuals:
   tokens: 9000
@@ -103,9 +103,9 @@ status: complete
 
 ## Task Commits
 
-1. **Task 1: Trial wrapper script and the merged-suite check** - `0042006` (feat)
+1. **Task 1: Trial wrapper script and the merged-suite check** - `094dc23` (feat)
 2. **Task 2: Orchestrator runs the tracer on the private clone** - no commit (human-action; nothing about the run is committed beyond Task 3's block)
-3. **Task 3: Record the outcome and close SPK-02** - `61288ae` (docs)
+3. **Task 3: Record the outcome and close SPK-02** - `c5e275a` (docs)
 
 **Plan metadata:** recorded in the docs commit that follows this file.
 
@@ -147,5 +147,5 @@ Phase 1 plan set is complete. ROADMAP criteria 4 (TRC-03) and 5 (SPK-02) are met
 ## Self-Check: PASSED
 
 - Files present: `scripts/trace-run.ps1`, `tests/Vdiff.Tests/Trial/TraceRunScriptTests.cs`, `docs/trials/phase-1-offline-tracer.md`.
-- Commits present: `0042006`, `61288ae` (2 measured from the plan-start ledger before this SUMMARY's own commit).
+- Commits present: `094dc23`, `c5e275a` (2 measured from the plan-start ledger before this SUMMARY's own commit).
 - ADR-001 unedited; status line count 1.

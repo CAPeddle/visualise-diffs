@@ -18,8 +18,8 @@ actuals:
   tokens: 19700
   tasks: 3
   commits: 5
-plan_head_before: 3dbb5fdc92578dcdf3b5da8f6182cd1eebbd3911
-plan_head_after: 92d36f5ae0b42b06ec7767ccc896b8dc4230c984
+plan_head_before: 674ff803148e6cdb1c52fd5a16852716e7f21507
+plan_head_after: 3ffbe07b082a6cc3bdcac80af0297e63f839064b
 
 tech-stack:
   added: []
@@ -137,11 +137,11 @@ status: complete
 
 ## Task Commits
 
-1. **Task 1 (tracer): loader, harness core, green end to end** - `4c5f095` (feat)
-2. **Task 2 RED: failing tests for diff, RunAll, report, loader negatives** - `c377e66` (test)
-3. **Task 2 GREEN: unified diff, RunAll, report** - `8c405d1` (feat)
-4. **Task 3 RED: failing tests for accept mode and the CR/BOM guard** - `0bca0f4` (test)
-5. **Task 3 GREEN: accept mode and the guard** - `92d36f5` (feat)
+1. **Task 1 (tracer): loader, harness core, green end to end** - `98b8a57` (feat)
+2. **Task 2 RED: failing tests for diff, RunAll, report, loader negatives** - `4b74dac` (test)
+3. **Task 2 GREEN: unified diff, RunAll, report** - `fc155ee` (feat)
+4. **Task 3 RED: failing tests for accept mode and the CR/BOM guard** - `7f7bcae` (test)
+5. **Task 3 GREEN: accept mode and the guard** - `3ffbe07` (feat)
 
 ## Tracer gate
 
@@ -151,10 +151,10 @@ Task 1 is `type="tracer"`, `human_verify_mode` is `end-of-phase` and its `<verif
 
 `workflow.tdd_mode` is not enabled and the plan is `type: execute`, so `gsd_run check tdd-red-evidence` was not run and no evidence file was written. RED stubs return neutral values so failures are assertion failures, not compile or NotImplemented errors.
 
-- **Task 2 RED** (`c377e66`): `Failed: 16, Passed: 67, Total: 83` (with RepoHygieneTests). The 16 failures are the target tests failing on their assertions: the stub `UnifiedDiff` returns empty, the stub `RunAll` returns nothing, `Evaluate` carried no mismatch diff, and the loader detail had no `base/`/`head/` prefix. Semantic assessment: every target ran and failed for the planned reason. The loader negatives, tool-failure, missing-golden and schema-gate tests passed already against Task 1 code (the plan expected this); they are regression coverage, not RED evidence.
-- **Task 2 GREEN** (`8c405d1`): `Passed: 83, Failed: 0`.
-- **Task 3 RED** (`0bca0f4`): `Failed: 28, Passed: 97, Total: 125`. The 28 failures are the refusal rows that expect a message, the shape-request rows, every Apply and accept-mode end-to-end test and the flagged hygiene rows, all on assertions. The refusal rows that expect null, the clean-byte rows and the hygiene fact passed vacuously against the neutral stubs; they are not RED evidence.
-- **Task 3 GREEN** (`92d36f5`): `Passed: 125, Failed: 0`.
+- **Task 2 RED** (`4b74dac`): `Failed: 16, Passed: 67, Total: 83` (with RepoHygieneTests). The 16 failures are the target tests failing on their assertions: the stub `UnifiedDiff` returns empty, the stub `RunAll` returns nothing, `Evaluate` carried no mismatch diff, and the loader detail had no `base/`/`head/` prefix. Semantic assessment: every target ran and failed for the planned reason. The loader negatives, tool-failure, missing-golden and schema-gate tests passed already against Task 1 code (the plan expected this); they are regression coverage, not RED evidence.
+- **Task 2 GREEN** (`fc155ee`): `Passed: 83, Failed: 0`.
+- **Task 3 RED** (`7f7bcae`): `Failed: 28, Passed: 97, Total: 125`. The 28 failures are the refusal rows that expect a message, the shape-request rows, every Apply and accept-mode end-to-end test and the flagged hygiene rows, all on assertions. The refusal rows that expect null, the clean-byte rows and the hygiene fact passed vacuously against the neutral stubs; they are not RED evidence.
+- **Task 3 GREEN** (`3ffbe07`): `Passed: 125, Failed: 0`.
 - **REFACTOR:** none.
 
 ## Verification
@@ -190,4 +190,4 @@ None. T-02-19 to T-02-23 are covered: loader negatives (size, unknown key, shape
 ## Self-Check: PASSED
 
 - Files exist: FixtureConfig.cs, FixtureLoader.cs, FixtureHarness.cs, AcceptMode.cs, FixtureHarnessTests.cs, and the modified RepoHygieneTests.cs.
-- Commits `4c5f095`, `c377e66`, `8c405d1`, `0bca0f4`, `92d36f5` are ancestors of HEAD; `git rev-list --count` from the recorded base gives 5.
+- Commits `98b8a57`, `4b74dac`, `fc155ee`, `7f7bcae`, `3ffbe07` are ancestors of HEAD; `git rev-list --count` from the recorded base gives 5.

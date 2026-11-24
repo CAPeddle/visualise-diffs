@@ -19,8 +19,8 @@ actuals:
   commits: 5
 
 commits: 5
-plan_head_before: dbe1c48d992e4c2a58fe2b3f02f9e007fe2d314e
-plan_head_after: 42b9a4905ac697af515f751441de613561c02f1a
+plan_head_before: 65e89ed4cb954378c8beb07198ed3ae8c426227d
+plan_head_after: 9606beba3d1e3fd649bf5dc3d1b65314efb5414a
 
 tech-stack:
   added: []
@@ -67,19 +67,19 @@ subst drive letters and 8.3 short names are an accepted limit of gap 2's closure
 
 ## TDD record
 
-- **RED (Task 1), commit `ff5d447`:** with `LinkScratch` and `AliasedOutTests` in place and no production change, `AliasedOutTests` gave `Failed: 6, Passed: 2, Total: 8`. The five aliased theory cases and the chain case failed on `Assert.Equal(1, exit)` with `Actual: 0` (the tool wrote `aliased-out` into the repository); the reverse-direction and outside-link cases passed as the plan predicted (guards). semanticAssessment: the target tests executed and failed on the planned assertion for the intended reason (an aliased `--out` accepted), not a build, fixture or discovery fault. The gsd `check tdd-red-evidence` classifier was not run (no `gsd_run` in this environment, and xUnit console output is not one of its supported formats), as in plan 01-11.
-- **GREEN (Task 1), commit `8445196`:** `FinalPath` plus the resolved comparison in `RefuseUnsafeOut`; `AliasedOutTests` `Passed: 8`; `CliOptionsTests`, `HostileInputTests`, `TracerEndToEndTests` `Passed: 61`.
-- **Task 2, commit `f777120`:** the eight `FinalPathTests` facts and the ninth CLI case (loop) were written against the existing resolver and passed on the first run (`Passed: 17` for `FinalPathTests` + `AliasedOutTests`); no resolver defect was found, so `FinalPath.cs` was not changed. This commit is a test-only pin of behavior, not a red step.
-- **RED (Task 3), commit `e73fb1c`:** the four `Aliased_` script tests on both hosts gave `Failed: 6, Passed: 2, Total: 8`. The `-Out` test reported `tool-failed` instead of `out-not-outside` (the CLI guard of Task 1 refused it, the script did not), the `-LogPath` test exited 0 (the script wrote its log into the repository), and the loop test reported `tool-failed` instead of `script-error`; the outside-link test passed on both hosts (guard). semanticAssessment: planned assertions, intended reason.
-- **GREEN (Task 3), commit `42b9a49`:** `Resolve-FinalPath` in `Test-SameOrUnder`; `Aliased_` filter `Passed: 8`; whole `TraceRunScriptTests` `Passed: 23`.
+- **RED (Task 1), commit `159bdb6`:** with `LinkScratch` and `AliasedOutTests` in place and no production change, `AliasedOutTests` gave `Failed: 6, Passed: 2, Total: 8`. The five aliased theory cases and the chain case failed on `Assert.Equal(1, exit)` with `Actual: 0` (the tool wrote `aliased-out` into the repository); the reverse-direction and outside-link cases passed as the plan predicted (guards). semanticAssessment: the target tests executed and failed on the planned assertion for the intended reason (an aliased `--out` accepted), not a build, fixture or discovery fault. The gsd `check tdd-red-evidence` classifier was not run (no `gsd_run` in this environment, and xUnit console output is not one of its supported formats), as in plan 01-11.
+- **GREEN (Task 1), commit `1a91dfe`:** `FinalPath` plus the resolved comparison in `RefuseUnsafeOut`; `AliasedOutTests` `Passed: 8`; `CliOptionsTests`, `HostileInputTests`, `TracerEndToEndTests` `Passed: 61`.
+- **Task 2, commit `7a48e6e`:** the eight `FinalPathTests` facts and the ninth CLI case (loop) were written against the existing resolver and passed on the first run (`Passed: 17` for `FinalPathTests` + `AliasedOutTests`); no resolver defect was found, so `FinalPath.cs` was not changed. This commit is a test-only pin of behavior, not a red step.
+- **RED (Task 3), commit `551bdc4`:** the four `Aliased_` script tests on both hosts gave `Failed: 6, Passed: 2, Total: 8`. The `-Out` test reported `tool-failed` instead of `out-not-outside` (the CLI guard of Task 1 refused it, the script did not), the `-LogPath` test exited 0 (the script wrote its log into the repository), and the loop test reported `tool-failed` instead of `script-error`; the outside-link test passed on both hosts (guard). semanticAssessment: planned assertions, intended reason.
+- **GREEN (Task 3), commit `9606beb`:** `Resolve-FinalPath` in `Test-SameOrUnder`; `Aliased_` filter `Passed: 8`; whole `TraceRunScriptTests` `Passed: 23`.
 
 Tracer gate (Task 1): the tracer verify (eight AliasedOutTests plus the 61 lexical/hostile/end-to-end tests) passed before Tasks 2 and 3 started; expansion continued.
 
 ## Task Commits
 
-1. **Task 1** (tracer, tdd): `ff5d447` test (LinkScratch, AliasedOutTests, red), `8445196` feat (FinalPath, RefuseUnsafeOut)
-2. **Task 2** (tdd): `f777120` test (FinalPathTests, loop CLI case)
-3. **Task 3** (tdd): `e73fb1c` test (four `Aliased_` script tests, red), `42b9a49` feat (script resolver)
+1. **Task 1** (tracer, tdd): `159bdb6` test (LinkScratch, AliasedOutTests, red), `1a91dfe` feat (FinalPath, RefuseUnsafeOut)
+2. **Task 2** (tdd): `7a48e6e` test (FinalPathTests, loop CLI case)
+3. **Task 3** (tdd): `551bdc4` test (four `Aliased_` script tests, red), `9606beb` feat (script resolver)
 
 ## Verification
 
@@ -134,4 +134,4 @@ None - no external service configuration required.
 ## Self-Check: PASSED
 
 - FOUND: src/Vdiff.Core/Cli/FinalPath.cs, tests/Vdiff.Tests/Support/LinkScratch.cs, tests/Vdiff.Tests/Safety/AliasedOutTests.cs, tests/Vdiff.Tests/Safety/FinalPathTests.cs
-- FOUND commits: ff5d447, 8445196, f777120, e73fb1c, 42b9a49 (all ancestors of HEAD; `git rev-list --count dbe1c48..HEAD` = 5)
+- FOUND commits: 159bdb6, 1a91dfe, 7a48e6e, 551bdc4, 9606beb (all ancestors of HEAD; `git rev-list --count 65e89ed..HEAD` = 5)

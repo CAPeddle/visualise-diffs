@@ -26,7 +26,7 @@ status: issues_found
 
 ## Summary
 
-Scope: plan 01-18, reviewed incrementally since `c4572b4` (`git diff c4572b4..HEAD` for the four listed files). The change is the drive-root fix in `HeldDirectory.SplitAtDeepestExisting` plus the tests that pin it. No structural (fallow) findings and no external reviewer evidence were supplied. The necessity rubric was not applied beyond a read of the change (no guard in the diff is unreachable or duplicated elsewhere), so `necessity: 0`.
+Scope: plan 01-18, reviewed incrementally since `2f3e477` (`git diff 2f3e477..HEAD` for the four listed files). The change is the drive-root fix in `HeldDirectory.SplitAtDeepestExisting` plus the tests that pin it. No structural (fallow) findings and no external reviewer evidence were supplied. The necessity rubric was not applied beyond a read of the change (no guard in the diff is unreachable or duplicated elsewhere), so `necessity: 0`.
 
 **CR-01 outcome: FIXED.** Trailing separators are now trimmed only down to `Path.GetPathRoot(directory)`; when the trimmed text is shorter than the root, the root itself becomes the anchor. `--out C:\` therefore anchors at `C:\`, not at the drive-relative `C:` (the process's current directory on drive C). This is verified two ways:
 
