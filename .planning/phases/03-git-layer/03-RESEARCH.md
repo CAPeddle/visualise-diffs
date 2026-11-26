@@ -420,7 +420,7 @@ Measured this session (rough, one Windows dev host with Defender, synthetic cont
 | Config file | none beyond the csproj; traits select categories (`Contract`, `MermaidCli` exist); proposed new trait `Category=Git` for the pure git-layer classes (no sidecar needed, fast) |
 | Quick run command | `dotnet test tests/Vdiff.Tests/Vdiff.Tests.csproj -c Release --filter "Category=Git"` (new); Phase 2's quick command was `--filter "Category=Contract\|Category=Fixtures"` and measured 56 s against a 30 s target |
 | Full suite command | `dotnet test vdiff.sln -c Release --filter "Category!=MermaidCli"` then `cargo test --locked --manifest-path extractors/cpp-ts/Cargo.toml` (from `02-VALIDATION.md`) |
-| Baseline | A full Debug run was started this session; its result is stated in the hand-off message, not here, because it had not finished when this file was written |
+| Baseline | Full Debug run before any Phase 3 change, `--filter "Category!=MermaidCli"`: Passed 934, Failed 0, Skipped 0, Total 934, duration 11 m 8 s on the probe host (Windows). Every Phase 3 plan must end with the same pass count plus its new tests; the full suite is slow, so per-task runs should use the proposed `Category=Git` filter |
 
 Rules to carry: any test class that calls `CliApp.Run` or the real sidecar, or sets process-wide environment variables, carries `[Collection("sidecar")]` (`SidecarFixture` rule). PR-mode tests must supply variables through `CliHooks.GetEnvironmentVariable` (existing seam), never the process environment.
 
