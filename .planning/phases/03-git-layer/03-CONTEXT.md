@@ -56,7 +56,9 @@ pipeline template (Phase 9).
   covers a path left out of one exported tree (otherwise Phase 4's whole-repo extraction brings the
   false `added` types back) and both paths of a git rename pair.
 - **D-12:** No merge-base: exit 1 with a clear message. Several: use the one `git merge-base`
-  returns and record in `run.meta.json` that there were others (schema change, see D-16).
+  returns and record in `run.meta.json` that there were others, as a new **optional** run-meta
+  property (additive inside v1 per `docs/schema/README.md`), with one deliberate re-pin of the
+  run-meta hash in `SchemaFreezeTests`. Owner sign-off 2026-11-26.
 
 ### PR context and skip rules
 - **D-13:** PR mode is entered only by an explicit `--pr` flag (`vdiff --pr --repo <path> --out
@@ -68,14 +70,13 @@ pipeline template (Phase 9).
   Nothing is posted.
 - **D-15:** If the draft lookup fails (no token, 401/403, network, timeout), fail closed: exit 1,
   no thread.
-- **D-16:** A skipped PR exits 0, with one fixed log line and a `run.meta.json` carrying a skip
-  reason, and no model, diff or report files. **Conflict to resolve in planning:** the user chose
-  this on the understanding that it is additive in v1. An optional skip reason is, but
-  `vdiff-run-meta-v1` requires `base_commit` and `head_commit`, and a skip can be decided before a
-  merge-base exists (resolving first would make a skip fail on a shallow clone, against R-04). The
-  schema is pinned by SHA-256 in `SchemaFreezeTests`, so this and D-12 need a re-pin and owner
-  sign-off at a `checkpoint:decision`. — **Reversibility:** one-way — changes the frozen,
-  hash-pinned run-meta contract that later phases read.
+- **D-16:** A skipped PR exits 0, with one fixed log line and a separate `skip.json` carrying the
+  skip reason, validated by its own new small schema; no `run.meta.json`, model, diff or report
+  files. `vdiff-run-meta/v1` is untouched. **Resolved by the owner 2026-11-26** (option A): a skip
+  is decided before a merge-base exists, and run-meta requires `base_commit` and `head_commit`, so
+  writing run-meta on a skip would need a v2 migration (rejected) or resolving the merge-base first,
+  which fails a shallow-clone skip against R-04 (rejected). Phases 8 and 9 read `skip.json` to
+  detect a skip. — **Reversibility:** two-way — a new contract file; run-meta stays frozen.
 - **D-17:** In PR mode the target tip comes from the merge commit (`Build.SourceVersion`), which
   pins the base across re-runs of one build: its first parent, after verifying that the second
   parent is `SourceCommitId`; otherwise fall back to `origin/<target>`.
@@ -100,6 +101,10 @@ pipeline template (Phase 9).
   `docs/how-to/private-fixtures.md` must say so.
 - Phase 1's `object-missing` unmodelled reason becomes exit 1 (D-10); existing tests change.
 - Phase 1 D-02's `--no-renames` no longer applies to change listing (D-20). The hardened flags do.
+
+### Owner review of agent additions
+On 2026-11-26 the owner accepted, as written, the "not asked" consequences in D-08, D-10, D-11 and
+D-14, the Claude's Discretion items below, and the Superseded list above.
 
 ### Claude's Discretion
 Not asked in the discussion, left to research and planning:
@@ -133,7 +138,7 @@ Not asked in the discussion, left to research and planning:
 
 ### Contracts and earlier decisions
 - `docs/schema/README.md` — evolution policy and presence rules
-- `docs/schema/vdiff-run-meta-v1.schema.json` — frozen; affected by D-12 and D-16
+- `docs/schema/vdiff-run-meta-v1.schema.json` — frozen; gains one optional property (D-12)
 - `docs/schema/vdiff-model-v1.schema.json` — `UnmodelledEntry`
 - `.planning/phases/01-offline-tracer/01-CONTEXT.md` — D-02, D-03 and D-10
 - `.planning/phases/02-model-contract-and-fixture-harness/02-CONTEXT.md` — D-13, D-14
