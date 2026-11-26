@@ -232,7 +232,7 @@ Validate variables (fail closed) -> fork skip (no network) -> draft GET -> only 
 | The Files tab "detects diffs by a three-side comparison ... the last commit in the target branch, the last commit in the source branch, and their common merge base ... the best common ancestor". ADO flags "Multiple merge bases detected" for criss-cross and other shapes, and "might display the message even when `git merge-base` reports only one merge base" | merge strategies page | [CITED: learn.microsoft.com/azure/devops/repos/git/merging-with-squash] |
 | Parent order of ADO's PR merge commit (first = target tip) | no authoritative source found | [ASSUMED] |
 | `origin/<target>` exists on the agent after checkout | not documented for the checkout step | [ASSUMED] |
-| `isDraft` is omitted or false for a non-draft PR in the JSON body | not documented | [ASSUMED] |
+| `isDraft` is omitted or false for a non-draft PR in the JSON body | not documented | owner-accepted (owner decision 2026-11-26: absent isDraft = not draft; to be confirmed at the first connected run; see A3) |
 | An unauthenticated ADO REST call can return a non-JSON sign-in page with a 2xx/3xx status rather than a clean 401 | general experience, not read this session | [ASSUMED] |
 | The project Build Service identity has read access to the repository by default | not verified | [ASSUMED] |
 
@@ -374,29 +374,38 @@ Measured this session (rough, one Windows dev host with Defender, synthetic cont
 
 | # | Claim | Section | Risk if Wrong |
 |---|-------|---------|---------------|
-| A1 | ADO's PR merge commit has the target tip as first parent | Azure DevOps facts | Low: the prescribed rule (the parent that is not `SourceCommitId`, exactly two parents) is order-independent |
+| A1 | ADO's PR merge commit has the target tip as first parent | Azure DevOps facts | Low: locked D-17 verifies the second parent is `SourceCommitId` before trusting the first, so a reversed order falls back to `origin/<target>` instead of giving a wrong base (this research's order-independent rule was not adopted); checked at the first connected trial |
 | A2 | `origin/<target>` exists on the agent when the merge commit route fails | Azure DevOps facts | Medium: without it the run exits 1 with the `fetchDepth: 0` message instead of continuing |
-| A3 | `isDraft` is absent or false in the PR JSON for a non-draft PR | REST client shape | Medium: if the field is sometimes absent for drafts too, drafts would be analysed; verify on the first connected run |
+| A3 | `isDraft` is absent or false in the PR JSON for a non-draft PR. Owner-accepted (owner decision 2026-11-26: absent isDraft = not draft; to be confirmed at the first connected run); a present non-boolean `isDraft` still fails closed | REST client shape | Medium: if the field is sometimes absent for drafts too, drafts would be analysed; checked by the 03-VALIDATION.md manual-trial row "Draft/fork detection against a real Azure DevOps organisation" |
 | A4 | Unauthenticated ADO REST can return a non-JSON 2xx/3xx page | REST client shape | Low: the client requires 200 plus JSON anyway |
-| A5 | The Build Service identity can read the repository with default settings | Azure DevOps facts | Medium: the draft lookup would exit 1 on every PR build until permissions are granted (Phase 9 template documentation) |
+| A5 | The Build Service identity can read the repository with default settings | Azure DevOps facts | Medium: the draft lookup would exit 1 on every PR build until permissions are granted (Phase 9 template documentation); deferred to the 03-VALIDATION.md manual-trial row on Build Service read permission |
 | A6 | Export limits (1 GiB, 200,000 files, rename limit 1000), tier-1 extension list | Export figures | Medium: wrong limits either truncate useful trees or exceed agent disk/time; owner confirmation requested |
 | A7 | `-w --ignore-blank-lines` is the whitespace option the owner wants (probed to work; blank-only insertions give no hunk) | Pattern 1 | Low: `-w` alone also satisfies D-21's examples; the blank-line addition goes beyond what D-21 states |
 | A8 | Target repo has no case-collision paths and no Windows-reserved names in cross-OS goldens | Pitfall 10 | Low |
 | A9 | Hosted Ubuntu export is several times faster than the measured Windows host | Export figures | High for R-26 if wrong; measure at trial |
 | A10 | `LC_ALL=C` makes git's rename-limit warning English on Windows and Linux agents | Pitfall 6 | Low: probe showed the Windows host printed English with `LC_ALL=de_DE.UTF-8` set (the locale was apparently not installed), so a localised run was not truly observed |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+Every question below has a disposition. Where a fact can only be confirmed against a real Azure DevOps agent, the decision stands now and the check is deferred to a manual-trial row in `03-VALIDATION.md` (§ Manual-Only Verifications); no plan waits on it.
 
 1. **Where are the counts of skipped out-of-scope files reported (D-07 "only counted")?**
    - Known: `UnmodelledEntry` lists in-scope only by definition; run-meta gets exactly one new optional property (D-12).
    - Unclear: a place for counts.
    - Recommendation: a fixed stdout summary line and an internal `ExportResult` record; no schema change. Owner confirmation if a persisted count is wanted.
+   - **RESOLVED (03-05 task 2):** one fixed stdout line (`CliApp.OutsideScopeLine`, total and per-side counts) and the internal `ExportResult`; nothing persisted, no schema change. Flagged `[ASSUMED]` in 03-05; a persisted count would be a later, additive change if the owner asks for one.
 2. **Hunk-output cap breach policy.** `BoundedProcess` throws when stdout exceeds the cap. Recommendation: cap 256 MiB, breach is exit 1 with a fixed "diff output too large" message; alternative of restricting call B to in-scope extensions changes rename pairing inside the pathspec.
+   - **RESOLVED (03-04 task 2):** 256 MiB and 5 minutes on call B over every changed file; a breach is exit 1 through BoundedProcess's fixed message. Recorded in 03-04 as an `[ASSUMED]` trade-off with its R-26 risk; the pathspec alternative is rejected because it breaks the blob-pair join. Call B's time is measured at the first connected trial (03-VALIDATION.md, R-26 timing row).
 3. **Merge-commit parent order and whether `origin/<target>` exists** (both A1/A2): resolve on the first connected pipeline run; the order-independent rule makes A1 harmless.
+   - **RESOLVED by locked decision D-17 (03-08 tasks 1 and 3):** the target tip is the merge commit's first parent after verifying that its second parent is `SourceCommitId`; otherwise `refs/remotes/origin/<target>`; otherwise exit 1. The order-independent variant above is not adopted. A reversed parent order cannot give a wrong base, because the second-parent check fails and the origin fallback runs. **Deferred to the manual-trial row** "ADO merge-commit parent order, `origin/<target>` presence, Build Service read permission" (A1, A2).
 4. **`isDraft` semantics and token permission** (A3, A5): same; D-15 already makes failure safe.
+   - **RESOLVED by D-14 and D-15 (03-09 tasks 2 and 3):** one read-only GET; `isDraft` true skips, a boolean false or an absent key means not a draft (A3, owner-accepted: owner decision 2026-11-26, absent isDraft = not draft; to be confirmed at the first connected run), a present non-boolean `isDraft` or an unparseable body fails closed, and every failure, a permission refusal included (A5), exits 1 and posts nothing. **Deferred to the manual-trial rows** "Draft/fork detection against a real Azure DevOps organisation" (A3) and "ADO merge-commit parent order, `origin/<target>` presence, Build Service read permission" (A5).
 5. **Whitespace option** (A7): confirm `-w --ignore-blank-lines` versus `-w` alone.
+   - **RESOLVED (03-04 task 2):** `-w --ignore-blank-lines`, flagged `[ASSUMED A7]` in 03-04. D-21 left the exact option to research. Reverting to `-w` alone is one argument in `HunkArguments` and changes internal records only.
 6. **`hasMultipleMergeBases`**: the PR JSON carries it and ADO itself warns about multiple bases even when git reports one. Not needed by this phase (D-12 uses git's answer); noting it for the verification report so a reviewer is not surprised by a diff that differs from ADO's Files tab.
+   - **RESOLVED (not used):** D-12 takes git's merge bases; the field is not read. 03-08 tells the verification report to mention it.
 7. **D-16 versus the discussion log:** the log still says run.meta.json on a skip; `CONTEXT.md` D-16 (`skip.json`) governs, the log is audit-only.
+   - **RESOLVED by D-16 (owner, 2026-11-26):** `skip.json` with its own schema (03-02 task 3) written by 03-09; run-meta is untouched on a skip.
 
 ## Environment Availability
 

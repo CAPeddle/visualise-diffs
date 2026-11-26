@@ -124,6 +124,13 @@ Not asked in the discussion, left to research and planning:
   builds, and draft PRs don't trigger policy builds. A manually queued run may lack the PR id.
 - Export time and size against the 5-minute P90 budget (D-04, D-08).
 
+### Owner decisions during planning (2026-11-26)
+
+- **D-22:** A 200 JSON body with no `isDraft` key means not a draft and the analysis runs. A non-boolean `isDraft`, an unparseable body or a failed lookup still exits 1 (D-15). Confirm against the real body at the first connected run.
+- **D-23:** Success criterion 3 covers PR-triggered builds that carry the PR variables. A hand-queued run without them exits 1; Phase 9 runs the step only when `Build.Reason` is `PullRequest` (ROADMAP Phase 9 criterion 5).
+- **D-24:** The hunk diff in 03-04 runs over every changed file; a breach of its 256 MiB or 5-minute cap exits 1 even though nothing reads hunks until Phase 5. Accepted trade-off; time it at the first connected run.
+- **D-25:** Plans 03-01 and 03-02 stay at 13 files each.
+
 </decisions>
 
 <canonical_refs>

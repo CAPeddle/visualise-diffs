@@ -162,11 +162,31 @@ Plans:
 **Requirements**: R-01, R-04
 **Plan units**: U2
 **Success Criteria** (what must be TRUE):
-  1. From the Azure DevOps PR variables the tool resolves head and base, where base is `merge-base(target branch tip, head)` (the same comparison Azure DevOps shows for the PR), and provides a worktree of the base commit beside head so both trees are available for whole-repository extraction.
+  1. From the Azure DevOps PR variables the tool resolves head and base, where base is `merge-base(target branch tip, head)` (the same comparison Azure DevOps shows for the PR), and exports raw trees of the base and head commits to a temporary directory (CONTEXT D-01 replaced the base worktree) so both trees are available for whole-repository extraction.
   2. The tool lists changed files, finds rename pairs with a similarity score, and maps diff hunks to source spans; unit tests on a scripted repo pass.
-  3. A draft PR and a PR from a fork are each skipped: no thread is posted and the run exits 0.
+  3. A draft PR and a PR from a fork are each skipped: no thread is posted and the run exits 0. This holds for PR-triggered builds that carry the PR variables. A pipeline run queued by hand without them exits 1 here; Phase 9 runs the step only when `Build.Reason` is `PullRequest` (owner decision 2026-11-26).
 **Input from Phase 2 UAT (2026-11-23)**: an offline run of the Phase 1 tracer on three merged PRs of a private target clone showed that reading the base side from git objects fails silently on a partial (`blob:none`) clone: base files come back `object-missing`, and their types then show as `added` instead of `modified`. Product-owner direction: git only establishes what to compare (branch against target branch); extraction runs on the code of the branch and of the target, two checked-out trees, and a compare step highlights the differences. Criterion 1 above already takes this route. A file that cannot be read on one side must never turn its types into `added`. The pipeline checkout must also fetch enough history for the merge-base (Azure DevOps fetches shallow by default).
-**Plans**: TBD
+**Plans**: 9 plans in 5 waves (03-02 has a blocking contract-review checkpoint)
+
+Plans:
+**Wave 1**
+- [ ] 03-01-PLAN.md — Wave 1 (tracer): offline runs read both sides from exported temp trees; tree-root containment; `--keep-trees`; BAD-size objects exit 1; blob-batch reader removed
+- [ ] 03-02-PLAN.md — Wave 1: owner contract review, then `other_merge_bases` in run-meta (one re-pin) and the pinned `vdiff-skip-v1` schema
+- [ ] 03-03-PLAN.md — Wave 1: no child process sees the access token; git in the C locale; scripted-repository helpers for every Phase 3 history shape
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 03-04-PLAN.md — Wave 2: change set of every changed file with git rename pairs (50%, limit 1000) and whitespace-blind zero-context hunks joined by blob ids
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 03-05-PLAN.md — Wave 3: hostile-tree path rules, case collisions, tiered total and file-count export limits, out-of-scope count line
+- [ ] 03-06-PLAN.md — Wave 3: partial, damaged and shallow clones exit 1 naming `fetchDepth: 0`; nothing fetched
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 03-07-PLAN.md — Wave 4: a file unreadable on one side is excluded from both models with `<side>-<reason>`; D-11 warning; private-fixture recipe updated
+- [ ] 03-08-PLAN.md — Wave 4: `--pr` mode: PR variables fail closed, head = source commit, base = merge-base of the D-17 target tip, several bases recorded
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 03-09-PLAN.md — Wave 5: fork and draft PRs skipped with `skip.json` only; one read-only GET; fail closed; token never leaks
 
 ### Phase 4: Extractors
 **Goal**: Every in-scope language is extracted into `vdiff-model/v1` for both commits, and each file and language states honestly how it was extracted.
@@ -244,6 +264,7 @@ Plans:
   2. The job uses `continueOnError: true`; after a crash or timeout the existing thread is untouched and a pipeline warning is raised; the exit code is 0 when published or skipped and 1 on a tool failure.
   3. A `.visualise-diffs.yml` reference and the README let someone adopt the tool in a target repository without reading the source.
   4. A trial on the target PR pipeline, run by the PO or an agent in the target organisation, shows that over 10 consecutive PR runs none extends the PR build's wall-clock and the P90 job time is under 5 minutes. The result is recorded here without target identifiers.
+  5. The job runs `vdiff --pr` only when `Build.Reason` is `PullRequest`, so a hand-queued run without PR variables neither fails nor posts (carried from Phase 3 SC3, owner decision 2026-11-26).
 **Plans**: TBD
 
 ## Progress
