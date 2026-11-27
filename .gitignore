@@ -1,0 +1,13 @@
+# Build output
+bin/
+obj/
+target/
+node_modules/
+TestResults/
+.vs/
+*.user
+
+# Run output: keeps generated diagrams and models out of this PUBLIC repository
+/out/
+/vdiff-out*/
+*.vdiff-out/

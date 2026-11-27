@@ -1,0 +1,72 @@
+# Microsoft-hosted images only (D-09, D15). This file names no organisation, project,
+# agent pool, service connection or variable group, and it is not yet connected to an
+# Azure DevOps organisation: until it is, "runs in CI" is checked locally and by
+# PipelineYamlTests. The fixture report file is written by the fixture harness.
+trigger:
+  branches:
+    include: [main]
+pr:
+  branches:
+    include: ['*']
+
+jobs:
+- job: build_and_test
+  displayName: Build, test and fixture harness
+  timeoutInMinutes: 45
+  strategy:
+    matrix:
+      windows:
+        imageName: windows-2025        # windows-latest is moving to the VS2026 image
+      linux:
+        imageName: ubuntu-24.04        # ubuntu-latest currently maps here
+  pool:
+    vmImage: $(imageName)
+  steps:
+  - checkout: self
+    persistCredentials: false
+  - task: UseDotNet@2
+    displayName: .NET SDK from global.json
+    inputs:
+      packageType: sdk
+      useGlobalJson: true
+  - script: |
+      dotnet --info
+      cargo --version
+      git --version
+    displayName: Tool versions
+  - script: cargo build --release --locked --manifest-path extractors/cpp-ts/Cargo.toml
+    displayName: Build the Rust sidecar
+  - script: cargo test --locked --manifest-path extractors/cpp-ts/Cargo.toml
+    displayName: Test the Rust sidecar
+  - script: dotnet build vdiff.sln -c Release
+    displayName: Build the solution
+  - script: >
+      dotnet test vdiff.sln -c Release --no-build
+      --filter "Category!=MermaidCli"
+      --logger "trx;LogFileName=tests.trx"
+      --results-directory $(Agent.TempDirectory)/results
+    displayName: Tests and fixture harness
+    env:
+      VDIFF_FIXTURE_REPORT: $(Build.ArtifactStagingDirectory)/fixture-report.md
+  - task: PublishTestResults@2
+    displayName: Publish test results
+    condition: succeededOrFailed()
+    inputs:
+      testResultsFormat: VSTest
+      testResultsFiles: '$(Agent.TempDirectory)/results/*.trx'
+  - task: PublishPipelineArtifact@1
+    displayName: Publish fixture report
+    condition: succeededOrFailed()
+    inputs:
+      targetPath: '$(Build.ArtifactStagingDirectory)/fixture-report.md'
+      artifact: 'fixture-report-$(imageName)'
+  # Advisory until the first connected run: this step cannot be exercised before an
+  # organisation is connected, so a failure here must not turn the leg red (Pitfall 12).
+  - script: |
+      npm --prefix tools/mermaid-check ci --ignore-scripts
+      dotnet test vdiff.sln -c Release --no-build --filter "Category=MermaidCli"
+    displayName: Mermaid syntax check (Linux, advisory)
+    condition: and(succeeded(), eq(variables['Agent.OS'], 'Linux'))
+    continueOnError: true
+    env:
+      VDIFF_MERMAID_NO_SANDBOX: '1'

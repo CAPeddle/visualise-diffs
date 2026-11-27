@@ -1,0 +1,340 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "vdiff-model/v1",
+  "description": "The class model one extractor run writes for one side of a diff (base.model.json, head.model.json). Every list is always present, empty when there is nothing to list. Optional properties are omitted, never null. Lists are written in canonical order, so the same trees give the same bytes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "extraction", "files", "unmodelled", "types", "edges", "duplicates"],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "enum": ["vdiff-model/v1"]
+    },
+    "extraction": {
+      "$ref": "#/definitions/ExtractionInfo"
+    },
+    "files": {
+      "type": "array",
+      "description": "Every in-scope source file the extractors read, with the mode it was read in, ordered by path then language.",
+      "items": {
+        "$ref": "#/definitions/ModelFileEntry"
+      }
+    },
+    "unmodelled": {
+      "type": "array",
+      "description": "In-scope files that produced no model, each with a reason code, ordered by path then reason.",
+      "items": {
+        "$ref": "#/definitions/UnmodelledEntry"
+      }
+    },
+    "types": {
+      "type": "array",
+      "description": "Every modelled type of every language, ordered by language, id, file and start byte.",
+      "items": {
+        "$ref": "#/definitions/TypeModel"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "description": "Every edge between types, ordered by kind, from, to_name and via, then by the resolved target.",
+      "items": {
+        "$ref": "#/definitions/EdgeModel"
+      }
+    },
+    "duplicates": {
+      "type": "array",
+      "description": "One entry per repeated type id or repeated member key, sorted by value, for example 'class shop::X (3 definitions)'.",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "definitions": {
+    "TypeModel": {
+      "type": "object",
+      "description": "One type of one language, identified by (language, id).",
+      "additionalProperties": false,
+      "required": ["language", "id", "fqn", "kind", "name", "scope", "partial", "file", "modifiers", "bases", "span", "members"],
+      "properties": {
+        "language": {
+          "type": "string",
+          "enum": ["cpp", "csharp", "cpp-cli"]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Identity (see README Identity). An id is the type kind, one space and the fqn (scope, the language's separator, name). cpp and cpp-cli use :: and a nested type takes its enclosing type's fqn as its scope; a class template has its plain name and a specialisation has its arguments as written. csharp uses . (also for nesting) and a generic type's name carries its arity as the unbound form (Foo<>, Pair<,>). A repeated id carries #<path> (the repository-relative path of its file) on every definition, plus @<n> when one file repeats it."
+        },
+        "fqn": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The scope, the language's separator and the name; just the name when the scope is empty. Never carries a repeated-id suffix."
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["class", "struct", "enum", "interface", "union", "record", "delegate"]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scope": {
+          "type": "string",
+          "description": "The enclosing namespaces, or the enclosing type's fqn for a nested type. Empty at global scope."
+        },
+        "access": {
+          "type": "string",
+          "enum": ["public", "protected", "private", "internal", "protected-internal", "private-protected", "none"],
+          "description": "The declared or language-default accessibility of the type. Absent when the extractor has no type-level access (C++ types at namespace scope). Never none: the enum is shared with members, where none is legal, but absence is the only encoding of no type-level access."
+        },
+        "partial": {
+          "type": "boolean",
+          "description": "True only for a type declared in parts; false otherwise."
+        },
+        "file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The repository-relative path of the file that holds the type; for a partial type, the first entry of files."
+        },
+        "files": {
+          "type": "array",
+          "uniqueItems": true,
+          "description": "Present exactly when partial is true: every repository-relative file that declares a part, sorted ordinally, without repeats. file is its first entry and span is the span of the earliest part in that file.",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "modifiers": {
+          "type": "array",
+          "uniqueItems": true,
+          "description": "Declaration modifiers as lower-case codes, sorted by value.",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          }
+        },
+        "bases": {
+          "type": "array",
+          "description": "The written base names, with access and virtual dropped and whitespace collapsed. A sorted set, not in declaration order.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "span": {
+          "$ref": "#/definitions/SourceSpan"
+        },
+        "members": {
+          "type": "array",
+          "description": "The type's members, ordered by key, start byte and end byte.",
+          "items": {
+            "$ref": "#/definitions/MemberModel"
+          }
+        }
+      }
+    },
+    "MemberModel": {
+      "type": "object",
+      "description": "One member of a type, identified by its key within the type.",
+      "additionalProperties": false,
+      "required": ["key", "name", "kind", "access", "modifiers", "signature", "span"],
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Identity (see README Identity). A key is the name, then for a method or constructor the parameter list as written with whitespace collapsed (in cpp and cpp-cli also any trailing qualifier such as const), so overloads differ by their parameter lists; a field, property or event key is its name. In cpp and cpp-cli a member template's key omits its template header; in csharp a generic method's name carries its arity as the unbound form (Map<>(int x)). A key repeated in one type carries #<path> and @<n> as a repeated id does."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["method", "field", "alias", "enumerator", "property", "event", "constructor"]
+        },
+        "access": {
+          "type": "string",
+          "enum": ["public", "protected", "private", "internal", "protected-internal", "private-protected", "none"]
+        },
+        "modifiers": {
+          "type": "array",
+          "uniqueItems": true,
+          "description": "Declaration modifiers as lower-case codes, sorted by value.",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          }
+        },
+        "signature": {
+          "type": "string",
+          "description": "The declaration text with whitespace collapsed, up to where a body or an initialiser list starts, without the final semicolon."
+        },
+        "span": {
+          "$ref": "#/definitions/SourceSpan"
+        }
+      }
+    },
+    "EdgeModel": {
+      "type": "object",
+      "description": "One edge between types. to is present only when the extractor resolved to_name to one modelled type; to_name is the name as written. via, a member key, is present exactly on association edges and never on a base edge. How to is resolved is up to each extractor (see README).",
+      "additionalProperties": false,
+      "required": ["kind", "from", "to_name"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["base", "association"]
+        },
+        "from": {
+          "$ref": "#/definitions/TypeRef"
+        },
+        "to": {
+          "$ref": "#/definitions/TypeRef"
+        },
+        "to_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "via": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "TypeRef": {
+      "type": "object",
+      "description": "A type named by language and id; the endpoint of an edge.",
+      "additionalProperties": false,
+      "required": ["language", "id"],
+      "properties": {
+        "language": {
+          "type": "string",
+          "enum": ["cpp", "csharp", "cpp-cli"]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A type id as defined for TypeModel.id (see README Identity); a repeated id carries #<path> on every definition, plus @<n> when one file repeats it."
+        }
+      }
+    },
+    "SourceSpan": {
+      "type": "object",
+      "description": "A byte and line range in one file. Lines are counted from 1; the end byte is exclusive.",
+      "additionalProperties": false,
+      "required": ["start_byte", "end_byte", "start_line", "end_line"],
+      "properties": {
+        "start_byte": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_byte": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "start_line": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end_line": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "LanguageExtraction": {
+      "type": "object",
+      "description": "How one language was extracted in this run.",
+      "additionalProperties": false,
+      "required": ["language", "extractor", "mode", "macros_blanked"],
+      "properties": {
+        "language": {
+          "type": "string",
+          "enum": ["cpp", "csharp", "cpp-cli"]
+        },
+        "extractor": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["semantic", "syntax-only", "scanner"]
+        },
+        "fallback_reason": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "unresolved_symbols": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "macros_blanked": {
+          "type": "array",
+          "uniqueItems": true,
+          "description": "The macro names blanked before parsing, sorted by value.",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "ModelFileEntry": {
+      "type": "object",
+      "description": "One source file the extractors read, and the mode it was read in.",
+      "additionalProperties": false,
+      "required": ["path", "language", "mode", "error_nodes"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "language": {
+          "type": "string",
+          "enum": ["cpp", "csharp", "cpp-cli"]
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["semantic", "syntax-only", "scanner"]
+        },
+        "fallback_reason": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "error_nodes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "UnmodelledEntry": {
+      "type": "object",
+      "description": "An in-scope file that produced no model, and why.",
+      "additionalProperties": false,
+      "required": ["path", "reason"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        }
+      }
+    },
+    "ExtractionInfo": {
+      "type": "object",
+      "description": "Extraction metadata that is stable across runs over the same trees. Tool versions and commit ids are in run.meta.json.",
+      "additionalProperties": false,
+      "required": ["languages"],
+      "properties": {
+        "languages": {
+          "type": "array",
+          "description": "One entry per language extracted, ordered by language.",
+          "items": {
+            "$ref": "#/definitions/LanguageExtraction"
+          }
+        }
+      }
+    }
+  }
+}

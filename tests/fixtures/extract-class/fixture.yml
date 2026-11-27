@@ -1,0 +1,9 @@
+shape: extract-class
+description: "Members moved out of a class into a new class that the old one now holds as a field"
+expected:
+  diff:
+    state: pending
+    due: 5
+  summary:
+    state: pending
+    due: 7

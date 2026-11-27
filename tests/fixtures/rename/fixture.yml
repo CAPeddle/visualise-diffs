@@ -1,0 +1,9 @@
+shape: rename
+description: "A class renamed in a moved header with mostly unchanged members, so rename matching applies"
+expected:
+  diff:
+    state: pending
+    due: 5
+  summary:
+    state: pending
+    due: 7

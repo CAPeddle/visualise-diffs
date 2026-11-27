@@ -1,0 +1,98 @@
+{
+  "schema": "vdiff-diff/v1",
+  "summary": {
+    "types": {
+      "added": 0,
+      "removed": 0,
+      "modified": 0,
+      "renamed": 1,
+      "unchanged": 1
+    },
+    "members": {
+      "added": 1,
+      "removed": 0,
+      "modified": 0,
+      "renamed": 1,
+      "body_changed": 0
+    },
+    "edges": {
+      "added": 0,
+      "removed": 0,
+      "modified": 0,
+      "renamed": 1,
+      "unchanged": 0
+    },
+    "unmodelled": {
+      "base": 0,
+      "head": 0
+    }
+  },
+  "warnings": [],
+  "packages": [],
+  "types": [
+    {
+      "language": "cpp",
+      "id": "class synthetic::Disc",
+      "fqn": "synthetic::Disc",
+      "kind": "class",
+      "state": "renamed",
+      "base_file": "include/synthetic/circle.h",
+      "head_file": "include/synthetic/disc.h",
+      "renamed_from": {
+        "id": "class synthetic::Circle",
+        "fqn": "synthetic::Circle"
+      },
+      "rename": {
+        "score_milli": 750,
+        "member_jaccard": {
+          "shared": 3,
+          "total": 6
+        },
+        "same_file_or_rename_pair": true,
+        "same_namespace": true,
+        "same_bases": true
+      },
+      "bases": {
+        "added": [],
+        "removed": []
+      },
+      "members": [
+        {
+          "key": "Disc(double r)",
+          "name": "Disc",
+          "state": "renamed",
+          "access_before": "public",
+          "access_after": "public",
+          "signature_before": "Circle(double r)",
+          "signature_after": "Disc(double r)",
+          "modifiers_before": [],
+          "modifiers_after": [],
+          "renamed_from_key": "Circle(double r)"
+        },
+        {
+          "key": "diameter() const",
+          "name": "diameter",
+          "state": "added",
+          "access_after": "public",
+          "signature_after": "double diameter() const",
+          "modifiers_after": []
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "kind": "base",
+      "from": {
+        "language": "cpp",
+        "id": "class synthetic::Disc"
+      },
+      "to": {
+        "language": "cpp",
+        "id": "class synthetic::Shape"
+      },
+      "to_name": "Shape",
+      "state": "renamed"
+    }
+  ]
+}

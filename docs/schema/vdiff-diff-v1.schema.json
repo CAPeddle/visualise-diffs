@@ -1,0 +1,432 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "vdiff-diff/v1",
+  "description": "The structural difference between a base model and a head model (diff.json). Types are matched by (language, id). Unchanged types and unchanged edges are counted in summary and never listed. Unchanged members are never listed and have no count. Rules the draft-07 subset cannot express are enforced by tests and stated here: a member's before fields are present exactly when the member exists on the base side and its after fields exactly when it exists on the head side; base_file is present when the type exists on the base side and head_file when it exists on the head side; renamed_from and rename are present only for state renamed; a package's old_version is present exactly for states updated and removed and its new_version exactly for updated and added; via is present exactly on association edges; summary counts equal the number of listed items in each state. Every list is always present, in canonical order.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "summary", "warnings", "packages", "types", "edges"],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "enum": ["vdiff-diff/v1"]
+    },
+    "summary": {
+      "$ref": "#/definitions/DiffSummary"
+    },
+    "warnings": {
+      "type": "array",
+      "description": "Human-readable warnings about the run (duplicated ids, files with parse errors, files not modelled), sorted by value.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "packages": {
+      "type": "array",
+      "description": "Package pin changes, ordered by name then state.",
+      "items": {
+        "$ref": "#/definitions/PackageDiff"
+      }
+    },
+    "types": {
+      "type": "array",
+      "description": "The changed types only, ordered by language then id.",
+      "items": {
+        "$ref": "#/definitions/TypeDiff"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "description": "The changed edges only, ordered by identity (kind, from, to_name, via), then target, then state.",
+      "items": {
+        "$ref": "#/definitions/EdgeDiff"
+      }
+    }
+  },
+  "definitions": {
+    "DiffSummary": {
+      "type": "object",
+      "description": "Counts of changed items by state. Each count equals the number of listed items in that state, except the unchanged counts, which count items that are never listed.",
+      "additionalProperties": false,
+      "required": ["types", "members", "edges", "unmodelled"],
+      "properties": {
+        "types": {
+          "$ref": "#/definitions/TypeCounts"
+        },
+        "members": {
+          "$ref": "#/definitions/MemberCounts"
+        },
+        "edges": {
+          "$ref": "#/definitions/EdgeCounts"
+        },
+        "unmodelled": {
+          "$ref": "#/definitions/UnmodelledCounts"
+        }
+      }
+    },
+    "TypeCounts": {
+      "type": "object",
+      "description": "Types by state; unchanged types are counted here and never listed.",
+      "additionalProperties": false,
+      "required": ["added", "removed", "modified", "renamed", "unchanged"],
+      "properties": {
+        "added": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "removed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "modified": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "renamed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unchanged": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "MemberCounts": {
+      "type": "object",
+      "description": "Listed members by state, over every listed type. Members have no unchanged count because unchanged members are never listed.",
+      "additionalProperties": false,
+      "required": ["added", "removed", "modified", "renamed", "body_changed"],
+      "properties": {
+        "added": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "removed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "modified": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "renamed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "body_changed": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "EdgeCounts": {
+      "type": "object",
+      "description": "Edges by state; unchanged edges are counted here and never listed.",
+      "additionalProperties": false,
+      "required": ["added", "removed", "modified", "renamed", "unchanged"],
+      "properties": {
+        "added": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "removed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "modified": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "renamed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unchanged": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "UnmodelledCounts": {
+      "type": "object",
+      "description": "The number of in-scope files that produced no model on each side.",
+      "additionalProperties": false,
+      "required": ["base", "head"],
+      "properties": {
+        "base": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "head": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "PackageDiff": {
+      "type": "object",
+      "description": "One package pin change. old_version is present exactly for states updated and removed, new_version exactly for states updated and added.",
+      "additionalProperties": false,
+      "required": ["name", "state"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state": {
+          "type": "string",
+          "enum": ["updated", "added", "removed"]
+        },
+        "old_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "new_version": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "TypeDiff": {
+      "type": "object",
+      "description": "One changed type, identified by (language, id). Unchanged types are counted in summary, never listed. A type is modified only when its bases or members differ (a member listed in any state counts); the diff reports no type-level attribute change, so a change to a type's access, modifiers, partial or files alone leaves it unchanged. Phase 5 may add optional type-level change fields inside v1. base_file is present when the type exists on the base side (states removed, modified, renamed) and head_file when it exists on the head side (states added, modified, renamed). renamed_from and rename are present only for state renamed, which means the type was matched by rename and its base and member changes are listed under it.",
+      "additionalProperties": false,
+      "required": ["language", "id", "fqn", "kind", "state", "bases", "members"],
+      "properties": {
+        "language": {
+          "type": "string",
+          "enum": ["cpp", "csharp", "cpp-cli"]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Identity (see README Identity). An id is the type kind, one space and the fqn (scope, the language's separator, name). cpp and cpp-cli use :: and a nested type takes its enclosing type's fqn as its scope; a class template has its plain name and a specialisation has its arguments as written. csharp uses . (also for nesting) and a generic type's name carries its arity as the unbound form (Foo<>, Pair<,>). A repeated id carries #<path> (the repository-relative path of its file) on every definition, plus @<n> when one file repeats it."
+        },
+        "fqn": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["class", "struct", "enum", "interface", "union", "record", "delegate"]
+        },
+        "state": {
+          "type": "string",
+          "enum": ["added", "removed", "modified", "renamed", "unchanged"]
+        },
+        "base_file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "head_file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "renamed_from": {
+          "$ref": "#/definitions/RenameSource"
+        },
+        "rename": {
+          "$ref": "#/definitions/RenameScore"
+        },
+        "bases": {
+          "$ref": "#/definitions/BaseChanges"
+        },
+        "members": {
+          "type": "array",
+          "description": "The changed members, ordered by key.",
+          "items": {
+            "$ref": "#/definitions/MemberDiff"
+          }
+        }
+      }
+    },
+    "RenameSource": {
+      "type": "object",
+      "description": "The base-side identity of a renamed type.",
+      "additionalProperties": false,
+      "required": ["id", "fqn"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A type id as defined for TypeDiff.id (see README Identity); a repeated id carries #<path> on every definition, plus @<n> when one file repeats it."
+        },
+        "fqn": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "RenameScore": {
+      "type": "object",
+      "description": "The evidence behind a rename. score_milli is 500 * shared / total (integer division, 0 when total is 0) plus 200 for same_file_or_rename_pair, 200 for same_namespace and 100 for same_bases; the rename threshold is 600.",
+      "additionalProperties": false,
+      "required": ["score_milli", "member_jaccard", "same_file_or_rename_pair", "same_namespace", "same_bases"],
+      "properties": {
+        "score_milli": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "member_jaccard": {
+          "$ref": "#/definitions/MemberJaccard"
+        },
+        "same_file_or_rename_pair": {
+          "type": "boolean"
+        },
+        "same_namespace": {
+          "type": "boolean"
+        },
+        "same_bases": {
+          "type": "boolean"
+        }
+      }
+    },
+    "MemberJaccard": {
+      "type": "object",
+      "description": "Member names shared by the two types and the number of distinct member names in either.",
+      "additionalProperties": false,
+      "required": ["shared", "total"],
+      "properties": {
+        "shared": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "BaseChanges": {
+      "type": "object",
+      "description": "The written bases added and removed between the two sides, each sorted by value.",
+      "additionalProperties": false,
+      "required": ["added", "removed"],
+      "properties": {
+        "added": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "removed": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "MemberDiff": {
+      "type": "object",
+      "description": "One changed member, identified by its key within the type. Unchanged members are never listed. A before field (access_before, signature_before, modifiers_before) is present exactly when the member exists on the base side and an after field exactly when it exists on the head side, so an added member has only after fields and a removed member only before fields. renamed_from_key is present only for state renamed. The state unchanged exists in the enum for symmetry and is never listed.",
+      "additionalProperties": false,
+      "required": ["key", "name", "state"],
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Identity (see README Identity). A key is the name, then for a method or constructor the parameter list as written with whitespace collapsed (in cpp and cpp-cli also any trailing qualifier such as const), so overloads differ by their parameter lists; a field, property or event key is its name. In cpp and cpp-cli a member template's key omits its template header; in csharp a generic method's name carries its arity as the unbound form (Map<>(int x)). A key repeated in one type carries #<path> and @<n> as a repeated id does."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state": {
+          "type": "string",
+          "enum": ["added", "removed", "modified", "renamed", "unchanged", "body-changed"]
+        },
+        "access_before": {
+          "type": "string",
+          "enum": ["public", "protected", "private", "internal", "protected-internal", "private-protected", "none"]
+        },
+        "access_after": {
+          "type": "string",
+          "enum": ["public", "protected", "private", "internal", "protected-internal", "private-protected", "none"]
+        },
+        "signature_before": {
+          "type": "string"
+        },
+        "signature_after": {
+          "type": "string"
+        },
+        "modifiers_before": {
+          "type": "array",
+          "uniqueItems": true,
+          "description": "Modifier codes on the base side, sorted by value.",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          }
+        },
+        "modifiers_after": {
+          "type": "array",
+          "uniqueItems": true,
+          "description": "Modifier codes on the head side, sorted by value.",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          }
+        },
+        "renamed_from_key": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "EdgeDiff": {
+      "type": "object",
+      "description": "One changed edge. An edge's identity is kind, from, to_name and via; the resolved to is not part of it. Before matching, the base-side ids of renamed types are replaced by their head ids, and every listed edge carries those mapped ids. A modified edge has the same identity on both sides and a different to; it carries no to and carries to_before and to_after instead, each absent when that side left to_name unresolved, at least one present, never equal. to_before and to_after appear on no other state. A renamed edge has the same to on both sides and an endpoint type that was renamed; it names head-side ids. via is present exactly on association edges. No two listed edges share an identity. Unchanged edges are counted in summary and never listed.",
+      "additionalProperties": false,
+      "required": ["kind", "from", "to_name", "state"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["base", "association"]
+        },
+        "from": {
+          "$ref": "#/definitions/TypeRef"
+        },
+        "to": {
+          "$ref": "#/definitions/TypeRef"
+        },
+        "to_before": {
+          "$ref": "#/definitions/TypeRef"
+        },
+        "to_after": {
+          "$ref": "#/definitions/TypeRef"
+        },
+        "to_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "via": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state": {
+          "type": "string",
+          "enum": ["added", "removed", "modified", "renamed"]
+        }
+      }
+    },
+    "TypeRef": {
+      "type": "object",
+      "description": "A type named by language and id; the endpoint of an edge.",
+      "additionalProperties": false,
+      "required": ["language", "id"],
+      "properties": {
+        "language": {
+          "type": "string",
+          "enum": ["cpp", "csharp", "cpp-cli"]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A type id as defined for TypeDiff.id (see README Identity); a repeated id carries #<path> on every definition, plus @<n> when one file repeats it."
+        }
+      }
+    }
+  }
+}

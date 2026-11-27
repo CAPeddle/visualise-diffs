@@ -1,0 +1,9 @@
+shape: csharp
+description: "C# change: a derived class and a nested class added, members added, removed and re-scoped, one method body changed, and a generic class changed beside its non-generic namesake"
+expected:
+  diff:
+    state: pending
+    due: 5
+  summary:
+    state: pending
+    due: 7
